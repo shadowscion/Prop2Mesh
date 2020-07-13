@@ -120,6 +120,9 @@ function ENT:ResetMeshes()
     self:RemoveMeshes()
 
     local models = util.JSONToTable(util.Decompress(self.packets))
+
+    --PrintTable(models)
+
     local cached = {}
     local build = {}
     local angle = Angle()
@@ -133,7 +136,7 @@ function ENT:ResetMeshes()
                 if meshes then
                     cached[model.mdl] = meshes
                 else
-                    return
+                    continue
                 end
             end
             local modeltri = {}
@@ -144,7 +147,16 @@ function ENT:ResetMeshes()
                         continue
                     end
                     for i, v in ipairs(verts) do
-                        table.insert(modeltri, v)
+                        local pos = Vector(v.pos)
+                        if model.scale then
+                            pos = pos * model.scale
+                        end
+                        table.insert(modeltri, {
+                            pos = pos,
+                            normal = v.normal,
+                            u = v.u,
+                            v = v.v,
+                        })
                     end
                 end
                 for i, clip in ipairs(model.clips) do

@@ -11,7 +11,6 @@ net.Receive("p2m_stream", function()
         local packetst = net.ReadData(packetln, packetln)
 
         self.packets = self.packets .. packetst
-        self.isvalid = false
 
         local done = net.ReadBool()
         if done then
@@ -179,6 +178,9 @@ function ENT:ResetMeshes()
                         normal:Rotate(model.ang)
 
                         local pos = Vector(verts[i].pos)
+                        if model.scale then
+                            pos = pos * model.scale
+                        end
                         local vec, _ = LocalToWorld(pos, angle, self:LocalToWorld(model.pos), self:LocalToWorldAngles(model.ang))
 
                         table.insert(modeltri, {

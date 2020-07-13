@@ -281,3 +281,32 @@ function TOOL.BuildCPanel(self)
         Command = "gmod_tool_p2m_visclips",
     })
 end
+
+local white = Color(255, 255, 255, 255)
+local black = Color(0, 0, 0, 255)
+
+function TOOL:DrawHUD()
+    local trace = LocalPlayer():GetEyeTrace()
+    if not trace.Hit then return end
+    if not trace.Entity or trace.Entity:IsWorld() then return end
+
+    if trace.Entity:GetClass() == "gmod_ent_p2m" and self:GetStage() == 0 then
+        if trace.Entity:GetNetworkedInt("ownerid") ~= LocalPlayer():UserID() then return end
+        if trace.Entity.rebuild then return end
+
+        local pos = trace.Entity:GetPos()
+        local fade = 1 - math.min(500, pos:Distance(EyePos())) / 500
+
+        if fade == 0 then return end
+
+        pos = pos:ToScreen()
+
+        white.a = 255*fade
+        black.a = 255*fade
+
+        local str = string.format("Models: %d", trace.Entity.models and #trace.Entity.models or 0)
+        draw.SimpleTextOutlined(str, "DebugFixedSmall", pos.x, pos.y, white, 0, 0, 1, black)
+        local str = string.format("Triangles: %d", trace.Entity.tricount or 0)
+        draw.SimpleTextOutlined(str, "DebugFixedSmall", pos.x, pos.y + 16, white, 0, 0, 1, black)
+    end
+end

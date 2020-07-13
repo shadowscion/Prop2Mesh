@@ -1,4 +1,5 @@
 include("shared.lua")
+include("cl_fixup.lua")
 
 net.Receive("p2m_stream", function()
     local self = net.ReadEntity()
@@ -17,12 +18,15 @@ net.Receive("p2m_stream", function()
             local crc = net.ReadString()
             if crc == util.CRC(self.packets) then
                 timer.Simple(0.1, function()
+                    self.models = util.JSONToTable(util.Decompress(self.packets))
                     self:ResetMeshes()
                 end)
             end
         end
     end
 end)
+
+local drawhud = {}
 
 function ENT:Initialize()
     self.matrix = Matrix()
@@ -34,6 +38,7 @@ end
 
 function ENT:OnRemove()
     self:RemoveMeshes()
+    drawhud[self] = nil
 end
 
 function ENT:RemoveMeshes()
@@ -116,114 +121,117 @@ local function ClipMesh(oldVertList, clipPlane, clipLength)
     return newVertList
 end
 
+local angle = Angle()
+local angle90 = Angle(0, 90, 0)
+
 function ENT:ResetMeshes()
     self:RemoveMeshes()
 
-    local models = util.JSONToTable(util.Decompress(self.packets))
-
-    --PrintTable(models)
-
-    local cached = {}
-    local build = {}
-    local angle = Angle()
+    local infocache = {}
+    local triangles = {}
     self.meshes = {}
+    self.tricount = 0
+
+    drawhud[self] = true
 
     self.rebuild = coroutine.create(function()
-        for _, model in ipairs(models) do
-            local meshes = cached[model.mdl]
-            if not meshes then
-                meshes = util.GetModelMeshes(model.mdl)
-                if meshes then
-                    cached[model.mdl] = meshes
+        for _, model in ipairs(self.models) do
+            -- caching
+            local modelmeshes = infocache[model.mdl]
+            if not modelmeshes then
+                modelmeshes = util.GetModelMeshes(model.mdl)
+                if modelmeshes then
+                    infocache[model.mdl] = modelmeshes
                 else
                     continue
                 end
             end
-            local modeltri = {}
+
+            self.progress = math.floor((_ / #self.models)*100)
+
+            -- setup
+            local scale = model.scale
+            local lpos = Vector(model.pos)
+            local lang = Angle(model.ang)
+            local fix = p2mfix[model.mdl]
+            if not fix then
+                fix = p2mfix[string.GetPathFromFilename(model.mdl)]
+            end
+            if fix then
+                lang:RotateAroundAxis(lang:Up(), 90)
+                if model.clips then
+                    for _, clip in ipairs(model.clips) do
+                        clip.n:Rotate(-angle90)
+                    end
+                end
+                if scale  then
+                    scale = Vector(scale.x, scale.z, scale.y)
+                end
+            end
+
+            local wpos = self:LocalToWorld(lpos)
+            local wang = self:LocalToWorldAngles(lang)
+
+            -- generate
+            local tri = {}
             if model.clips then
-                for k = 1, #meshes do
-                    local verts = meshes[k].triangles
-                    if not verts then
-                        continue
-                    end
-                    for i, v in ipairs(verts) do
-                        local pos = Vector(v.pos)
-                        if model.scale then
-                            pos = pos * model.scale
+                for _, modelmesh in ipairs(modelmeshes) do
+                    for _, vertex in ipairs(modelmesh.triangles) do
+                        local vpos = Vector(vertex.pos)
+                        if scale then
+                            vpos = vpos * scale
                         end
-                        table.insert(modeltri, {
-                            pos = pos,
-                            normal = v.normal,
-                            u = v.u,
-                            v = v.v,
-                        })
+                        table.insert(tri, { pos = vpos, normal = vertex.normal, u = vertex.u, v = vertex.v })
+                        coroutine.yield(false)
                     end
                 end
-                for i, clip in ipairs(model.clips) do
-                    modeltri = ClipMesh(modeltri, clip.n, clip.d)
+                for _, clip in ipairs(model.clips) do
+                    tri = ClipMesh(tri, clip.n, clip.d)
                 end
-                local new = {}
-                for i = 1, #modeltri do
-                    local normal = Vector(modeltri[i].normal)
-                    normal:Rotate(model.ang)
-
-                    local pos = Vector(modeltri[i].pos)
-                    local vec, _ = LocalToWorld(pos, angle, self:LocalToWorld(model.pos), self:LocalToWorldAngles(model.ang))
-
-                    table.insert(new, {
-                        pos = self:WorldToLocal(vec),
-                        normal = normal,
-                        u = modeltri[i].u,
-                        v = modeltri[i].v,
-                    })
+                local newtri = {}
+                for _, vertex in ipairs(tri) do
+                    local vnrm = Vector(vertex.normal)
+                    vnrm:Rotate(lang)
+                    local vpos = Vector(vertex.pos)
+                    local vec, ang = LocalToWorld(vpos, angle, wpos, wang)
+                    table.insert(newtri, { pos = self:WorldToLocal(vec), normal = vnrm, u = vertex.u, v = vertex.v })
                     coroutine.yield(false)
                 end
-                modeltri = new
+                tri = newtri
             else
-                for k = 1, #meshes do
-                    local verts = meshes[k].triangles
-                    if not verts then
-                        continue
-                    end
-                    for i = 1, #verts do
-                        local normal = Vector(verts[i].normal)
-                        normal:Rotate(model.ang)
-
-                        local pos = Vector(verts[i].pos)
-                        if model.scale then
-                            pos = pos * model.scale
+                for _, modelmesh in ipairs(modelmeshes) do
+                    for _, vertex in ipairs(modelmesh.triangles) do
+                        local vnrm = Vector(vertex.normal)
+                        vnrm:Rotate(lang)
+                        local vpos = Vector(vertex.pos)
+                        if scale then
+                            vpos = vpos * scale
                         end
-                        local vec, _ = LocalToWorld(pos, angle, self:LocalToWorld(model.pos), self:LocalToWorldAngles(model.ang))
-
-                        table.insert(modeltri, {
-                            pos = self:WorldToLocal(vec),
-                            normal = normal,
-                            u = verts[i].u,
-                            v = verts[i].v,
-                        })
+                        local vec, ang = LocalToWorld(vpos, angle, wpos, wang)
+                        table.insert(tri, { pos = self:WorldToLocal(vec), normal = vnrm, u = vertex.u, v = vertex.v })
                         coroutine.yield(false)
                     end
                 end
             end
-            if #build + #modeltri >= 65535 then
+            if #triangles + #tri >= 65535 then
                 local m = Mesh()
-                m:BuildFromTriangles(build)
+                m:BuildFromTriangles(triangles)
                 table.insert(self.meshes, m)
-                build = {}
+                self.tricount = self.tricount + #triangles
+                triangles = {}
             end
-            for i = 1, #modeltri, 3 do
-                for j = 0, 2 do
-                    table.insert(build, modeltri[i + j])
-                    coroutine.yield(false)
-                end
+            for _, vertex in ipairs(tri) do
+                table.insert(triangles, vertex)
+                coroutine.yield(false)
             end
-            coroutine.yield(false)
         end
-        if #build > 0 then
+        if #triangles > 0 then
             local m = Mesh()
-            m:BuildFromTriangles(build)
+            m:BuildFromTriangles(triangles)
             table.insert(self.meshes, m)
+            self.tricount = self.tricount + #triangles
         end
+        self.tricount = self.tricount / 3
         coroutine.yield(true)
     end)
 end
@@ -231,9 +239,10 @@ end
 function ENT:Think()
     if self.rebuild then
         local mark = SysTime()
-        while SysTime() - mark < 0.002 do
+        while SysTime() - mark < 0.005 do
             local _, msg = coroutine.resume(self.rebuild)
             if msg then
+                drawhud[self] = nil
                 self.rebuild = nil
                 break
             end
@@ -266,3 +275,21 @@ function ENT:Draw()
         render.DrawWireframeBox(self:GetPos(), self:GetAngles(), min, max, red)
     end
 end
+
+local bc = Color(175, 175, 175, 135)
+local tc = Color(225, 225, 225, 255)
+
+hook.Add("HUDPaint", "meshtools.LoadOverlay", function()
+    for ent, _ in pairs(drawhud) do
+        if not IsValid(ent) then
+            drawhud[ent] = nil
+            continue
+        end
+        if not ent.rebuild then
+            drawhud[ent] = nil
+            continue
+        end
+        local scr = ent:GetPos():ToScreen()
+        draw.WordBox(5, scr.x, scr.y, string.format("Generating Mesh [%d%%]", ent.progress or 0), "DermaDefault", bc, tc)
+    end
+end)

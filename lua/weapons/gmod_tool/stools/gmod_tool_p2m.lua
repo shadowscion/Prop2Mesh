@@ -10,19 +10,30 @@ TOOL.ConfigName = ""
 
 TOOL.ClientConVar = {
     ["radius"] = 64,
-    ["visclips"] = 1,
+    ["ignore_parented"] = 0,
+    ["ignore_constrained"] = 0,
+    ["bymaterial"] = 0,
 }
 
+-- Colors
+local colors = {}
+colors.controller = Color(0, 0, 255, 200)
+colors.selected = Color(231, 75, 60, 200)
 
 ---------------------------------------------------------------
 -- Server/Shared
 if SERVER then
-    TOOL.Controller = NULL
     TOOL.CookieJar = {}
 end
 
+-- TOOL: Selection class whitelist
+local allowed = {
+    ["prop_physics"] = true
+}
+local blocked = {
+    ["worldspawn"] = true
+}
 
--- TOOL: Make sure we can use the entity
 local function IsPropOwner(ply, ent, singleplayer)
     if singleplayer then return true end
     if CPPI then return ent:CPPIGetOwner() == ply end
@@ -38,69 +49,57 @@ local function IsPropOwner(ply, ent, singleplayer)
     return false
 end
 
-function TOOL:CanManipulateNoTrace(ply, ent, world)
-    if not ply then return false end
-
-    if ent:IsWorld() then return world end
-    if string.find(ent:GetClass(), "npc_") or ent:GetClass() == "player" or ent:GetClass() == "prop_ragdoll" then return false end
-    if not IsPropOwner(ply, ent, game.SinglePlayer()) then return false end
-
+function TOOL:CanSelect(ent)
+    if self.CookieJar[ent] then
+        return false
+    end
+    if not IsValid(ent) then
+        return false
+    end
+    local class = ent:GetClass()
+    if not allowed[class] or blocked[class] then
+        return false
+    end
+    if not IsPropOwner(self:GetOwner(), ent, game.SinglePlayer()) then
+        return false
+    end
+    if self:GetClientNumber("ignore_parented") == 1 then
+        if IsValid(ent:GetParent()) then
+            return false
+        end
+    end
+    if self:GetClientNumber("ignore_constrained") == 1 then
+        if ent:IsConstrained() then
+            return false
+        end
+    end
     return true
-end
-
-function TOOL:CanManipulate(ply, trace, world)
-    if not ply then return false end
-    if not trace.Hit then return false end
-    if not trace.Entity then return false end
-
-    if trace.Entity:IsWorld() then return world end
-    if string.find(trace.Entity:GetClass(), "npc_") or trace.Entity:GetClass() == "player" or trace.Entity:GetClass() == "prop_ragdoll" then return false end
-    if not IsPropOwner(ply, trace.Entity, game.SinglePlayer()) then return false end
-
-    return true
-end
-
-
--- TOOL: Add entity to tool selection
-local colors = {
-    [1] = Color(0, 0, 255, 200),
-    [2] = Color(231, 75, 60, 200),
-}
-
-function TOOL:OnKeyPropRemove(e)
-    self.Controller = NULL
-    self:DeselectAllEntities()
-    self:SetStage(0)
 end
 
 function TOOL:SelectEntity(ent, notify)
-    if self.CookieJar[ent] then return false end
+    if not self:CanSelect(ent) then
+        return false
+    end
 
     self.CookieJar[ent] = {
         Color = ent:GetColor(),
         Mode = ent:GetRenderMode(),
     }
 
-    ent:SetColor(table.Count(self.CookieJar) == 1 and colors[1] or colors[2])
+    ent:SetColor(colors.selected)
     ent:SetRenderMode(RENDERMODE_TRANSALPHA)
 
     ent:CallOnRemove("p2m_selected", function(e)
-        if self.Controller == e then
-            self:OnKeyPropRemove(e)
-            return
-        end
-
         self.CookieJar[e] = nil
     end)
 
     return true
 end
 
-
--- TOOL: Remove entity from tool selection
 function TOOL:DeselectEntity(ent, notify)
-    if not self.CookieJar[ent] then return false end
-    if not IsValid(ent) then self.CookieJar[ent] = nil return false end
+    if not self.CookieJar[ent] or not IsValid(ent) then
+        return false
+    end
 
     ent:SetColor(self.CookieJar[ent].Color)
     ent:SetRenderMode(self.CookieJar[ent].Mode)
@@ -111,105 +110,133 @@ function TOOL:DeselectEntity(ent, notify)
     return true
 end
 
-
--- TOOL: Remove all entities from tool selection
-function TOOL:DeselectAllEntities()
-    for ent, _ in pairs(self.CookieJar) do
-        self:DeselectEntity(ent)
-    end
-    self.Controller = NULL
-    self.CookieJar = {}
-end
-
-
 -- TOOL: Left Click - Spawning controller
 function TOOL:LeftClick(trace)
-    if CLIENT then return true end
-    if self:GetStage() ~= 0 then return false end
-    if not self:CanManipulate(self:GetOwner(), trace, true) then return false end
-
-    if trace.Entity:GetClass() == "gmod_ent_p2m" then
+    if CLIENT then
         return true
     end
 
-    local create_new = ents.Create("gmod_ent_p2m")
+    if self:GetStage() ~= 0 or IsValid(self.Controller) then
+        return false
+    end
 
-    create_new:SetPos(trace.HitPos)
-    create_new:SetAngles(trace.HitNormal:Angle() + Angle(90, 0, 0))
-    create_new:Spawn()
-    create_new:Activate()
+    if trace.HitWorld or IsPropOwner(self:GetOwner(), trace.Entity, game.SinglePlayer()) then
+        if trace.Entity:GetClass() == "gmod_ent_p2m" then
+            return false
+        end
 
-    create_new:SetNetworkedInt("ownerid", self:GetOwner():UserID())
-    create_new:SetDefaultRenderBounds()
+        local new = ents.Create("gmod_ent_p2m")
+        new:SetPos(trace.HitPos)
+        new:SetAngles(trace.HitNormal:Angle() + Angle(90, 0, 0))
+        new:Spawn()
+        new:Activate()
+        new:SetCollisionGroup(COLLISION_GROUP_NONE)
+        timer.Simple(0.1, function()
+            new:SetNetworkedInt("ownerid", self:GetOwner():UserID())
+            new:SetDefaultRenderBounds()
+        end)
 
-    self:GetOwner():AddCount("gmod_ent_p2m", create_new)
-    self:GetOwner():AddCleanup("gmod_ent_p2m", create_new)
-    self:GetOwner():ChatPrint("You can edit this mesh base using the context menu (hold C and right click it).")
+        self:GetOwner():AddCount("gmod_ent_p2m", new)
+        self:GetOwner():AddCleanup("gmod_ent_p2m", new)
+        self:GetOwner():ChatPrint("You can edit this prop2mesh controller using the context menu (hold C and right click it).")
 
-    undo.Create("gmod_ent_p2m")
-        undo.AddEntity(create_new)
-        undo.SetPlayer(self:GetOwner())
-    undo.Finish()
+        undo.Create("gmod_ent_p2m")
+            undo.AddEntity(new)
+            undo.SetPlayer(self:GetOwner())
+        undo.Finish()
 
-    create_new:SetCollisionGroup(COLLISION_GROUP_NONE)
+        return true
+    end
 
+    return false
+end
+
+-- TOOL: Right Click - Select entities
+local function ValidController(ply, ent)
+    if not IsValid(ent) then
+        return false
+    end
+    if ent:GetClass() ~= "gmod_ent_p2m" then
+        return false
+    end
+    if not IsPropOwner(ply, ent, game.SinglePlayer()) then
+        return false
+    end
     return true
 end
 
-
--- TOOL: Right Click - Select entities
 function TOOL:RightClick(trace)
-    if CLIENT then return true end
-    if not self:CanManipulate(self:GetOwner(), trace, false) then return false end
-
-    local doRadius = self:GetOwner():KeyDown(IN_SPEED)
-
-    if not doRadius and self.CookieJar[trace.Entity] then
-        if self.Controller == trace.Entity then
-            if table.Count(self.CookieJar) <= 1 then
-                self:GetOwner():ChatPrint("You must select at least one prop!")
-                return false
-            else
-                local tbl = table.GetKeys(self.CookieJar)
-                table.RemoveByValue(tbl, self.Controller)
-                self.Controller:BuildFromTable(tbl)
-            end
-
-            self.Controller = NULL
-            self:DeselectAllEntities()
-            self:SetStage(0)
-
-            return true
-        end
-
-        self:DeselectEntity(trace.Entity, false)
-
+    if CLIENT then
         return true
     end
 
     if self:GetStage() == 0 then
-        if trace.Entity:GetClass() ~= "gmod_ent_p2m" then
-            self:GetOwner():ChatPrint("Select a mesh base first!")
+        if not ValidController(self:GetOwner(), trace.Entity) then
+            self:GetOwner():ChatPrint("Select a prop2mesh controller first!")
             return false
         end
 
-        self:SelectEntity(trace.Entity, false)
         self.Controller = trace.Entity
+        self.Controller.p2m_oldmode = self.Controller:GetRenderMode()
+        self.Controller.p2m_oldcolor = self.Controller:GetColor()
+        self.Controller:SetRenderMode(RENDERMODE_TRANSALPHA)
+        self.Controller:SetColor(colors.controller)
+
+        self.Controller:CallOnRemove("p2m_controller", function(e)
+            for ent, _ in pairs(self.CookieJar) do
+                self:DeselectEntity(ent)
+            end
+            self.CookieJar = {}
+            self.Controller = nil
+        end)
+
         self:SetStage(1)
 
         return true
     end
 
-    if doRadius then
-        local radius = math.Clamp(self:GetClientNumber("radius"), 64, 4096)
-        for _, ent in pairs(ents.FindInSphere(trace.HitPos, radius)) do
-            if not self:CanManipulateNoTrace(self:GetOwner(), ent, false) then
-                continue
+    if self:GetStage() == 1 then
+        if trace.Entity ~= self.Controller then
+            if self:GetOwner():KeyDown(IN_SPEED) then
+                local byMat
+                if IsValid(trace.Entity) then
+                    if self:GetClientNumber("bymaterial") == 1 then
+                        byMat = trace.Entity:GetMaterial()
+                    end
+                end
+                local radius = math.Clamp(self:GetClientNumber("radius"), 0, 1000)
+                for _, ent in pairs(ents.FindInSphere(trace.HitPos, radius)) do
+                    if byMat then
+                        if ent:GetMaterial() ~= byMat then
+                            continue
+                        end
+                    end
+                    self:SelectEntity(ent, false)
+                end
+            else
+                if self.CookieJar[trace.Entity] then
+                    self:DeselectEntity(trace.Entity, false)
+                    return true
+                end
+                self:SelectEntity(trace.Entity, false)
             end
-            self:SelectEntity(ent, false)
+            return true
+        else
+            if self.Controller.BuildFromTable then
+                self.Controller:BuildFromTable(table.GetKeys(self.CookieJar))
+            end
+            for ent, _ in pairs(self.CookieJar) do
+                self:DeselectEntity(ent)
+            end
+            self.CookieJar = {}
+            self.Controller:RemoveCallOnRemove("p2m_controller")
+            self.Controller:SetRenderMode(self.Controller.p2m_oldmode)
+            self.Controller:SetColor(self.Controller.p2m_oldcolor)
+            self.Controller = nil
+            self:SetStage(0)
         end
-    else
-        self:SelectEntity(trace.Entity, false)
+
+        return false
     end
 
     return true
@@ -218,16 +245,21 @@ end
 
 -- TOOL: Reload - Clearing selection or resetting controller
 function TOOL:Reload(trace)
-    if CLIENT then return true end
-    if not trace.Hit then return false end
-    if not trace.Entity then return false end
-
-    if trace.Entity:IsWorld() then
-        self:DeselectAllEntities()
-        self:SetStage(0)
-
+    if CLIENT then
         return true
     end
+
+    for ent, _ in pairs(self.CookieJar) do
+        self:DeselectEntity(ent)
+    end
+    self.CookieJar = {}
+    if IsValid(self.Controller) then
+        self.Controller:RemoveCallOnRemove("p2m_controller")
+        self.Controller:SetRenderMode(self.Controller.p2m_oldmode)
+        self.Controller:SetColor(self.Controller.p2m_oldcolor)
+        self.Controller = nil
+    end
+    self:SetStage(0)
 
     return false
 end
@@ -262,6 +294,16 @@ ToolInfo("right_2", "Select a entities for conversion, select the mesh base agai
 -- Reload
 ToolInfo("reload_1", "Deselect all entities", 0)
 
+language.Add("tool.gmod_tool_p2m.ignparent", "Ignore parented entities")
+language.Add("tool.gmod_tool_p2m.ignparent.help", "Prevent parented entities from being selected.")
+language.Add("tool.gmod_tool_p2m.ignconstraint", "Ignore constrained entities")
+language.Add("tool.gmod_tool_p2m.ignconstraint.help", "Prevent constrained entities from being selected.")
+language.Add("tool.gmod_tool_p2m.selradius", "Selection radius")
+language.Add("tool.gmod_tool_p2m.selradius.help", "Hold shift while right clicking to select all entities within a radius.")
+
+language.Add("tool.gmod_tool_p2m.sbm", "Select by material")
+language.Add("tool.gmod_tool_p2m.sbm.help", "Select all entities within radius with same material as clicked entity.")
+
 -- TOOL: CPanel
 function TOOL.BuildCPanel(self)
     self.Paint = function(pnl, w, h)
@@ -270,15 +312,26 @@ function TOOL.BuildCPanel(self)
     end
 
     self:AddControl("Slider", {
-        Label = "Radius select amount.",
+        Label = "#tool.gmod_tool_p2m.selradius",
         Command = "gmod_tool_p2m_radius",
+        Help = true,
         min = 0,
-        max = 500,
+        max = 1000,
     })
-
     self:AddControl("Toggle", {
-        Label = "Enable visclip support.",
-        Command = "gmod_tool_p2m_visclips",
+        Label = "#tool.gmod_tool_p2m.sbm",
+        Command = "gmod_tool_p2m_bymaterial",
+        Help = true,
+    })
+    self:AddControl("Toggle", {
+        Label = "#tool.gmod_tool_p2m.ignparent",
+        Command = "gmod_tool_p2m_ignore_parented",
+        Help = true,
+    })
+    self:AddControl("Toggle", {
+        Label = "#tool.gmod_tool_p2m.ignconstraint",
+        Command = "gmod_tool_p2m_ignore_constrained",
+        Help = true,
     })
 end
 

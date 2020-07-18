@@ -5,6 +5,7 @@ AddCSLuaFile("shared.lua")
 include("shared.lua")
 
 util.AddNetworkString("p2m_stream")
+util.AddNetworkString("p2m_refresh")
 
 function ENT:Initialize()
     self:SetModel("models/hunter/plates/plate.mdl")
@@ -129,6 +130,9 @@ end
 
 function ENT:Network(packets, ply)
     timer.Simple(0.1, function()
+        if self.justduped then
+            self.justduped = false
+        end
         for i, packet in ipairs(packets) do
             net.Start("p2m_stream")
                 net.WriteEntity(self)
@@ -146,8 +150,31 @@ function ENT:Network(packets, ply)
     end)
 end
 
+net.Receive("p2m_refresh", function(len, ply)
+    if not IsValid(ply) then
+        return
+    end
+    local self = net.ReadEntity()
+    if not IsValid(self) then
+        return
+    end
+    if self:GetClass() ~= "gmod_ent_p2m" then
+        return
+    end
+    if self.justduped then
+        return
+    end
+    if not self.EntityMods then
+        return
+    end
+    if not self.EntityMods.p2m_packets then
+        return
+    end
+    self:Network(self.EntityMods.p2m_packets, ply)
+end)
+
 duplicator.RegisterEntityModifier("p2m_packets", function (ply, self, packets)
-    print(ply)
+    self.justduped = true
     self:SetNetworkedInt("ownerid", ply:UserID())
     self:Network(packets)
 end)

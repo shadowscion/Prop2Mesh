@@ -264,6 +264,9 @@ function ENT:Draw()
         self.matrix:SetAngles(self:GetAngles())
         cam.PushModelMatrix(self.matrix)
         for _, m in pairs(self.meshes) do
+            if not m:IsValid() then
+                continue
+            end
             m:Draw()
         end
         cam.PopModelMatrix()
@@ -280,6 +283,22 @@ function ENT:Draw()
         render.DrawWireframeBox(self:GetPos(), self:GetAngles(), min, max, red)
     end
 end
+
+hook.Add("OnEntityCreated", "p2m_refresh", function(self)
+    if not IsValid(self) then
+        return
+    end
+    if self:GetClass() ~= "gmod_ent_p2m" then
+        return
+    end
+    if self.models then
+        self:ResetMeshes()
+    else
+        net.Start("p2m_refresh")
+        net.WriteEntity(self)
+        net.SendToServer()
+    end
+end)
 
 local bc = Color(175, 175, 175, 135)
 local tc = Color(225, 225, 225, 255)

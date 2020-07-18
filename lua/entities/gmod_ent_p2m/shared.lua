@@ -1,11 +1,12 @@
 ENT.Base      = "base_anim"
-ENT.PrintName = "P2M Base"
+ENT.PrintName = "P2M Controller"
 ENT.Author    = "shadowscion"
 ENT.Editable  = true
 ENT.Spawnable = false
 ENT.AdminOnly = false
 ENT.RenderGroup = RENDERGROUP_BOTH
 
+duplicator.Allow("gmod_ent_p2m")
 cleanup.Register("gmod_ent_p2m")
 
 function ENT:CanProperty(ply, property)

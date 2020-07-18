@@ -22,6 +22,74 @@ function ENT:Initialize()
     end
 end
 
+local build = {}
+build["prop_physics"] = function(ref, ent)
+    local data = {}
+    data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), ref:GetPos(), ref:GetAngles())
+    data.mdl = string.lower(ent:GetModel())
+
+    local scale = ent:GetManipulateBoneScale(0)
+    if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
+        data.scale = scale
+    end
+
+    local clips = ent.ClipData
+    if clips then
+        for _, clip in ipairs(clips) do
+            if clip.inside then
+                continue
+            end
+            data.clips = data.clips or {}
+            table.insert(data.clips, { n = clip.n:Forward(), d = clip.d + clip.n:Forward():Dot(ent:OBBCenter()) })
+        end
+    end
+
+    return data
+end
+
+local temp
+
+build["gmod_wire_hologram"] = function(ref, ent)
+    local holo
+    for k, v in pairs(ent:GetTable().OnDieFunctions.holo_cleanup.Args[1].data.holos) do
+        if v.ent == ent then
+            holo = { scale = v.scale, clips = v.clips }
+            continue
+        end
+    end
+    if not holo then
+        return
+    end
+
+    local data = { holo = true }
+    data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), ref:GetPos(), ref:GetAngles())
+    data.mdl = string.lower(ent:GetModel())
+
+    if holo.clips then
+        for k, v in pairs(holo.clips) do
+            if v.localentid == 0 then
+                continue
+            end
+            local clipTo = Entity(v.localentid)
+            if not IsValid(clipTo) then
+                continue
+            end
+            local normal = ent:WorldToLocal(clipTo:LocalToWorld(v.normal) - clipTo:GetPos() + ent:GetPos())
+            local origin = ent:WorldToLocal(clipTo:LocalToWorld(v.origin))
+            data.clips = data.clips or {}
+            table.insert(data.clips, { n = normal, d = normal:Dot(origin) })
+        end
+    end
+
+    if holo.scale then
+        if holo.scale.x ~= 1 or holo.scale.y ~= 1 or holo.scale.z ~= 1 then
+            data.scale = Vector(holo.scale)
+        end
+    end
+
+    return data
+end
+
 function ENT:BuildFromTable(tbl)
     duplicator.ClearEntityModifier(self, "p2m_packets")
     local function get()
@@ -30,28 +98,13 @@ function ENT:BuildFromTable(tbl)
             if not IsValid(ent) then
                 continue
             end
-
-            local data = {}
-            data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), self:GetPos(), self:GetAngles())
-            data.mdl = string.lower(ent:GetModel())
-
-            local scale = ent:GetManipulateBoneScale(0)
-            if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
-                data.scale = scale
-            end
-
-            local clips = ent.ClipData
-            if clips then
-                for _, clip in ipairs(clips) do
-                    if clip.inside then
-                        continue
-                    end
-                    data.clips = data.clips or {}
-                    table.insert(data.clips, { n = clip.n:Forward(), d = clip.d + clip.n:Forward():Dot(ent:OBBCenter()) })
+            local class = ent:GetClass()
+            if build[class] then
+                local data = build[class](self, ent)
+                if data then
+                    table.insert(ret, data)
                 end
             end
-            table.insert(ret, data)
-
             coroutine.yield(false)
         end
         return ret

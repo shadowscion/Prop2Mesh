@@ -12,6 +12,9 @@ TOOL.ClientConVar = {
     ["radius"] = 64,
     ["ignore_parented"] = 0,
     ["ignore_constrained"] = 0,
+    ["ignore_invisible"] = 1,
+    ["ignore_holos"] = 1,
+    ["ignore_props"] = 0,
     ["bymaterial"] = 0,
 }
 
@@ -25,14 +28,6 @@ colors.selected = Color(231, 75, 60, 200)
 if SERVER then
     TOOL.CookieJar = {}
 end
-
--- TOOL: Selection class whitelist
-local allowed = {
-    ["prop_physics"] = true
-}
-local blocked = {
-    ["worldspawn"] = true
-}
 
 local function IsPropOwner(ply, ent, singleplayer)
     if singleplayer then return true end
@@ -49,6 +44,31 @@ local function IsPropOwner(ply, ent, singleplayer)
     return false
 end
 
+-- TOOL: Selection class whitelist
+local blocked = {
+    ["worldspawn"] = true
+}
+local allowed = {
+    ["prop_physics"] = {
+        checkValid = function(tool, ent)
+            if tool:GetClientNumber("ignore_props") == 1 then
+                return false
+            end
+            return IsPropOwner(tool:GetOwner(), ent, game.SinglePlayer())
+        end,
+        selectColor = Color(231, 75, 60, 200)
+    },
+    ["gmod_wire_hologram"] = {
+        checkValid = function(tool, ent)
+            if tool:GetClientNumber("ignore_holos") == 1 then
+                return false
+            end
+            return tool:GetOwner() == ent:GetPlayer()
+        end,
+        selectColor = Color(75, 231, 60, 200)
+    }
+}
+
 function TOOL:CanSelect(ent)
     if self.CookieJar[ent] then
         return false
@@ -57,11 +77,16 @@ function TOOL:CanSelect(ent)
         return false
     end
     local class = ent:GetClass()
-    if not allowed[class] or blocked[class] then
+    if blocked[class] then
         return false
     end
-    if not IsPropOwner(self:GetOwner(), ent, game.SinglePlayer()) then
+    if not allowed[class] or not allowed[class].checkValid or not allowed[class].checkValid(self, ent) then
         return false
+    end
+    if self:GetClientNumber("ignore_invisible") == 1 then
+        if ent:GetColor().a == 0 then
+            return false
+        end
     end
     if self:GetClientNumber("ignore_parented") == 1 then
         if IsValid(ent:GetParent()) then
@@ -73,11 +98,12 @@ function TOOL:CanSelect(ent)
             return false
         end
     end
-    return true
+    return allowed[class].selectColor
 end
 
 function TOOL:SelectEntity(ent, notify)
-    if not self:CanSelect(ent) then
+    local check = self:CanSelect(ent)
+    if not check then
         return false
     end
 
@@ -86,7 +112,7 @@ function TOOL:SelectEntity(ent, notify)
         Mode = ent:GetRenderMode(),
     }
 
-    ent:SetColor(colors.selected)
+    ent:SetColor(check or colors.selected)
     ent:SetRenderMode(RENDERMODE_TRANSALPHA)
 
     ent:CallOnRemove("p2m_selected", function(e)
@@ -294,6 +320,14 @@ ToolInfo("right_2", "Select a entities for conversion, select the mesh base agai
 -- Reload
 ToolInfo("reload_1", "Deselect all entities", 0)
 
+language.Add("tool.gmod_tool_p2m.sbm", "Select by material")
+language.Add("tool.gmod_tool_p2m.sbm.help", "Select all entities within radius with same material as clicked entity.")
+language.Add("tool.gmod_tool_p2m.ignprops", "Ignore props")
+language.Add("tool.gmod_tool_p2m.ignprops.help", "Prevent prop_physics from being selected.")
+language.Add("tool.gmod_tool_p2m.ignholo", "Ignore holograms")
+language.Add("tool.gmod_tool_p2m.ignholo.help", "Prevent wiremod holograms from being selected.")
+language.Add("tool.gmod_tool_p2m.igninvis", "Ignore invisible entities")
+language.Add("tool.gmod_tool_p2m.igninvis.help", "Prevent invisible (alpha 0) entities from being selected.")
 language.Add("tool.gmod_tool_p2m.ignparent", "Ignore parented entities")
 language.Add("tool.gmod_tool_p2m.ignparent.help", "Prevent parented entities from being selected.")
 language.Add("tool.gmod_tool_p2m.ignconstraint", "Ignore constrained entities")
@@ -301,8 +335,6 @@ language.Add("tool.gmod_tool_p2m.ignconstraint.help", "Prevent constrained entit
 language.Add("tool.gmod_tool_p2m.selradius", "Selection radius")
 language.Add("tool.gmod_tool_p2m.selradius.help", "Hold shift while right clicking to select all entities within a radius.")
 
-language.Add("tool.gmod_tool_p2m.sbm", "Select by material")
-language.Add("tool.gmod_tool_p2m.sbm.help", "Select all entities within radius with same material as clicked entity.")
 
 -- TOOL: CPanel
 function TOOL.BuildCPanel(self)
@@ -321,6 +353,21 @@ function TOOL.BuildCPanel(self)
     self:AddControl("Toggle", {
         Label = "#tool.gmod_tool_p2m.sbm",
         Command = "gmod_tool_p2m_bymaterial",
+        Help = true,
+    })
+    self:AddControl("Toggle", {
+        Label = "#tool.gmod_tool_p2m.ignprops",
+        Command = "gmod_tool_p2m_ignore_props",
+        Help = true,
+    })
+    self:AddControl("Toggle", {
+        Label = "#tool.gmod_tool_p2m.ignholo",
+        Command = "gmod_tool_p2m_ignore_holos",
+        Help = true,
+    })
+    self:AddControl("Toggle", {
+        Label = "#tool.gmod_tool_p2m.igninvis",
+        Command = "gmod_tool_p2m_ignore_invisible",
         Help = true,
     })
     self:AddControl("Toggle", {

@@ -153,6 +153,7 @@ function ENT:ResetMeshes()
             local scale = model.scale
             local lpos = Vector(model.pos)
             local lang = Angle(model.ang)
+
             local fix = p2mfix[model.mdl]
             if not fix then
                 fix = p2mfix[string.GetPathFromFilename(model.mdl)]
@@ -164,8 +165,12 @@ function ENT:ResetMeshes()
                         clip.n:Rotate(-angle90)
                     end
                 end
-                if scale  then
-                    scale = Vector(scale.x, scale.z, scale.y)
+                if scale then
+                    if model.holo then
+                        scale = Vector(scale.y, scale.x, scale.z)
+                    else
+                        scale = Vector(scale.x, scale.z, scale.y)
+                    end
                 end
             end
 

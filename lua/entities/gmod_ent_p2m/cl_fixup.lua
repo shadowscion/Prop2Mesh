@@ -220,3 +220,54 @@ p2mfix["models/vehicles/prisoner_pod_inner.mdl"] = true
 p2mfix["models/vehicles/vehicle_van.mdl"] = true
 p2mfix["models/vehicles/vehicle_vandoor.mdl"] = true
 p2mfix["models/weapons/"] = true
+p2mfix["models/props_mining/control_lever01.mdl"] = true
+
+-- acf
+p2mfix["models/vehicles/pilot_seat.mdl"] = true
+
+p2mfix["models/autocannon/semiautocannon_25mm.mdl"] = true
+p2mfix["models/autocannon/semiautocannon_37mm.mdl"] = true
+p2mfix["models/autocannon/semiautocannon_45mm.mdl"] = true
+p2mfix["models/autocannon/semiautocannon_57mm.mdl"] = true
+p2mfix["models/autocannon/semiautocannon_76mm.mdl"] = true
+
+p2mfix["models/engines/emotorlarge.mdl"] = true
+p2mfix["models/engines/emotormed.mdl"] = true
+p2mfix["models/engines/emotorsmall.mdl"] = true
+p2mfix["models/engines/gasturbine_l.mdl"] = true
+p2mfix["models/engines/gasturbine_m.mdl"] = true
+p2mfix["models/engines/gasturbine_s.mdl"] = true
+p2mfix["models/engines/linear_l.mdl"] = true
+p2mfix["models/engines/linear_m.mdl"] = true
+p2mfix["models/engines/linear_s.mdl"] = true
+p2mfix["models/engines/radial7l.mdl"] = true
+p2mfix["models/engines/radial7m.mdl"] = true
+p2mfix["models/engines/radial7s.mdl"] = true
+p2mfix["models/engines/transaxial_l.mdl"] = true
+p2mfix["models/engines/transaxial_m.mdl"] = true
+p2mfix["models/engines/transaxial_s.mdl"] = true
+p2mfix["models/engines/turbine_l.mdl"] = true
+p2mfix["models/engines/turbine_m.mdl"] = true
+p2mfix["models/engines/turbine_s.mdl"] = true
+p2mfix["models/engines/wankel_2_med.mdl"] = true
+p2mfix["models/engines/wankel_2_small.mdl"] = true
+p2mfix["models/engines/wankel_3_med.mdl"] = true
+p2mfix["models/engines/wankel_4_med.mdl"] = true
+
+p2mfix["models/howitzer/howitzer_105mm.mdl"] = true
+p2mfix["models/howitzer/howitzer_122mm.mdl"] = true
+p2mfix["models/howitzer/howitzer_155mm.mdl"] = true
+p2mfix["models/howitzer/howitzer_203mm.mdl"] = true
+p2mfix["models/howitzer/howitzer_240mm.mdl"] = true
+p2mfix["models/howitzer/howitzer_290mm.mdl"] = true
+p2mfix["models/howitzer/howitzer_75mm.mdl"] = true
+
+p2mfix["models/machinegun/machinegun_20mm_compact.mdl"] = true
+p2mfix["models/machinegun/machinegun_30mm_compact.mdl"] = true
+p2mfix["models/machinegun/machinegun_40mm_compact.mdl"] = true
+
+p2mfix["models/rotarycannon/kw/14_5mmrac.mdl"] = true
+p2mfix["models/rotarycannon/kw/20mmrac.mdl"] = true
+p2mfix["models/rotarycannon/kw/30mmrac.mdl"] = true
+
+p2mfix["models/fueltank/"] = true

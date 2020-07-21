@@ -37,9 +37,9 @@ build["prop_physics"] = function(ref, ent)
     local clips = ent.ClipData
     if clips then
         for _, clip in ipairs(clips) do
-            if clip.inside then
-                continue
-            end
+            --if clip.inside then
+            --    continue
+            --end
             data.clips = data.clips or {}
             table.insert(data.clips, { n = clip.n:Forward(), d = clip.d + clip.n:Forward():Dot(ent:OBBCenter()) })
         end

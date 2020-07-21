@@ -137,6 +137,17 @@ function TOOL:DeselectEntity(ent, notify)
     return true
 end
 
+local function GetHitAngle(trace)
+    local ang
+    if math.abs(trace.HitNormal.x) < 0.001 and math.abs(trace.HitNormal.y) < 0.001 then
+        ang = Vector(0, 0, trace.HitNormal.z):Angle()
+    else
+        ang = trace.HitNormal:Angle()
+    end
+    ang.p = ang.p + 90
+    return ang
+end
+
 -- TOOL: Left Click - Spawning controller
 function TOOL:LeftClick(trace)
     if CLIENT then
@@ -154,7 +165,7 @@ function TOOL:LeftClick(trace)
 
         local new = ents.Create("gmod_ent_p2m")
         new:SetPos(trace.HitPos)
-        new:SetAngles(trace.HitNormal:Angle() + Angle(90, 0, 0))
+        new:SetAngles(GetHitAngle(trace))
         new:Spawn()
         new:Activate()
         new:SetCollisionGroup(COLLISION_GROUP_NONE)
@@ -408,6 +419,23 @@ end
 local white = Color(255, 255, 255, 255)
 local black = Color(0, 0, 0, 255)
 
+function TOOL:DrawAxis(ent, alpha)
+    local pos = ent:GetPos()
+    local scr = pos:ToScreen()
+
+    local f = (pos + ent:GetForward()*6):ToScreen()
+    surface.SetDrawColor(0, 255, 0, alpha)
+    surface.DrawLine(scr.x, scr.y, f.x, f.y)
+
+    local r = (pos + ent:GetRight()*6):ToScreen()
+    surface.SetDrawColor(255, 0, 0, alpha)
+    surface.DrawLine(scr.x, scr.y, r.x, r.y)
+
+    local u = (pos + ent:GetUp()*6):ToScreen()
+    surface.SetDrawColor(0, 0, 255, alpha)
+    surface.DrawLine(scr.x, scr.y, u.x, u.y)
+end
+
 function TOOL:DrawHUD()
     local trace = LocalPlayer():GetEyeTrace()
     if not trace.Hit then return end
@@ -431,5 +459,7 @@ function TOOL:DrawHUD()
         draw.SimpleTextOutlined(str, "DebugFixedSmall", pos.x, pos.y, white, 0, 0, 1, black)
         local str = string.format("Triangles: %d", trace.Entity.tricount or 0)
         draw.SimpleTextOutlined(str, "DebugFixedSmall", pos.x, pos.y + 16, white, 0, 0, 1, black)
+
+        self:DrawAxis(trace.Entity, fade*255)
     end
 end

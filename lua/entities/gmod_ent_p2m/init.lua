@@ -48,8 +48,6 @@ build["prop_physics"] = function(ref, ent)
     return data
 end
 
-local temp
-
 build["gmod_wire_hologram"] = function(ref, ent)
     local holo
     for k, v in pairs(ent:GetTable().OnDieFunctions.holo_cleanup.Args[1].data.holos) do
@@ -95,6 +93,9 @@ function ENT:BuildFromTable(tbl)
     duplicator.ClearEntityModifier(self, "p2m_packets")
     local function get()
         local ret = {}
+        local xl, yl, zl = -100, -100, -100
+        local xu, yu, zu = 100, 100, 100
+
         for _, ent in ipairs(tbl) do
             if not IsValid(ent) then
                 continue
@@ -104,10 +105,24 @@ function ENT:BuildFromTable(tbl)
                 local data = build[class](self, ent)
                 if data then
                     table.insert(ret, data)
+                    xl = math.min(xl, data.pos.x)
+                    yl = math.min(yl, data.pos.y)
+                    zl = math.min(zl, data.pos.z)
+                    xu = math.max(xu, data.pos.x)
+                    yu = math.max(yu, data.pos.y)
+                    zu = math.max(zu, data.pos.z)
                 end
             end
             coroutine.yield(false)
         end
+
+        self:SetRMinX(xl)
+        self:SetRMinY(yl)
+        self:SetRMinZ(zl)
+        self:SetRMaxX(xu)
+        self:SetRMaxY(yu)
+        self:SetRMaxZ(zu)
+
         return ret
     end
     self.compile = coroutine.create(function()

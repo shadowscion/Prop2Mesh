@@ -203,13 +203,8 @@ function ENT:ResetMeshes()
                     coroutine.yield(false)
                 end
                 if model.inv then
-                    for i = #tri, 1, -1 do
-                        local vertex = tri[i]
-                        local vnrm = Vector(vertex.normal)
-                        vnrm:Rotate(lang)
-                        local vpos = Vector(vertex.pos)
-                        local vec, ang = LocalToWorld(vpos, angle, wpos, wang)
-                        table.insert(newtri, { pos = self:WorldToLocal(vec), normal = vnrm, u = vertex.u, v = vertex.v })
+                    for i = #newtri, 1, -1 do
+                        table.insert(newtri, newtri[i])
                         coroutine.yield(false)
                     end
                 end

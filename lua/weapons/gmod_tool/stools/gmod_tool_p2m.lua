@@ -16,6 +16,7 @@ TOOL.ClientConVar = {
     ["ignore_holos"] = 1,
     ["ignore_props"] = 0,
     ["bymaterial"] = 0,
+    ["bycolor"] = 0,
 }
 
 -- Colors
@@ -224,16 +225,31 @@ function TOOL:RightClick(trace)
     if self:GetStage() == 1 then
         if trace.Entity ~= self.Controller then
             if self:GetOwner():KeyDown(IN_SPEED) then
-                local byMat
+                local byMat, byCol
                 if IsValid(trace.Entity) then
                     if self:GetClientNumber("bymaterial") == 1 then
                         byMat = trace.Entity:GetMaterial()
                     end
+                    if self:GetClientNumber("bycolor") == 1 then
+                        if self.CookieJar[trace.Entity] then
+                            byCol = self.CookieJar[trace.Entity].Color
+                            print("se")
+                        else
+                            byCol = trace.Entity:GetColor()
+                        end
+                    end
                 end
+
                 local radius = math.Clamp(self:GetClientNumber("radius"), 0, 1000)
                 for _, ent in pairs(ents.FindInSphere(trace.HitPos, radius)) do
                     if byMat then
                         if ent:GetMaterial() ~= byMat then
+                            continue
+                        end
+                    end
+                    if byCol then
+                        local color = ent:GetColor()
+                        if color.a ~= byCol.a or color.r ~= byCol.r or color.g ~= byCol.g or color.b ~= byCol.b then
                             continue
                         end
                     end
@@ -299,9 +315,9 @@ if SERVER then return end
 language.Add("tool.gmod_tool_p2m.listname", "Prop to Mesh")
 language.Add("tool.gmod_tool_p2m.name", "Prop to Mesh")
 language.Add("tool.gmod_tool_p2m.desc", "Converts groups of props to a single clientside mesh.")
-language.Add("Undone_gmod_ent_p2m", "Undone P2M Base")
-language.Add("Cleaned_gmod_ent_p2m", "Cleaned up P2M Base")
-language.Add("Cleanup_gmod_ent_p2m", "P2M Bases")
+language.Add("Undone_gmod_ent_p2m", "Undone P2M controller")
+language.Add("Cleaned_gmod_ent_p2m", "Cleaned up P2M controller")
+language.Add("Cleanup_gmod_ent_p2m", "P2M controllers")
 
 TOOL.Information = {}
 
@@ -311,17 +327,19 @@ local function ToolInfo(name, desc, stage)
 end
 
 -- left click
-ToolInfo("left_1", "Spawn a new mesh base", 0)
+ToolInfo("left_1", "Spawn a new mesh controller", 0)
 
 -- Right click
-ToolInfo("right_1", "Select a mesh base", 0)
-ToolInfo("right_2", "Select a entities for conversion, select the mesh base again to finalize", 1)
+ToolInfo("right_1", "Select a mesh controller", 0)
+ToolInfo("right_2", "Select a entities for conversion, select the mesh controller again to finalize", 1)
 
 -- Reload
 ToolInfo("reload_1", "Deselect all entities", 0)
 
 language.Add("tool.gmod_tool_p2m.sbm", "Select by material")
 language.Add("tool.gmod_tool_p2m.sbm.help", "Select all entities within radius with same material as clicked entity.")
+language.Add("tool.gmod_tool_p2m.sbc", "Select by color")
+language.Add("tool.gmod_tool_p2m.sbc.help", "Select all entities within radius with same color as clicked entity.")
 language.Add("tool.gmod_tool_p2m.ignprops", "Ignore props")
 language.Add("tool.gmod_tool_p2m.ignprops.help", "Prevent prop_physics from being selected.")
 language.Add("tool.gmod_tool_p2m.ignholo", "Ignore holograms")
@@ -353,6 +371,11 @@ function TOOL.BuildCPanel(self)
     self:AddControl("Toggle", {
         Label = "#tool.gmod_tool_p2m.sbm",
         Command = "gmod_tool_p2m_bymaterial",
+        Help = true,
+    })
+    self:AddControl("Toggle", {
+        Label = "#tool.gmod_tool_p2m.sbc",
+        Command = "gmod_tool_p2m_bycolor",
         Help = true,
     })
     self:AddControl("Toggle", {

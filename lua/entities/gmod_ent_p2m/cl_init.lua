@@ -202,6 +202,17 @@ function ENT:ResetMeshes()
                     table.insert(newtri, { pos = self:WorldToLocal(vec), normal = vnrm, u = vertex.u, v = vertex.v })
                     coroutine.yield(false)
                 end
+                if model.inv then
+                    for i = #tri, 1, -1 do
+                        local vertex = tri[i]
+                        local vnrm = Vector(vertex.normal)
+                        vnrm:Rotate(lang)
+                        local vpos = Vector(vertex.pos)
+                        local vec, ang = LocalToWorld(vpos, angle, wpos, wang)
+                        table.insert(newtri, { pos = self:WorldToLocal(vec), normal = vnrm, u = vertex.u, v = vertex.v })
+                        coroutine.yield(false)
+                    end
+                end
                 tri = newtri
             else
                 for _, modelmesh in ipairs(modelmeshes) do

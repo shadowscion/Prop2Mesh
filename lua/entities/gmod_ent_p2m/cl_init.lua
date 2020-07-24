@@ -63,9 +63,9 @@ local function LinePlane(a, b, n, d)
     end
     return {
         pos = ap + cp*t,
-        normal = (a.normal * (1 - t) + (b.normal * t)):GetNormalized(),
-        u = a.u,
-        v = a.v,
+        normal = ((1 - t)*a.normal + t*b.normal):GetNormalized(),
+        u = (1 - t)*a.u + t*b.u,
+        v = (1 - t)*a.v + t*b.v,
     }
 end
 

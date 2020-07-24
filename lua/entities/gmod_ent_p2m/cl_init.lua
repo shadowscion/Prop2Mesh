@@ -34,6 +34,8 @@ function ENT:Initialize()
         Vector(self:GetRMinX(), self:GetRMinY(), self:GetRMinZ()),
         Vector(self:GetRMaxX(), self:GetRMaxY(), self:GetRMaxZ()))
     self.boxtime = CurTime()
+    self.tricount = 0
+    self.progress = 0
 end
 
 function ENT:OnRemove()
@@ -124,42 +126,53 @@ end
 local angle = Angle()
 local angle90 = Angle(0, 90, 0)
 
+
 function ENT:ResetMeshes()
     self:RemoveMeshes()
 
-    local infocache = {}
-    local triangles = {}
     self.meshes = {}
-    self.tricount = 0
+
+    local vertexcount = 0
+    local meshverts = {}
+    local infocache = {}
+
+    local mVertex = Matrix()
+    local mModel = Matrix()
+    local mSelf = Matrix()
+    mSelf:SetTranslation(self:GetPos())
+    mSelf:SetAngles(self:GetAngles())
+    local mSelfInverse = mSelf:GetInverse()
 
     drawhud[self] = true
 
     self.rebuild = coroutine.create(function()
-        for _, model in ipairs(self.models) do
-            -- caching
-            local modelmeshes = infocache[model.mdl]
-            if not modelmeshes then
-                modelmeshes = util.GetModelMeshes(model.mdl)
-                if modelmeshes then
-                    infocache[model.mdl] = modelmeshes
+        for _, model in pairs(self.models) do
+            -- model info
+            local meshdata = infocache[model.mdl]
+            if not meshdata then
+                meshdata = util.GetModelMeshes(model.mdl)
+                if meshdata then
+                    infocache[model.mdl] = meshdata
                 else
                     continue
                 end
             end
 
+            -- hud update
             self.progress = math.floor((_ / #self.models)*100)
 
-            -- setup
+            -- fixup
+            local ang = model.ang
             local scale = model.scale
-            local lpos = Vector(model.pos)
-            local lang = Angle(model.ang)
 
             local fix = p2mfix[model.mdl]
             if not fix then
                 fix = p2mfix[string.GetPathFromFilename(model.mdl)]
             end
             if fix then
-                lang:RotateAroundAxis(lang:Up(), 90)
+                ang = Angle(ang.p, ang.y, ang.r)
+                ang:RotateAroundAxis(ang:Up(), 90)
+
                 if model.clips then
                     for _, clip in ipairs(model.clips) do
                         clip.n:Rotate(-angle90)
@@ -174,83 +187,110 @@ function ENT:ResetMeshes()
                 end
             end
 
-            local wpos = self:LocalToWorld(lpos)
-            local wang = self:LocalToWorldAngles(lang)
+            -- fake entity
+            mModel:SetTranslation(model.pos)
+            mModel:SetAngles(ang)
+            mModel = mSelf * mModel
 
-            -- generate
-            local tri = {}
+            -- vertices
+            local modelverts = {}
             if model.clips then
-                for _, modelmesh in ipairs(modelmeshes) do
-                    for _, vertex in ipairs(modelmesh.triangles) do
-                        local vpos = Vector(vertex.pos)
-                        if scale then
-                            vpos = vpos * scale
-                        end
-                        table.insert(tri, { pos = vpos, normal = vertex.normal, u = vertex.u, v = vertex.v })
+                -- create scaled vert list
+                for _, part in ipairs(meshdata) do
+                    for _, vert in ipairs(part.triangles) do
+                        table.insert(modelverts, {
+                            pos = scale and vert.pos * scale or vert.pos,
+                            normal = vert.normal,
+                            u = vert.u,
+                            v = vert.v,
+                        })
                         coroutine.yield(false)
                     end
                 end
+
+                -- create clipped vert list
                 for _, clip in ipairs(model.clips) do
-                    tri = ClipMesh(tri, clip.n, clip.d)
+                    modelverts = ClipMesh(modelverts, clip.n, clip.d)
                 end
-                local newtri = {}
-                for _, vertex in ipairs(tri) do
-                    local vnrm = Vector(vertex.normal)
-                    vnrm:Rotate(lang)
-                    local vpos = Vector(vertex.pos)
-                    local vec, ang = LocalToWorld(vpos, angle, wpos, wang)
-                    table.insert(newtri, { pos = self:WorldToLocal(vec), normal = vnrm, u = vertex.u, v = vertex.v })
+
+                -- localize vert list
+                local temp = {}
+                for _, vert in ipairs(modelverts) do
+                    mVertex:SetTranslation(vert.pos)
+
+                    local normal = Vector(vert.normal.x, vert.normal.y, vert.normal.z)
+                    normal:Rotate(ang)
+
+                    table.insert(temp, {
+                        pos = (mSelfInverse * (mModel * mVertex)):GetTranslation(),
+                        normal = normal,
+                        u = vert.u,
+                        v = vert.v,
+                    })
                     coroutine.yield(false)
                 end
+
+                -- visclip renderinside flag
                 if model.inv then
-                    for i = #newtri, 1, -1 do
-                        table.insert(newtri, newtri[i])
+                    for i = #temp, 1, -1 do
+                        table.insert(temp, temp[i])
                         coroutine.yield(false)
                     end
                 end
-                tri = newtri
+                modelverts = temp
             else
-                for _, modelmesh in ipairs(modelmeshes) do
-                    for _, vertex in ipairs(modelmesh.triangles) do
-                        local vnrm = Vector(vertex.normal)
-                        vnrm:Rotate(lang)
-                        local vpos = Vector(vertex.pos)
+                for _, part in ipairs(meshdata) do
+                    for _, vert in ipairs(part.triangles) do
                         if scale then
-                            vpos = vpos * scale
+                            mVertex:SetTranslation(vert.pos * scale)
+                        else
+                            mVertex:SetTranslation(vert.pos)
                         end
-                        local vec, ang = LocalToWorld(vpos, angle, wpos, wang)
-                        table.insert(tri, { pos = self:WorldToLocal(vec), normal = vnrm, u = vertex.u, v = vertex.v })
+
+                        local normal = Vector(vert.normal.x, vert.normal.y, vert.normal.z)
+                        normal:Rotate(ang)
+
+                        table.insert(modelverts , {
+                            pos = (mSelfInverse * (mModel * mVertex)):GetTranslation(),
+                            normal = normal,
+                            u = vert.u,
+                            v = vert.v,
+                        })
                         coroutine.yield(false)
                     end
                 end
             end
-            if #triangles + #tri >= 65535 then
+
+            -- create meshes
+            if #meshverts + #modelverts >= 65535 then
                 local m = Mesh()
-                m:BuildFromTriangles(triangles)
+                m:BuildFromTriangles(meshverts)
                 table.insert(self.meshes, m)
-                self.tricount = self.tricount + #triangles
-                triangles = {}
+                meshverts = {}
             end
-            for _, vertex in ipairs(tri) do
-                table.insert(triangles, vertex)
+            for _, vert in ipairs(modelverts) do
+                table.insert(meshverts, vert)
+                vertexcount = vertexcount + 1
                 coroutine.yield(false)
             end
         end
-        if #triangles > 0 then
-            local m = Mesh()
-            m:BuildFromTriangles(triangles)
-            table.insert(self.meshes, m)
-            self.tricount = self.tricount + #triangles
-        end
-        self.tricount = self.tricount / 3
+
+        -- create meshes
+        local m = Mesh()
+        m:BuildFromTriangles(meshverts)
+        table.insert(self.meshes, m)
+
+        self.tricount = vertexcount / 3
+
         coroutine.yield(true)
     end)
 end
 
+
 function ENT:Think()
     if self.rebuild then
         local mark = SysTime()
-        while SysTime() - mark < 0.005 do
+        while SysTime() - mark < 0.01 do
             local _, msg = coroutine.resume(self.rebuild)
             if msg then
                 drawhud[self] = nil

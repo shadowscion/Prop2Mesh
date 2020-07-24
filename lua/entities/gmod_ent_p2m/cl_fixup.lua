@@ -221,6 +221,7 @@ p2mfix["models/vehicles/vehicle_van.mdl"] = true
 p2mfix["models/vehicles/vehicle_vandoor.mdl"] = true
 p2mfix["models/weapons/"] = true
 p2mfix["models/props_mining/control_lever01.mdl"] = true
+p2mfix["models/props_lab/tpplug.mdl"] = true
 
 -- acf
 p2mfix["models/vehicles/pilot_seat.mdl"] = true

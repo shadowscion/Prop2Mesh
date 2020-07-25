@@ -294,7 +294,6 @@ function ENT:Think()
             if msg then
                 drawhud[self] = nil
                 self.rebuild = nil
-                self.annoy = nil
                 break
             end
         end

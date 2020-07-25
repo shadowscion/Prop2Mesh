@@ -93,8 +93,8 @@ function ENT:BuildFromTable(tbl)
     duplicator.ClearEntityModifier(self, "p2m_packets")
     local function get()
         local ret = {}
-        local xl, yl, zl = -100, -100, -100
-        local xu, yu, zu = 100, 100, 100
+        local xl, yl, zl = -6, -6, -6
+        local xu, yu, zu = 6, 6, 6
 
         for _, ent in ipairs(tbl) do
             if not IsValid(ent) then
@@ -144,25 +144,20 @@ function ENT:BuildFromTable(tbl)
 end
 
 function ENT:Network(packets, ply)
-    timer.Simple(0.1, function()
-        if self.justduped then
-            self.justduped = false
-        end
-        for i, packet in ipairs(packets) do
-            net.Start("p2m_stream")
-                net.WriteEntity(self)
-                net.WriteUInt(i, 16)
-                net.WriteUInt(packet[2], 32)
-                net.WriteData(packet[1], packet[2])
-                if i == #packets then
-                    net.WriteBool(true)
-                    net.WriteString(packets.crc)
-                else
-                    net.WriteBool(false)
-                end
-            if ply then net.Send(ply) else net.Broadcast() end
-        end
-    end)
+    for i, packet in ipairs(packets) do
+        net.Start("p2m_stream")
+            net.WriteEntity(self)
+            net.WriteUInt(i, 16)
+            net.WriteUInt(packet[2], 32)
+            net.WriteData(packet[1], packet[2])
+            if i == #packets then
+                net.WriteBool(true)
+                net.WriteString(packets.crc)
+            else
+                net.WriteBool(false)
+            end
+        if ply then net.Send(ply) else net.Broadcast() end
+    end
 end
 
 net.Receive("p2m_refresh", function(len, ply)
@@ -176,9 +171,6 @@ net.Receive("p2m_refresh", function(len, ply)
     if self:GetClass() ~= "gmod_ent_p2m" then
         return
     end
-    if self.justduped then
-        return
-    end
     if not self.EntityMods then
         return
     end
@@ -188,20 +180,21 @@ net.Receive("p2m_refresh", function(len, ply)
     self:Network(self.EntityMods.p2m_packets, ply)
 end)
 
-duplicator.RegisterEntityModifier("p2m_packets", function (ply, self, packets)
-    self.justduped = true
-    self:SetNetworkedInt("ownerid", ply:UserID())
-    self:Network(packets)
-end)
-
-function ENT:PostEntityPaste(ply, ent, createdEntities)
-    if not IsValid(ply) then
-        return
+duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
+    local self = ents.Create(data.Class)
+    if not IsValid(self) then
+        return false
     end
-    ent:SetNetworkedInt("ownerid", ply:UserID())
-    ply:AddCount("gmod_ent_p2m", ent)
-    ply:AddCleanup("gmod_ent_p2m", ent)
-end
+
+    duplicator.DoGeneric(self, data)
+    self:Spawn()
+    self:Activate()
+    self:SetNetworkedInt("ownerid", ply:UserID())
+    ply:AddCount(data.Class, self)
+    ply:AddCleanup(data.Class, self)
+
+    return self
+end, "Data")
 
 function ENT:Think()
     if self.compile then

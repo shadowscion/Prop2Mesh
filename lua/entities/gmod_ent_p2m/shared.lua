@@ -1,50 +1,12 @@
 ENT.Base      = "base_anim"
 ENT.PrintName = "P2M Controller"
 ENT.Author    = "shadowscion"
-ENT.Category  = "Realism"
 ENT.Editable  = true
-ENT.Spawnable = true
+ENT.Spawnable = false
 ENT.AdminOnly = false
 ENT.RenderGroup = RENDERGROUP_BOTH
 
---duplicator.Allow("gmod_ent_p2m")
 cleanup.Register("gmod_ent_p2m")
-
-function ENT:SpawnFunction(ply, trace, ClassName)
-    if not trace.Hit then
-        return
-    end
-
-    local ang
-    if math.abs(trace.HitNormal.x) < 0.001 and math.abs(trace.HitNormal.y) < 0.001 then
-        ang = Vector(0, 0, trace.HitNormal.z):Angle()
-    else
-        ang = trace.HitNormal:Angle()
-    end
-    ang.p = ang.p + 90
-
-    local ent = ents.Create(ClassName)
-    ent:SetPos(trace.HitPos)
-    ent:SetAngles(ang)
-    ent:Spawn()
-    ent:Activate()
-    ent:SetCollisionGroup(COLLISION_GROUP_NONE)
-    timer.Simple(0.1, function()
-        ent:SetNetworkedInt("ownerid", ply:UserID())
-        ent:SetDefaultRenderBounds()
-    end)
-
-    ply:AddCount("gmod_ent_p2m", ent)
-    ply:AddCleanup("gmod_ent_p2m", ent)
-    ply:ChatPrint("You can edit this prop2mesh controller using the context menu (hold C and right click it).")
-
-    undo.Create("gmod_ent_p2m")
-        undo.AddEntity(ent)
-        undo.SetPlayer(ply)
-    undo.Finish()
-
-    return ent
-end
 
 function ENT:CanProperty(ply, property)
     if property == "remover" then return true end

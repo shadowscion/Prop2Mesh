@@ -168,11 +168,7 @@ function TOOL:LeftClick(trace)
         new:SetAngles(GetHitAngle(trace))
         new:Spawn()
         new:Activate()
-        new:SetCollisionGroup(COLLISION_GROUP_NONE)
-        timer.Simple(0.1, function()
-            new:SetNetworkedInt("ownerid", self:GetOwner():UserID())
-            new:SetDefaultRenderBounds()
-        end)
+        new:SetNetworkedInt("ownerid", self:GetOwner():UserID())
 
         self:GetOwner():AddCount("gmod_ent_p2m", new)
         self:GetOwner():AddCleanup("gmod_ent_p2m", new)
@@ -423,43 +419,39 @@ function TOOL:DrawAxis(ent, alpha)
     local pos = ent:GetPos()
     local scr = pos:ToScreen()
 
-    local f = (pos + ent:GetForward()*6):ToScreen()
+    local f = (pos + ent:GetForward()*3):ToScreen()
     surface.SetDrawColor(0, 255, 0, alpha)
     surface.DrawLine(scr.x, scr.y, f.x, f.y)
 
-    local r = (pos + ent:GetRight()*6):ToScreen()
+    local r = (pos + ent:GetRight()*3):ToScreen()
     surface.SetDrawColor(255, 0, 0, alpha)
     surface.DrawLine(scr.x, scr.y, r.x, r.y)
 
-    local u = (pos + ent:GetUp()*6):ToScreen()
+    local u = (pos + ent:GetUp()*3):ToScreen()
     surface.SetDrawColor(0, 0, 255, alpha)
     surface.DrawLine(scr.x, scr.y, u.x, u.y)
 end
 
-function TOOL:DrawHUD()
-    local trace = LocalPlayer():GetEyeTrace()
-    if not trace.Hit then return end
-    if not trace.Entity or trace.Entity:IsWorld() then return end
 
-    if trace.Entity:GetClass() == "gmod_ent_p2m" and self:GetStage() == 0 then
-        if trace.Entity:GetNetworkedInt("ownerid") ~= LocalPlayer():UserID() then return end
-        if trace.Entity.rebuild then return end
+function TOOL:DrawHUD(test)
+    local trace = LocalPlayer():GetEyeTrace()
+    if not trace.Hit then
+        return
+    end
+    if not trace.Entity or trace.Entity:IsWorld() then
+        return
+    end
+
+    if trace.Entity:GetClass() == "gmod_ent_p2m" then
+        self:DrawAxis(trace.Entity, 255)
 
         local pos = trace.Entity:GetPos()
-        local fade = 1 - math.min(500, pos:Distance(EyePos())) / 500
+        local scr = pos:ToScreen()
 
-        if fade == 0 then return end
+        scr.x = math.Round(scr.x) - 48
+        scr.y = math.Round(scr.y) - 96
 
-        pos = pos:ToScreen()
-
-        white.a = 255*fade
-        black.a = 255*fade
-
-        local str = string.format("Models: %d", trace.Entity.models and #trace.Entity.models or 0)
-        draw.SimpleTextOutlined(str, "DebugFixedSmall", pos.x, pos.y, white, 0, 0, 1, black)
-        local str = string.format("Triangles: %d", trace.Entity.tricount or 0)
-        draw.SimpleTextOutlined(str, "DebugFixedSmall", pos.x, pos.y + 16, white, 0, 0, 1, black)
-
-        self:DrawAxis(trace.Entity, fade*255)
+        draw.DrawText("models: " .. (trace.Entity.models and #trace.Entity.models or 0), "BudgetLabel", scr.x, scr.y, white, TEXT_ALIGN_LEFT)
+        draw.DrawText("triangles: " .. (trace.Entity.tricount or 0), "BudgetLabel", scr.x, scr.y + 16, white, TEXT_ALIGN_LEFT)
     end
 end

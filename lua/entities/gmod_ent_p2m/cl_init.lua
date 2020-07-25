@@ -33,7 +33,6 @@ function ENT:Initialize()
     self:SetRenderBounds(
         Vector(self:GetRMinX(), self:GetRMinY(), self:GetRMinZ()),
         Vector(self:GetRMaxX(), self:GetRMaxY(), self:GetRMaxZ()))
-    self.boxtime = CurTime()
     self.tricount = 0
     self.progress = 0
 end
@@ -159,7 +158,7 @@ function ENT:ResetMeshes()
             end
 
             -- hud update
-            self.progress = math.floor((_ / #self.models)*100)
+            self.progress = _ / #self.models
 
             -- fixup
             local ang = model.ang
@@ -295,13 +294,14 @@ function ENT:Think()
             if msg then
                 drawhud[self] = nil
                 self.rebuild = nil
+                self.annoy = nil
                 break
             end
         end
     end
 end
 
-local red = Color(255, 0, 0)
+local red = Color(255, 0, 0, 15)
 
 function ENT:Draw()
     self:DrawModel()
@@ -318,6 +318,9 @@ function ENT:Draw()
         cam.PopModelMatrix()
     end
     if self.boxtime then
+        if not self.models or self.rebuild then
+            return
+        end
         if LocalPlayer():UserID() ~= self:GetNetworkedInt("ownerid") then
             return
         end
@@ -325,8 +328,10 @@ function ENT:Draw()
             self.boxtime = nil
             return
         end
+        render.SetColorMaterial()
         local min, max = self:GetRenderBounds()
         render.DrawWireframeBox(self:GetPos(), self:GetAngles(), min, max, red)
+        render.DrawBox(self:GetPos(), self:GetAngles(), min, max, red)
     end
 end
 
@@ -346,9 +351,6 @@ hook.Add("OnEntityCreated", "p2m_refresh", function(self)
     end
 end)
 
-local bc = Color(175, 175, 175, 135)
-local tc = Color(225, 225, 225, 255)
-
 hook.Add("HUDPaint", "meshtools.LoadOverlay", function()
     for ent, _ in pairs(drawhud) do
         if not IsValid(ent) then
@@ -360,6 +362,25 @@ hook.Add("HUDPaint", "meshtools.LoadOverlay", function()
             continue
         end
         local scr = ent:GetPos():ToScreen()
-        draw.WordBox(5, scr.x, scr.y, string.format("Generating Mesh [%d%%]", ent.progress or 0), "DermaDefault", bc, tc)
+        local perc = ent.progress or 0
+
+        local w = 96
+        local h = 32
+
+        surface.SetDrawColor(50, 50, 50, 150)
+        surface.DrawRect(scr.x, scr.y, w, h)
+
+        surface.SetDrawColor(0, 0, 0, 150)
+        surface.DrawOutlinedRect(scr.x, scr.y, w, h)
+
+        surface.SetDrawColor(80, 160, 80, 150)
+        surface.DrawRect(scr.x + 1, scr.y + 1, (w - 2)*perc, h - 2)
+
+        surface.SetTextColor(255, 255, 255)
+        surface.SetFont("BudgetLabel")
+        local str = string.format("%d%%", perc*100)
+        local tw, th = surface.GetTextSize(str)
+        surface.SetTextPos(scr.x + w*0.5 - tw*0.5, scr.y + h*0.5 - th*0.5)
+        surface.DrawText(str)
     end
 end)

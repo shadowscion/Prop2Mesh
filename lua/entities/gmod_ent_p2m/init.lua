@@ -206,7 +206,7 @@ end
 function ENT:Think()
     if self.compile then
         local mark = SysTime()
-        while SysTime() - mark < 0.002 do
+        while SysTime() - mark < 0.1 do
             local _, msg = coroutine.resume(self.compile)
             if msg then
                 self.compile = nil

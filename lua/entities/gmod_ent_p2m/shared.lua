@@ -2,7 +2,7 @@ ENT.Base      = "base_anim"
 ENT.PrintName = "P2M Controller"
 ENT.Author    = "shadowscion"
 ENT.Editable  = true
-ENT.Spawnable = false
+ENT.Spawnable = true
 ENT.AdminOnly = false
 ENT.RenderGroup = RENDERGROUP_BOTH
 

@@ -231,7 +231,7 @@ function TOOL:RightClick(trace)
 
     if self:GetStage() == 1 then
         if trace.Entity ~= self.Controller then
-            if self:GetOwner():KeyDown(IN_SPEED) then
+            if self:GetOwner():KeyDown(IN_SPEED) or self:GetOwner():KeyDown(IN_WALK) then
                 local byMat, byCol
                 if IsValid(trace.Entity) then
                     if self:GetClientNumber("bymaterial") == 1 then
@@ -240,15 +240,25 @@ function TOOL:RightClick(trace)
                     if self:GetClientNumber("bycolor") == 1 then
                         if self.CookieJar[trace.Entity] then
                             byCol = self.CookieJar[trace.Entity].Color
-                            print("se")
                         else
                             byCol = trace.Entity:GetColor()
                         end
                     end
                 end
-
-                local radius = math.Clamp(self:GetClientNumber("radius"), 0, 1000)
-                for _, ent in pairs(ents.FindInSphere(trace.HitPos, radius)) do
+                local group
+                if self:GetOwner():KeyDown(IN_SPEED) then
+                    local radius = math.Clamp(self:GetClientNumber("radius"), 0, 1000)
+                    group = ents.FindInSphere(trace.HitPos, radius)
+                else
+                    if not IsValid(trace.Entity) then
+                        return
+                    end
+                    group = trace.Entity:GetChildren()
+                end
+                if not group then
+                    return
+                end
+                for _, ent in pairs(group) do
                     if byMat then
                         if ent:GetMaterial() ~= byMat then
                             continue
@@ -329,7 +339,10 @@ language.Add("Cleanup_gmod_ent_p2m", "P2M controllers")
 TOOL.Information = {}
 
 local function ToolInfo(name, desc, stage)
-    table.insert(TOOL.Information, { name = name, stage = stage })
+    table.insert(TOOL.Information, {
+        name = name,
+        stage = stage,
+    })
     language.Add("tool.gmod_tool_p2m." .. name, desc)
 end
 
@@ -338,7 +351,10 @@ ToolInfo("left_1", "Spawn a new mesh controller", 0)
 
 -- Right click
 ToolInfo("right_1", "Select a mesh controller", 0)
-ToolInfo("right_2", "Select a entities for conversion, select the mesh controller again to finalize", 1)
+ToolInfo("right_2a", "Select a single entity, select the mesh controller again to finalize", 1)
+ToolInfo("right_2b", "Hold SPRINT key to area select", 1)
+ToolInfo("right_2c", "Hold WALK key to select by parent", 1)
+ToolInfo("right_2d", "Deselect all entities", 1)
 
 -- Reload
 ToolInfo("reload_1", "Deselect all entities", 0)

@@ -1,7 +1,10 @@
+-- -----------------------------------------------------------------------------
 p2mfix = {}
 
 local p2mfix = p2mfix
 
+
+-- -----------------------------------------------------------------------------
 p2mfix["models/balloons/balloon_classicheart.mdl"] = true
 p2mfix["models/balloons/balloon_dog.mdl"] = true
 p2mfix["models/balloons/balloon_star.mdl"] = true

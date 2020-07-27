@@ -1,3 +1,4 @@
+-- -----------------------------------------------------------------------------
 E2Helper.Descriptions["p2mCreate(va)"] = ""
 E2Helper.Descriptions["p2mHideModel(e:n)"] = ""
 E2Helper.Descriptions["p2mSetAng(e:a)"] = ""
@@ -18,3 +19,4 @@ E2Helper.Descriptions["p2mSetMaterial(e:s)"] = ""
 E2Helper.Descriptions["p2mSetParent(e:e)"] = ""
 E2Helper.Descriptions["p2mSetPos(e:v)"] = ""
 E2Helper.Descriptions["p2mSetRenderBounds(e:vv)"] = ""
+E2Helper.Descriptions["p2mHoloMode(n)"] = "If enabled, spawned controllers cannot be duped and are deleted when the e2 is reloaded"

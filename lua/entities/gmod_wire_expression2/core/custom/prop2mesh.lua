@@ -1,9 +1,16 @@
+--[[
+    TODO:
+        per player limits
+]]
 
+-- -----------------------------------------------------------------------------
 E2Lib.RegisterExtension("p2m", true, "Allows E2 chips to create and manipulate prop2mesh entities")
 
 local WireLib = WireLib
 local E2Lib = E2Lib
 
+
+-- -----------------------------------------------------------------------------
 local function P2M_AntiSpam(ent, action)
     if not ent.p2mantispam then
         ent.p2mantispam = {}
@@ -37,6 +44,8 @@ local function P2M_CanManipulate(self, ent, action)
     return false
 end
 
+
+-- -----------------------------------------------------------------------------
 local mask = {
     ang = {
         typeid = "a",
@@ -150,6 +159,8 @@ local function P2M_compile(self, ent, data)
     end)
 end
 
+
+-- -----------------------------------------------------------------------------
 local function P2M_create(self, pos, ang)
     local ent = ents.Create("gmod_ent_p2m")
 
@@ -189,33 +200,17 @@ local function P2M_create(self, pos, ang)
     return ent
 end
 
-registerCallback("construct",
-    function(self)
-        self.data.p2m = {}
-    end
-)
 
-registerCallback("destruct",
-    function(self)
-        for ent, _ in pairs(self.data.p2m) do
-            ent:Remove()
-        end
-    end
-)
+-- -----------------------------------------------------------------------------
+__e2setcost(30)
 
 e2function entity p2mCreate(vector pos, angle ang)
     return P2M_create(self, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]))
 end
 
-e2function void entity:p2mHideModel(number hide)
-    if not P2M_CanManipulate(self, this, "nide") then
-        return
-    end
-    if not this.e2player then
-        return
-    end
-    this:SetNWBool("hidemodel", hide > 0)
-end
+
+-- -----------------------------------------------------------------------------
+__e2setcost(100)
 
 e2function void entity:p2mSetData(table data)
     if not P2M_CanManipulate(self, this, "compile") then
@@ -223,6 +218,10 @@ e2function void entity:p2mSetData(table data)
     end
     P2M_compile(self, this, data)
 end
+
+
+-- -----------------------------------------------------------------------------
+__e2setcost(15)
 
 e2function void entity:p2mSetPos(vector pos)
     if not P2M_CanManipulate(self, this, "pos") then
@@ -259,6 +258,10 @@ e2function void entity:p2mSetMaterial(string material)
     E2Lib.setMaterial(this, material)
 end
 
+
+-- -----------------------------------------------------------------------------
+__e2setcost(25)
+
 e2function void entity:p2mSetRenderBounds(vector mins, vector maxs)
     if not P2M_CanManipulate(self, this, "bounds") then
         return
@@ -272,6 +275,20 @@ e2function void entity:p2mSetRenderBounds(vector mins, vector maxs)
     this:SetRMaxY(upper.y)
     this:SetRMaxZ(upper.z)
 end
+
+e2function void entity:p2mHideModel(number hide)
+    if not P2M_CanManipulate(self, this, "nide") then
+        return
+    end
+    if not this.e2player then
+        return
+    end
+    this:SetNWBool("hidemodel", hide > 0)
+end
+
+
+-- -----------------------------------------------------------------------------
+__e2setcost(40)
 
 local function Check_Parents(child, parent)
     while IsValid(parent:GetParent()) do
@@ -302,3 +319,19 @@ e2function void entity:p2mSetParent(entity target)
     end
     this:SetParent(target)
 end
+
+
+-- -----------------------------------------------------------------------------
+registerCallback("construct",
+    function(self)
+        self.data.p2m = {}
+    end
+)
+
+registerCallback("destruct",
+    function(self)
+        for ent, _ in pairs(self.data.p2m) do
+            ent:Remove()
+        end
+    end
+)

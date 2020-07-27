@@ -8,10 +8,7 @@ util.AddNetworkString("p2m_stream")
 util.AddNetworkString("p2m_refresh")
 
 function ENT:Initialize()
-    self:SetModel("models/hunter/plates/plate.mdl")
-    self:SetMaterial("models/debug/debugwhite")
     self:DrawShadow(false)
-
     self:PhysicsInit(SOLID_VPHYSICS)
     self:SetMoveType(MOVETYPE_VPHYSICS)
     self:SetSolid(SOLID_VPHYSICS)
@@ -24,9 +21,9 @@ function ENT:Initialize()
 end
 
 local build = {}
-build["prop_physics"] = function(ref, ent)
+build["prop_physics"] = function(pos, ang, ent)
     local data = {}
-    data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), ref:GetPos(), ref:GetAngles())
+    data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), pos, ang)
     data.mdl = string.lower(ent:GetModel())
 
     local scale = ent:GetManipulateBoneScale(0)
@@ -48,7 +45,7 @@ build["prop_physics"] = function(ref, ent)
     return data
 end
 
-build["gmod_wire_hologram"] = function(ref, ent)
+build["gmod_wire_hologram"] = function(pos, ang, ent)
     local holo
     for k, v in pairs(ent:GetTable().OnDieFunctions.holo_cleanup.Args[1].data.holos) do
         if v.ent == ent then
@@ -61,7 +58,7 @@ build["gmod_wire_hologram"] = function(ref, ent)
     end
 
     local data = { holo = true }
-    data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), ref:GetPos(), ref:GetAngles())
+    data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), pos, ang)
     data.mdl = string.lower(ent:GetModel())
 
     if holo.clips then
@@ -91,6 +88,10 @@ end
 
 function ENT:BuildFromTable(tbl)
     duplicator.ClearEntityModifier(self, "p2m_packets")
+
+    local pos = self:GetPos()
+    local ang = self:GetAngles()
+
     local function get()
         local ret = {}
         local xl, yl, zl = -6, -6, -6
@@ -102,7 +103,7 @@ function ENT:BuildFromTable(tbl)
             end
             local class = ent:GetClass()
             if build[class] then
-                local data = build[class](self, ent)
+                local data = build[class](pos, ang, ent)
                 if data then
                     table.insert(ret, data)
                     xl = math.min(xl, data.pos.x)

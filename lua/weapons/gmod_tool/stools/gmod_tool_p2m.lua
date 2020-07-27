@@ -164,11 +164,15 @@ function TOOL:LeftClick(trace)
         end
 
         local new = ents.Create("gmod_ent_p2m")
+        new:SetModel("models/hunter/plates/plate.mdl")
+        new:SetMaterial("models/debug/debugwhite")
         new:SetPos(trace.HitPos)
         new:SetAngles(GetHitAngle(trace))
         new:Spawn()
         new:Activate()
         new:SetNetworkedInt("ownerid", self:GetOwner():UserID())
+
+        duplicator.StoreEntityModifier(new, "material", { MaterialOverride = "models/debug/debugwhite" })
 
         self:GetOwner():AddCount("gmod_ent_p2m", new)
         self:GetOwner():AddCleanup("gmod_ent_p2m", new)

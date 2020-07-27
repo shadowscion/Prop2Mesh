@@ -285,7 +285,6 @@ function ENT:ResetMeshes()
     end)
 end
 
-
 function ENT:Think()
     if self.rebuild then
         local mark = SysTime()
@@ -303,7 +302,21 @@ end
 local red = Color(255, 0, 0, 15)
 
 function ENT:Draw()
-    self:DrawModel()
+    if self:GetNWBool("hidemodel") then
+        if self.materialName ~= self:GetMaterial() then
+            self.materialName = self:GetMaterial()
+            if self.materialName ~= "" then
+                self.material = Material(self.materialName)
+            end
+        end
+        if self.material and not self.material:IsError() then
+            render.SetMaterial(self.material)
+        else
+            self:DrawModel()
+        end
+    else
+        self:DrawModel()
+    end
     if self.meshes then
         self.matrix:SetTranslation(self:GetPos())
         self.matrix:SetAngles(self:GetAngles())

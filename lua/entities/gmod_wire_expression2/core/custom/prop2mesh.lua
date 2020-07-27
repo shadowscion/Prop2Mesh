@@ -68,6 +68,12 @@ local mask = {
             return string.lower(str)
         end,
     },
+    scale = {
+        typeid = "v",
+        parse = function(tbl)
+            return Vector(tbl[1], tbl[2], tbl[3])
+        end
+    },
     clips = {
         typeid = "r",
         parse = function(tbl)
@@ -133,7 +139,7 @@ end
 
 local function P2M_compile(self, ent, data)
     ent.compile = coroutine.create(function()
-        local tbl, min, max = P2M_build(data)
+        local tbl = P2M_build(data)
         if not tbl then
             coroutine.yield(true)
             return

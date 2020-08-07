@@ -36,6 +36,22 @@ end
 
 
 -- -----------------------------------------------------------------------------
+-- credit Ramalayha (https://github.com/Facepunch/garrysmod-requests/issues/1660)
+local function getBodygroupMask(ent)
+	local mask = 0
+	local offset = 1
+
+	for index = 1, ent:GetNumBodyGroups() do
+		local bg = ent:GetBodygroup(index)
+		mask = mask + offset * bg
+		offset = offset * ent:GetBodygroupCount(index)
+	end
+
+	return mask
+end
+
+
+-- -----------------------------------------------------------------------------
 local build = {}
 build["prop_physics"] = function(pos, ang, ent)
 	local data = {}
@@ -45,6 +61,11 @@ build["prop_physics"] = function(pos, ang, ent)
 	local scale = ent:GetManipulateBoneScale(0)
 	if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
 		data.scale = scale
+	end
+
+	local bgrp = getBodygroupMask(ent)
+	if bgrp ~= 0 then
+		data.bgrp = bgrp
 	end
 
 	local clips = ent.ClipData
@@ -76,6 +97,11 @@ build["gmod_wire_hologram"] = function(pos, ang, ent)
 	local data = { holo = true }
 	data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), pos, ang)
 	data.mdl = string.lower(ent:GetModel())
+
+	local bgrp = getBodygroupMask(ent)
+	if bgrp ~= 0 then
+		data.bgrp = bgrp
+	end
 
 	if holo.clips then
 		for k, v in pairs(holo.clips) do

@@ -160,11 +160,16 @@ function ENT:ResetMeshes()
 	self.rebuild = coroutine.create(function()
 		for _, model in pairs(self.models) do
 			-- model info
-			local meshdata = infocache[model.mdl]
+			local meshdata
+			if infocache[model.mdl] then
+				meshdata = infocache[model.mdl][model.bgrp or 0]
+			else
+				infocache[model.mdl] = {}
+			end
 			if not meshdata then
-				meshdata = util.GetModelMeshes(model.mdl)
+				meshdata = util.GetModelMeshes(model.mdl, 0, model.bgrp or 0)
 				if meshdata then
-					infocache[model.mdl] = meshdata
+					infocache[model.mdl][model.bgrp or 0] = meshdata
 				else
 					continue
 				end

@@ -226,7 +226,8 @@ p2mfix["models/weapons/"] = true
 p2mfix["models/props_mining/control_lever01.mdl"] = true
 p2mfix["models/props_lab/tpplug.mdl"] = true
 
--- acf
+
+-- -----------------------------------------------------------------------------
 p2mfix["models/vehicles/pilot_seat.mdl"] = true
 
 p2mfix["models/autocannon/semiautocannon_25mm.mdl"] = true
@@ -275,3 +276,13 @@ p2mfix["models/rotarycannon/kw/20mmrac.mdl"] = true
 p2mfix["models/rotarycannon/kw/30mmrac.mdl"] = true
 
 p2mfix["models/fueltank/"] = true
+
+
+-- -----------------------------------------------------------------------------
+p2mfix["models/holograms/tetra.mdl"] = true
+p2mfix["models/holograms/hexagon.mdl"] = true
+p2mfix["models/holograms/icosphere.mdl"] = true
+p2mfix["models/holograms/icosphere2.mdl"] = true
+p2mfix["models/holograms/icosphere3.mdl"] = true
+p2mfix["models/holograms/prism.mdl"] = true
+p2mfix["models/holograms/sphere.mdl"] = true

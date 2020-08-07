@@ -6,9 +6,24 @@ local E2Lib = E2Lib
 
 
 -- -----------------------------------------------------------------------------
+local ActionCooldown = {
+	["compile"] = 10,
+}
+
+local function P2M_Cooldown(ent, action)
+	if not ent.p2mantispam[action] or CurTime() - ent.p2mantispam[action] > ActionCooldown[action] then
+		ent.p2mantispam[action] = CurTime()
+		return true
+	end
+	return false
+end
+
 local function P2M_AntiSpam(ent, action)
 	if not ent.p2mantispam then
 		ent.p2mantispam = {}
+	end
+	if ActionCooldown[action] then
+		return P2M_Cooldown(ent, action)
 	end
 	if ent.p2mantispam[action] and ent.p2mantispam[action] == CurTime() then
 		return false

@@ -430,6 +430,9 @@ net.Receive("p2m_stream", function()
 			local crc = net.ReadString()
 			if crc == util.CRC(self.packets) then
 				timer.Simple(0.1, function()
+					if not IsValid(self) or not self.packets then
+						return
+					end
 					self.models = util.JSONToTable(util.Decompress(self.packets))
 					self:ResetMeshes()
 				end)

@@ -370,23 +370,6 @@ ToolInfo("right_2d", "Deselect all entities", 1)
 -- Reload
 ToolInfo("reload_1", "Deselect all entities", 0)
 
-language.Add("tool.gmod_tool_p2m.sbm", "Select by material")
-language.Add("tool.gmod_tool_p2m.sbm.help", "Select all entities within radius with same material as clicked entity.")
-language.Add("tool.gmod_tool_p2m.sbc", "Select by color")
-language.Add("tool.gmod_tool_p2m.sbc.help", "Select all entities within radius with same color as clicked entity.")
-language.Add("tool.gmod_tool_p2m.ignprops", "Ignore props")
-language.Add("tool.gmod_tool_p2m.ignprops.help", "Prevent prop_physics from being selected.")
-language.Add("tool.gmod_tool_p2m.ignholo", "Ignore holograms")
-language.Add("tool.gmod_tool_p2m.ignholo.help", "Prevent wiremod holograms from being selected.")
-language.Add("tool.gmod_tool_p2m.igninvis", "Ignore invisible entities")
-language.Add("tool.gmod_tool_p2m.igninvis.help", "Prevent invisible (alpha 0) entities from being selected.")
-language.Add("tool.gmod_tool_p2m.ignparent", "Ignore parented entities")
-language.Add("tool.gmod_tool_p2m.ignparent.help", "Prevent parented entities from being selected.")
-language.Add("tool.gmod_tool_p2m.ignconstraint", "Ignore constrained entities")
-language.Add("tool.gmod_tool_p2m.ignconstraint.help", "Prevent constrained entities from being selected.")
-language.Add("tool.gmod_tool_p2m.selradius", "Selection radius")
-language.Add("tool.gmod_tool_p2m.selradius.help", "Hold shift while right clicking to select all entities within a radius.")
-
 
 -- -----------------------------------------------------------------------------
 -- TOOL: CPanel
@@ -395,52 +378,35 @@ function TOOL.BuildCPanel(self)
 		draw.RoundedBox(0, 0, 0, w, 20, Color(50, 50, 50, 255))
 		draw.RoundedBox(0, 1, 1, w - 2, 18, Color(125, 125, 125, 255))
 	end
-	self:AddControl("Slider", {
-		Label = "#tool.gmod_tool_p2m.selradius",
-		Command = "gmod_tool_p2m_radius",
-		Help = true,
-		min = 0,
-		max = 1000,
-	})
-	self:AddControl("Toggle", {
-		Label = "#tool.gmod_tool_p2m.sbm",
-		Command = "gmod_tool_p2m_bymaterial",
-		Help = true,
-	})
-	self:AddControl("Toggle", {
-		Label = "#tool.gmod_tool_p2m.sbc",
-		Command = "gmod_tool_p2m_bycolor",
-		Help = true,
-	})
-	self:AddControl("Toggle", {
-		Label = "#tool.gmod_tool_p2m.ignprops",
-		Command = "gmod_tool_p2m_ignore_props",
-		Help = true,
-	})
-	self:AddControl("Toggle", {
-		Label = "#tool.gmod_tool_p2m.ignholo",
-		Command = "gmod_tool_p2m_ignore_holos",
-		Help = true,
-	})
-	self:AddControl("Toggle", {
-		Label = "#tool.gmod_tool_p2m.igninvis",
-		Command = "gmod_tool_p2m_ignore_invisible",
-		Help = true,
-	})
-	self:AddControl("Toggle", {
-		Label = "#tool.gmod_tool_p2m.ignparent",
-		Command = "gmod_tool_p2m_ignore_parented",
-		Help = true,
-	})
-	self:AddControl("Toggle", {
-		Label = "#tool.gmod_tool_p2m.ignconstraint",
-		Command = "gmod_tool_p2m_ignore_constrained",
-		Help = true,
-	})
-	self:AddControl("Button", {
-		Label = "Refresh All",
-		Command = "p2m_refresh_all",
-	})
+
+	local panel = vgui.Create("DForm")
+	panel:SetName("Tool Behavior")
+	panel.Paint = function(pnl, w, h)
+		draw.RoundedBox(0, 0, 0, w, 20, Color(50, 50, 50, 255))
+		draw.RoundedBox(0, 1, 1, w - 2, 18, Color(125, 125, 125, 255))
+	end
+	self:AddPanel(panel)
+
+	panel:NumSlider("Area radius select", "gmod_tool_p2m_radius", 0, 1000)
+	panel:CheckBox("Select by same material", "gmod_tool_p2m_bymaterial")
+	panel:CheckBox("Select by same color", "gmod_tool_p2m_bycolor")
+	panel:CheckBox("Ignore invisible entities", "gmod_tool_p2m_ignore_invisible")
+	panel:CheckBox("Ignore parented entities", "gmod_tool_p2m_ignore_parented")
+	panel:CheckBox("Ignore constrained entities", "gmod_tool_p2m_ignore_constrained")
+	panel:CheckBox("Ignore prop_physics", "gmod_tool_p2m_ignore_props")
+	panel:CheckBox("Ignore E2 holograms", "gmod_tool_p2m_ignore_holos")
+
+	local panel = vgui.Create("DForm")
+	panel:SetName("Clientside Options")
+	panel.Paint = function(pnl, w, h)
+		draw.RoundedBox(0, 0, 0, w, 20, Color(50, 50, 50, 255))
+		draw.RoundedBox(0, 1, 1, w - 2, 18, Color(125, 125, 125, 255))
+	end
+	self:AddPanel(panel)
+
+	panel:NumSlider("Mesh build speed", "p2m_build_time", 0.001, 0.1, 3)
+	panel:CheckBox("Disable rendering", "p2m_disable_rendering")
+	panel:Button("Refresh all", "p2m_refresh_all")
 end
 
 local white = Color(255, 255, 255, 255)

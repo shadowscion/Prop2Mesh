@@ -310,6 +310,7 @@ e2function void entity:p2mSetRenderBounds(vector mins, vector maxs)
 end
 
 e2function void entity:p2mHideModel(number hide)
+	--[[
 	if not P2M_CanManipulate(self, this, "nide") then
 		return
 	end
@@ -317,6 +318,7 @@ e2function void entity:p2mHideModel(number hide)
 		return
 	end
 	this:SetNWBool("hidemodel", hide > 0)
+	]]
 end
 
 

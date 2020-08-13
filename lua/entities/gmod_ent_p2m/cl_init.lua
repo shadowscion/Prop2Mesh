@@ -9,6 +9,9 @@ local string = string
 local surface = surface
 local render = render
 
+local p2m_disable = CreateClientConVar("p2m_disable_rendering", "0", true, false)
+local p2m_build_time = CreateClientConVar("p2m_build_time", 0.05, true, false, "Lower to reduce stuttering", 0.001, 0.1)
+
 
 -- -----------------------------------------------------------------------------
 function ENT:Initialize()
@@ -316,9 +319,17 @@ end
 
 -- -----------------------------------------------------------------------------
 function ENT:Think()
+	self.matrix = self:GetWorldTransformMatrix()
+	if p2m_disable:GetBool() then
+		if self.rebuild then
+			drawhud[self] = nil
+			self.rebuild = nil
+		end
+		return
+	end
 	if self.rebuild then
 		local mark = SysTime()
-		while SysTime() - mark < 0.05 do
+		while SysTime() - mark < p2m_build_time:GetFloat() do
 			local _, msg = coroutine.resume(self.rebuild)
 			if msg then
 				drawhud[self] = nil
@@ -334,6 +345,11 @@ end
 local red = Color(255, 0, 0, 15)
 
 function ENT:Draw()
+	if p2m_disable:GetBool() then
+		self:DrawModel()
+		return
+	end
+	--[[
 	if self:GetNWBool("hidemodel") then
 		if self.materialName ~= self:GetMaterial() then
 			self.materialName = self:GetMaterial()
@@ -349,9 +365,9 @@ function ENT:Draw()
 	else
 		self:DrawModel()
 	end
+	]]
+	self:DrawModel()
 	if self.meshes then
-		self.matrix:SetTranslation(self:GetPos())
-		self.matrix:SetAngles(self:GetAngles())
 		cam.PushModelMatrix(self.matrix)
 		for _, m in pairs(self.meshes) do
 			if not m:IsValid() then

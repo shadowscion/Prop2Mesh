@@ -374,39 +374,56 @@ ToolInfo("reload_1", "Deselect all entities", 0)
 -- -----------------------------------------------------------------------------
 -- TOOL: CPanel
 function TOOL.BuildCPanel(self)
-	self.Paint = function(pnl, w, h)
-		draw.RoundedBox(0, 0, 0, w, 20, Color(50, 50, 50, 255))
-		draw.RoundedBox(0, 1, 1, w - 2, 18, Color(125, 125, 125, 255))
-	end
+	local color_border = Color(35, 35, 35, 255)
+	local color_inside = Color(125, 125, 125, 255)
+	local color_darken = Color(225, 225, 225, 255)
+
+	self:SetExpanded(true)
+	self.Header:SetVisible(false)
+	self.Paint = function() end
 
 	local panel = vgui.Create("DForm")
 	panel:SetName("Tool Behavior")
+	panel.Header.Paint = function(pnl, w, h)
+		draw.RoundedBox(0, 0, 0, w, h, color_border)
+		draw.RoundedBox(0, 1, 1, w - 2, h - 2, color_inside)
+	end
 	panel.Paint = function(pnl, w, h)
-		draw.RoundedBox(0, 0, 0, w, 20, Color(50, 50, 50, 255))
-		draw.RoundedBox(0, 1, 1, w - 2, 18, Color(125, 125, 125, 255))
+		draw.RoundedBox(0, 0, 20, w, h - 21, color_border)
+		draw.RoundedBox(0, 1, 20, w - 2, h - 22, color_darken)
 	end
 	self:AddPanel(panel)
 
 	panel:NumSlider("Area radius select", "gmod_tool_p2m_radius", 0, 1000)
-	panel:CheckBox("Select by same material", "gmod_tool_p2m_bymaterial")
-	panel:CheckBox("Select by same color", "gmod_tool_p2m_bycolor")
+	panel:ControlHelp("Hold shift while right clicking to select all entities within this radius of your click position")
+	panel:Help("You can further filter your radius selection with these options")
+	panel:CheckBox("Select entities with the same material", "gmod_tool_p2m_bymaterial")
+	panel:CheckBox("Select entities with the same color", "gmod_tool_p2m_bycolor")
 	panel:CheckBox("Ignore invisible entities", "gmod_tool_p2m_ignore_invisible")
 	panel:CheckBox("Ignore parented entities", "gmod_tool_p2m_ignore_parented")
 	panel:CheckBox("Ignore constrained entities", "gmod_tool_p2m_ignore_constrained")
 	panel:CheckBox("Ignore prop_physics", "gmod_tool_p2m_ignore_props")
-	panel:CheckBox("Ignore E2 holograms", "gmod_tool_p2m_ignore_holos")
+	panel:CheckBox("Ignore gmod_wire_hologram", "gmod_tool_p2m_ignore_holos")
+	panel.Items[#panel.Items]:DockPadding(10, 10, 10, 10)
+
 
 	local panel = vgui.Create("DForm")
 	panel:SetName("Clientside Options")
+	panel.Header.Paint = function(pnl, w, h)
+		draw.RoundedBox(0, 0, 0, w, h, color_border)
+		draw.RoundedBox(0, 1, 1, w - 2, h - 2, color_inside)
+	end
 	panel.Paint = function(pnl, w, h)
-		draw.RoundedBox(0, 0, 0, w, 20, Color(50, 50, 50, 255))
-		draw.RoundedBox(0, 1, 1, w - 2, 18, Color(125, 125, 125, 255))
+		draw.RoundedBox(0, 0, 20, w, h - 21, color_border)
+		draw.RoundedBox(0, 1, 20, w - 2, h - 22, color_darken)
 	end
 	self:AddPanel(panel)
 
 	panel:NumSlider("Mesh build speed", "p2m_build_time", 0.001, 0.1, 3)
+	panel:ControlHelp("This sets the maximum time between frames during the mesh building process")
 	panel:CheckBox("Disable rendering", "p2m_disable_rendering")
 	panel:Button("Refresh all", "p2m_refresh_all")
+	panel.Items[#panel.Items]:DockPadding(10, 10, 10, 10)
 end
 
 local white = Color(255, 255, 255, 255)

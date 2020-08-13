@@ -26,12 +26,7 @@ end
 
 -- -----------------------------------------------------------------------------
 function ENT:SetPlayer(ply)
-	self:SetVar("Founder", ply)
-	self:SetNetworkedInt("ownerid", ply:UserID())
-end
-
-function ENT:GetPlayer()
-	return self:GetVar("Founder", NULL)
+	self:SetNWEntity("Founder", ply)
 end
 
 

@@ -397,7 +397,7 @@ function ENT:Draw()
 		if not self.models or self.rebuild then
 			return
 		end
-		if LocalPlayer():UserID() ~= self:GetNetworkedInt("ownerid") then
+		if LocalPlayer() ~= self:GetPlayer() then
 			return
 		end
 		if CurTime() - self.boxtime > 3 then

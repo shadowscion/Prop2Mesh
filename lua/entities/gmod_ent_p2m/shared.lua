@@ -11,6 +11,12 @@ cleanup.Register("gmod_ent_p2m")
 
 
 -- -----------------------------------------------------------------------------
+function ENT:GetPlayer()
+	return self:GetNWEntity("Founder", NULL)
+end
+
+
+-- -----------------------------------------------------------------------------
 function ENT:CanProperty(ply, property)
 	if property == "remover" then return true end
 	if property == "editentity" then return true end

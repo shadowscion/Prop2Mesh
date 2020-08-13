@@ -42,96 +42,112 @@ end
 
 
 -- -----------------------------------------------------------------------------
-local function LineEdgeIntersection(vert1, vert2, plane, length)
-	local edge = vert2.pos - vert1.pos
-	local lerp = (length - plane:Dot(vert1.pos)) / plane:Dot(edge)
-	if lerp < 0 then
-		return vert1
-	elseif lerp > 1 then
-		return vert2
-	end
+local function copy(v)
 	return {
-		pos    = vert1.pos + edge*lerp,
-		normal = ((1 - lerp)*vert1.normal + lerp*vert2.normal):GetNormalized(),
-		u      = (1 - lerp)*vert1.u + lerp*vert2.u,
-		v      = (1 - lerp)*vert1.v + lerp*vert2.v,
+		pos    = Vector(v.pos),
+		normal = Vector(v.normal),
+		u      = v.u,
+		v      = v.v,
 	}
 end
 
+local function clip(v1, v2, plane, length)
+	local d1 = v1.pos:Dot(plane) - length
+	local d2 = v2.pos:Dot(plane) - length
+	local t  = d1 / (d1 - d2)
+	return {
+		pos    = v1.pos + t * (v2.pos - v1.pos),
+		normal = v1.normal + t * (v2.normal - v1.normal),
+		u      = v1.u + t * (v2.u - v1.u),
+		v      = v1.v + t * (v2.v - v1.v),
+	}
+end
+
+-- method https://github.com/chenchenyuyu/DEMO/blob/b6bf971a302c71403e0e34e091402982dfa3cd2d/app/src/pages/vr/decal/decalGeometry.js#L102
 local function ApplyClippingPlane(verts, plane, length)
 	local temp = {}
 	for i = 1, #verts, 3 do
-		local vert1 = verts[i + 0]
-		local vert2 = verts[i + 1]
-		local vert3 = verts[i + 2]
+		local d1 = length - verts[i + 0].pos:Dot(plane)
+		local d2 = length - verts[i + 1].pos:Dot(plane)
+		local d3 = length - verts[i + 2].pos:Dot(plane)
 
-		local length1 = plane:Dot(vert1.pos) - length
-		local length2 = plane:Dot(vert2.pos) - length
-		local length3 = plane:Dot(vert3.pos) - length
+		local ov1 = d1 > 0
+		local ov2 = d2 > 0
+		local ov3 = d3 > 0
 
-		if length1 < 0 and length2 > 0 and length3 > 0 then
-			local vert4 = LineEdgeIntersection(vert2, vert1, plane, length)
-			local vert5 = LineEdgeIntersection(vert3, vert1, plane, length)
+		local total = (ov1 and 1 or 0) + (ov2 and 1 or 0) + (ov3 and 1 or 0)
 
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert2
-			temp[#temp + 1] = vert3
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert3
-			temp[#temp + 1] = vert5
+		local nv1, nv2, nv3, nv4
 
-		elseif length1 > 0 and length2 < 0 and length3 > 0 then
-			local vert4 = LineEdgeIntersection(vert1, vert2, plane, length)
-			local vert5 = LineEdgeIntersection(vert3, vert2, plane, length)
+		if total == 0 then
+			temp[#temp + 1] = verts[i + 0]
+			temp[#temp + 1] = verts[i + 1]
+			temp[#temp + 1] = verts[i + 2]
+		elseif total == 1 then
+			if ov1 then
+				nv1 = verts[i + 1]
+				nv2 = verts[i + 2]
+				nv3 = clip(verts[i + 0], nv1, plane, length)
+				nv4 = clip(verts[i + 0], nv2, plane, length)
 
-			temp[#temp + 1] = vert1
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert5
-			temp[#temp + 1] = vert1
-			temp[#temp + 1] = vert5
-			temp[#temp + 1] = vert3
+				temp[#temp + 1] = copy(nv1)
+				temp[#temp + 1] = copy(nv2)
+				temp[#temp + 1] = nv3
+				temp[#temp + 1] = nv4
+				temp[#temp + 1] = copy(nv3)
+				temp[#temp + 1] = copy(nv2)
+			elseif ov2 then
+				nv1 = verts[i + 0]
+				nv2 = verts[i + 2]
+				nv3 = clip(verts[i + 1], nv1, plane, length)
+				nv4 = clip(verts[i + 1], nv2, plane, length)
 
-		elseif length1 > 0 and length2 > 0 and length3 < 0 then
-			local vert4 = LineEdgeIntersection(vert2, vert3, plane, length)
-			local vert5 = LineEdgeIntersection(vert1, vert3, plane, length)
+				temp[#temp + 1] = nv3
+				temp[#temp + 1] = copy(nv2)
+				temp[#temp + 1] = copy(nv1)
+				temp[#temp + 1] = copy(nv2)
+				temp[#temp + 1] = copy(nv3)
+				temp[#temp + 1] = nv4
+			elseif ov3 then
+				nv1 = verts[i + 0]
+				nv2 = verts[i + 1]
+				nv3 = clip(verts[i + 2], nv1, plane, length)
+				nv4 = clip(verts[i + 2], nv2, plane, length)
 
-			temp[#temp + 1] = vert1
-			temp[#temp + 1] = vert2
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert1
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert5
+				temp[#temp + 1] = copy(nv1)
+				temp[#temp + 1] = copy(nv2)
+				temp[#temp + 1] = nv3
+				temp[#temp + 1] = nv4
+				temp[#temp + 1] = copy(nv3)
+				temp[#temp + 1] = copy(nv2)
+			end
+		elseif total == 2 then
+			if not ov1 then
+				nv1 = copy(verts[i + 0])
+				nv2 = clip(nv1, verts[i + 1], plane, length)
+				nv3 = clip(nv1, verts[i + 2], plane, length)
 
-		elseif length1 > 0 and length2 < 0 and length3 < 0 then
-			local vert4 = LineEdgeIntersection(vert1, vert2, plane, length)
-			local vert5 = LineEdgeIntersection(vert1, vert3, plane, length)
+				temp[#temp + 1] = nv1
+				temp[#temp + 1] = nv2
+				temp[#temp + 1] = nv3
+			elseif not ov2 then
+				nv1 = copy(verts[i + 1])
+				nv2 = clip(nv1, verts[i + 2], plane, length)
+				nv3 = clip(nv1, verts[i + 0], plane, length)
 
-			temp[#temp + 1] = vert1
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert5
+				temp[#temp + 1] = nv1
+				temp[#temp + 1] = nv2
+				temp[#temp + 1] = nv3
+			elseif not ov3 then
+				nv1 = copy(verts[i + 2])
+				nv2 = clip(nv1, verts[i + 0], plane, length)
+				nv3 = clip(nv1, verts[i + 1], plane, length)
 
-		elseif length1 < 0 and length2 > 0 and length3 < 0 then
-			local vert4 = LineEdgeIntersection(vert2, vert1, plane, length)
-			local vert5 = LineEdgeIntersection(vert2, vert3, plane, length)
-
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert2
-			temp[#temp + 1] = vert5
-
-		elseif length1 < 0 and length2 < 0 and length3 > 0 then
-			local vert4 = LineEdgeIntersection(vert3, vert1, plane, length)
-			local vert5 = LineEdgeIntersection(vert3, vert2, plane, length)
-
-			temp[#temp + 1] = vert4
-			temp[#temp + 1] = vert5
-			temp[#temp + 1] = vert3
-
-		elseif length1 > 0 and length2 > 0 and length3 > 0 then
-			temp[#temp + 1] = vert1
-			temp[#temp + 1] = vert2
-			temp[#temp + 1] = vert3
+				temp[#temp + 1] = nv1
+				temp[#temp + 1] = nv2
+				temp[#temp + 1] = nv3
+			end
 		end
-
 		coroutine.yield(false)
 	end
 	return temp

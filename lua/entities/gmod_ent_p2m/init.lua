@@ -70,7 +70,7 @@ build["prop_physics"] = function(pos, ang, ent)
 				data.inv = true
 			end
 			data.clips = data.clips or {}
-			table.insert(data.clips, { n = clip.n:Forward(), d = clip.d + clip.n:Forward():Dot(ent:OBBCenter()) })
+			data.clips[#data.clips + 1] = { n = clip.n:Forward(), d = clip.d + clip.n:Forward():Dot(ent:OBBCenter()) }
 		end
 	end
 
@@ -110,7 +110,7 @@ build["gmod_wire_hologram"] = function(pos, ang, ent)
 			local normal = ent:WorldToLocal(clipTo:LocalToWorld(v.normal) - clipTo:GetPos() + ent:GetPos())
 			local origin = ent:WorldToLocal(clipTo:LocalToWorld(v.origin))
 			data.clips = data.clips or {}
-			table.insert(data.clips, { n = normal, d = normal:Dot(origin) })
+			data.clips[#data.clips + 1] = { n = normal, d = normal:Dot(origin) }
 		end
 	end
 
@@ -168,7 +168,7 @@ function ENT:BuildFromTable(tbl)
 		local packets = {}
 		for i = 1, string.len(json), 32000 do
 			local c = string.sub(json, i, i + math.min(32000, string.len(json) - i + 1) - 1)
-			table.insert(packets, { c, string.len(c) })
+			packets[#packets + 1] = { c, string.len(c) }
 		end
 
 		packets.crc = util.CRC(json)
@@ -179,6 +179,44 @@ function ENT:BuildFromTable(tbl)
 
 		coroutine.yield(true)
 	end)
+end
+
+
+-- -----------------------------------------------------------------------------
+function ENT:RemoveFromTable(remove)
+	if not remove or table.Count(remove) == 0 then
+		return
+	end
+	local packets = self.EntityMods and self.EntityMods.p2m_packets
+	if not packets then
+		return
+	end
+
+	local reconstruct = ""
+	for k, packet in ipairs(self.EntityMods.p2m_packets) do
+		reconstruct = reconstruct .. packet[1]
+	end
+
+	local new = {}
+	local old = util.JSONToTable(util.Decompress(reconstruct))
+	for k, model in ipairs(old) do
+		if not remove[k] then
+			new[#new + 1] = model
+		end
+	end
+
+	local json = util.Compress(util.TableToJSON(new))
+	local packets = {}
+	for i = 1, string.len(json), 32000 do
+		local c = string.sub(json, i, i + math.min(32000, string.len(json) - i + 1) - 1)
+		packets[#packets + 1] = { c, string.len(c) }
+	end
+	packets.crc = util.CRC(json)
+
+	duplicator.ClearEntityModifier(self, "p2m_packets")
+	duplicator.StoreEntityModifier(self, "p2m_packets", packets)
+
+	self:Network(packets)
 end
 
 

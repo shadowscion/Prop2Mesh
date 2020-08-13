@@ -142,7 +142,7 @@ local function P2M_build(data, min, max)
 			end
 		end
 		if valid then
-			table.insert(tbl, entry)
+			tbl[#tbl + 1] = entry
 		end
 		coroutine.yield(false)
 	end
@@ -165,7 +165,7 @@ local function P2M_compile(self, ent, data)
 		local packets = {}
 		for i = 1, string.len(json), 32000 do
 			local c = string.sub(json, i, i + math.min(32000, string.len(json) - i + 1) - 1)
-			table.insert(packets, { c, string.len(c) })
+			packets[#packets + 1] = { c, string.len(c) }
 		end
 
 		packets.crc = util.CRC(json)

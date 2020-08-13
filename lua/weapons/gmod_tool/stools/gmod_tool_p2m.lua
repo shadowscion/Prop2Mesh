@@ -17,6 +17,7 @@ TOOL.ClientConVar = {
 	["ignore_props"] = 0,
 	["bymaterial"] = 0,
 	["bycolor"] = 0,
+	["texscale"] = 0,
 }
 
 local colors = {}
@@ -150,6 +151,9 @@ local function GetHitAngle(trace)
 	return ang
 end
 
+local function PowerOfTwo(n)
+	return math.pow(2, math.ceil(math.log(n) / math.log(2)))
+end
 
 -- -----------------------------------------------------------------------------
 -- TOOL: Left Click - Spawning controller
@@ -175,6 +179,11 @@ function TOOL:LeftClick(trace)
 		new:Spawn()
 		new:Activate()
 		new:SetPlayer(self:GetOwner())
+
+		local doScaleTextures = self:GetClientNumber("texscale")
+		if doScaleTextures > 0 then
+			new:SetTextureScale(PowerOfTwo(math.Clamp(doScaleTextures, 4, 128)))
+		end
 
 		duplicator.StoreEntityModifier(new, "material", { MaterialOverride = "models/debug/debugwhite" })
 
@@ -389,11 +398,30 @@ function TOOL.BuildCPanel(self)
 	panel:CheckBox("Ignore gmod_wire_hologram", "gmod_tool_p2m_ignore_holos")
 
 	local panel = vgui.Create("DForm")
+	panel:SetName("P2M - Experimental")
+	self:AddPanel(panel)
+	local tex = panel:NumSlider("Texture scale", "gmod_tool_p2m_texscale", 0, 128, 0)
+	tex.OnValueChanged = function(_, value)
+		if value < 2 then
+			if tex:GetValue() ~= 0 then
+				tex:SetValue(0)
+			end
+		else
+			value = PowerOfTwo(value)
+			if tex:GetValue() ~= value then
+				tex:SetValue(value)
+			end
+		end
+	end
+	panel:ControlHelp("Attempts to uniformly rescale texture coordinates")
+
+	local panel = vgui.Create("DForm")
 	panel:SetName("P2M - Clientside Options")
 	self:AddPanel(panel)
 
 	panel:NumSlider("Mesh build speed", "p2m_build_time", 0.001, 0.1, 3)
 	panel:ControlHelp("This sets the maximum time between frames during the mesh building process")
+	panel:CheckBox("Allow texture scaling", "p2m_allow_texscale")
 	panel:CheckBox("Disable rendering", "p2m_disable_rendering")
 	panel:Button("Refresh all", "p2m_refresh_all")
 end

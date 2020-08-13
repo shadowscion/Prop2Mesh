@@ -11,6 +11,7 @@ local render = render
 
 local p2m_disable = CreateClientConVar("p2m_disable_rendering", "0", true, false)
 local p2m_build_time = CreateClientConVar("p2m_build_time", 0.05, true, false, "Lower to reduce stuttering", 0.001, 0.1)
+local p2m_allow_texscale = CreateClientConVar("p2m_allow_texscale", "1", true, false)
 
 
 -- -----------------------------------------------------------------------------
@@ -37,6 +38,37 @@ function ENT:RemoveMeshes()
 				m:Destroy()
 			end
 		end
+	end
+end
+
+
+-- -----------------------------------------------------------------------------
+local function sign(n)
+	if n == 0 then
+		return 0
+	else
+		return n > 0 and 1 or -1
+	end
+end
+
+local function GetBoxDir(vec)
+	local x, y, z = math.abs(vec.x), math.abs(vec.y), math.abs(vec.z)
+	if x > y and x > z then
+		return vec.x < -0 and -1 or 1
+	elseif y > z then
+		return vec.y < 0 and -2 or 2
+	end
+	return vec.z < 0 and -3 or 3
+end
+
+local function GetBoxUV(vert, dir, scale)
+	local scale = 1 / scale
+	if dir == -1 or dir == 1 then
+		return vert.z * sign(dir) * scale, vert.y * scale
+	elseif dir == -2 or dir == 2 then
+		return vert.x * scale, vert.z * sign(dir) * scale
+	else
+		return vert.x * -sign(dir) * scale, vert.y * scale
 	end
 end
 
@@ -176,6 +208,11 @@ function ENT:ResetMeshes()
 
 	drawhud[self] = true
 
+	local doScaleTextures
+	if p2m_allow_texscale:GetBool() and self:GetTextureScale() ~= 0 then
+		doScaleTextures = math.Clamp(self:GetTextureScale(), 4, 128)
+	end
+
 	self.rebuild = coroutine.create(function()
 		for _, model in pairs(self.models) do
 			-- model info
@@ -307,6 +344,16 @@ function ENT:ResetMeshes()
 				end
 			end
 
+			if doScaleTextures then
+				for i = 1, #modelverts, 3 do
+					local dir = GetBoxDir(modelverts[i].normal)
+					modelverts[i + 0].u, modelverts[i + 0].v = GetBoxUV(modelverts[i + 0].pos, dir, doScaleTextures)
+					modelverts[i + 1].u, modelverts[i + 1].v = GetBoxUV(modelverts[i + 1].pos, dir, doScaleTextures)
+					modelverts[i + 2].u, modelverts[i + 2].v = GetBoxUV(modelverts[i + 2].pos, dir, doScaleTextures)
+					coroutine.yield(false)
+				end
+			end
+
 			-- create meshes
 			if #meshverts + #modelverts >= 65535 then
 				local m = Mesh()
@@ -314,6 +361,7 @@ function ENT:ResetMeshes()
 				self.meshes[#self.meshes + 1] = m
 				meshverts = {}
 			end
+
 			for _, vert in ipairs(modelverts) do
 				meshverts[#meshverts + 1] = vert
 				vertexcount = vertexcount + 1

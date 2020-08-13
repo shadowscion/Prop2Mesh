@@ -41,6 +41,8 @@ function ENT:SetupDataTables()
 	self:NetworkVar("Int", 4, "RMaxY")
 	self:NetworkVar("Int", 5, "RMaxZ")
 
+	self:NetworkVar("Int", 6, "TextureScale")
+
 	if CLIENT then
 		self:NetworkVarNotify("RMinX", self.OnRMinXChanged)
 		self:NetworkVarNotify("RMinY", self.OnRMinYChanged)

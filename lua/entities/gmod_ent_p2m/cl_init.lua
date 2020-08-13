@@ -346,7 +346,7 @@ function ENT:ResetMeshes()
 
 			if doScaleTextures then
 				for i = 1, #modelverts, 3 do
-					local dir = GetBoxDir(modelverts[i].normal)
+					local dir = GetBoxDir((modelverts[i + 1].pos - modelverts[i].pos):Cross(modelverts[i + 2].pos - modelverts[i].pos):GetNormalized())
 					modelverts[i + 0].u, modelverts[i + 0].v = GetBoxUV(modelverts[i + 0].pos, dir, doScaleTextures)
 					modelverts[i + 1].u, modelverts[i + 1].v = GetBoxUV(modelverts[i + 1].pos, dir, doScaleTextures)
 					modelverts[i + 2].u, modelverts[i + 2].v = GetBoxUV(modelverts[i + 2].pos, dir, doScaleTextures)

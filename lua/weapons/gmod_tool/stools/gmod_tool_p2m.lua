@@ -384,7 +384,15 @@ ToolInfo("reload_1", "Deselect all entities", 0)
 -- TOOL: CPanel
 function TOOL.BuildCPanel(self)
 	local panel = self
-	panel:SetName("P2M - Tool Behavior")
+	panel:SetName("Tool Behavior")
+	panel.Header.Paint = function(pnl, w, h)
+		surface.SetDrawColor(0,0,0,255)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(125,125,125,255)
+		surface.DrawRect(1, 1, w - 2, h - 2)
+	end
+	panel.Header:DockMargin(10, 0, 10, 0)
+	panel.Paint = function() end
 
 	panel:NumSlider("Area radius select", "gmod_tool_p2m_radius", 0, 1000)
 	panel:ControlHelp("Hold shift while right clicking to select all entities within this radius of your click position")
@@ -398,8 +406,15 @@ function TOOL.BuildCPanel(self)
 	panel:CheckBox("Ignore gmod_wire_hologram", "gmod_tool_p2m_ignore_holos")
 
 	local panel = vgui.Create("DForm")
-	panel:SetName("P2M - Experimental")
+	panel:SetName("Experimental Features")
+	panel.Header.Paint = function(pnl, w, h)
+		surface.SetDrawColor(0,0,0,255)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(125,125,125,255)
+		surface.DrawRect(1, 1, w - 2, h - 2)
+	end
 	self:AddPanel(panel)
+
 	local tex = panel:NumSlider("Texture scale", "gmod_tool_p2m_texscale", 0, 128, 0)
 	tex.OnValueChanged = function(_, value)
 		if value < 2 then
@@ -413,17 +428,72 @@ function TOOL.BuildCPanel(self)
 			end
 		end
 	end
-	panel:ControlHelp("Attempts to uniformly rescale texture coordinates")
+	panel:ControlHelp("Uniformly rescale texture coordinates")
 
 	local panel = vgui.Create("DForm")
-	panel:SetName("P2M - Clientside Options")
+	panel:SetName("Clientside Options")
+	panel.Header.Paint = function(pnl, w, h)
+		surface.SetDrawColor(0,0,0,255)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(125,125,125,255)
+		surface.DrawRect(1, 1, w - 2, h - 2)
+	end
 	self:AddPanel(panel)
 
 	panel:NumSlider("Mesh build speed", "p2m_build_time", 0.001, 0.1, 3)
-	panel:ControlHelp("This sets the maximum time between frames during the mesh building process")
+	panel:ControlHelp("Maximum time between frames during the mesh building process")
 	panel:CheckBox("Allow texture scaling", "p2m_allow_texscale")
 	panel:CheckBox("Disable rendering", "p2m_disable_rendering")
 	panel:Button("Refresh all", "p2m_refresh_all")
+
+	local panel = vgui.Create("DForm")
+	panel:SetName("Disclosure")
+	panel.Header.Paint = function(pnl, w, h)
+		surface.SetDrawColor(0,0,0,255)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(125,125,125,255)
+		surface.DrawRect(1, 1, w - 2, h - 2)
+	end
+	panel:DockPadding(0, 0, 0, 10)
+	self:AddPanel(panel)
+
+	local tree = vgui.Create("DTree", panel)
+	tree:Dock(FILL)
+	tree:SetTall(128)
+	panel:AddItem(tree)
+
+	tree.OnNodeSelected = function()
+		tree:SetSelectedItem()
+	end
+
+	local function UpdateList()
+		tree:Clear()
+		local p2m = {}
+		for k, v in ipairs(ents.FindByClass("gmod_ent_p2m")) do
+			local ply = v:GetPlayer()
+			if ply then
+				p2m[ply] = p2m[ply] or {
+					models = 0,
+					triangles = 0,
+					controllers = 0,
+				}
+				p2m[ply].models = p2m[ply].models + (v.models and #v.models or 0)
+				p2m[ply].triangles = p2m[ply].triangles + (v.tricount or 0)
+				p2m[ply].controllers = p2m[ply].controllers + 1
+			end
+		end
+		for k, v in SortedPairs(p2m) do
+			local node = tree:AddNode(k:Nick(), "icon16/user.png")
+			node:AddNode(v.controllers .. " controllers", "icon16/bullet_black.png")
+			node:AddNode(v.models .. " models", "icon16/bullet_black.png")
+			node:AddNode(v.triangles .. " triangles", "icon16/bullet_black.png")
+			node:SetExpanded(true, true)
+		end
+	end
+
+	panel.Header.OnCursorEntered = function()
+		UpdateList()
+	end
 end
 
 local white = Color(255, 255, 255, 255)

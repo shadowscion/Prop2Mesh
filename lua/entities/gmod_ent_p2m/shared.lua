@@ -50,6 +50,8 @@ function ENT:SetupDataTables()
 		self:NetworkVarNotify("RMaxX", self.OnRMaxXChanged)
 		self:NetworkVarNotify("RMaxY", self.OnRMaxYChanged)
 		self:NetworkVarNotify("RMaxZ", self.OnRMaxZChanged)
+
+		self:NetworkVarNotify("TextureScale", self.OnTextureScaleChanged)
 	end
 end
 
@@ -92,6 +94,15 @@ if CLIENT then
 		self:SetRenderBounds(min, max)
 		self.boxtime = CurTime()
 	end
+
+	function ENT:OnTextureScaleChanged(varname, oldvalue, newvalue)
+		timer.Simple(0.1, function()
+			if oldvalue == newvalue then
+				return
+			end
+			hook.Run("OnEntityCreated", self)
+		end)
+	end
 else
 	function ENT:SetDefaultRenderBounds()
 		self:SetRMinX(-100)
@@ -103,6 +114,8 @@ else
 	end
 end
 
+
+-- -----------------------------------------------------------------------------
 properties.Add("p2m_edit", {
 	MenuLabel = "Inspect Models",
 	Order     = 90005,
@@ -155,6 +168,9 @@ properties.Add("p2m_edit", {
 		window:SetSize(w, h)
 		window:SetTitle(tostring(ent))
 		window.OnClose = function()
+			if IsValid(cpanel) then
+				cpanel:SetExpanded(true)
+			end
 			if IsValid(ghost) then
 				ghost:Remove()
 			end
@@ -163,11 +179,11 @@ properties.Add("p2m_edit", {
 			end
 		end
 		ent:CallOnRemove("p2m_edit", function()
-			if IsValid(ghost) then
-				ghost:Remove()
-			end
 			if IsValid(window) then
 				window:Close()
+			end
+			if IsValid(ghost) then
+				ghost:Remove()
 			end
 		end)
 

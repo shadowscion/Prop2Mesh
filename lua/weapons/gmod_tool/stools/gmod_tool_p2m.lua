@@ -163,6 +163,15 @@ function TOOL:LeftClick(trace)
 	end
 
 	if self:GetStage() ~= 0 or IsValid(self.Controller) then
+		if self:GetOwner():KeyDown(IN_USE) and trace.Entity == self.Controller then
+			local doScaleTextures = self:GetClientNumber("texscale")
+			if doScaleTextures > 0 then
+				self.Controller:SetTextureScale(PowerOfTwo(math.Clamp(doScaleTextures, 4, 128)))
+			else
+				self.Controller:SetTextureScale(0)
+			end
+			self:Reload()
+		end
 		return false
 	end
 
@@ -300,6 +309,12 @@ function TOOL:RightClick(trace)
 			end
 			return true
 		else
+			local doScaleTextures = self:GetClientNumber("texscale")
+			if doScaleTextures > 0 then
+				self.Controller:SetTextureScale(PowerOfTwo(math.Clamp(doScaleTextures, 4, 128)))
+			else
+				self.Controller:SetTextureScale(0)
+			end
 			if self.Controller.BuildFromTable then
 				self.Controller:BuildFromTable(table.GetKeys(self.CookieJar))
 			end
@@ -368,6 +383,7 @@ end
 
 -- left click
 ToolInfo("left_1", "Spawn a new mesh controller", 0)
+ToolInfo("left_2", "Hold E to update texture scale", 1)
 
 -- Right click
 ToolInfo("right_1", "Select a mesh controller", 0)
@@ -429,6 +445,7 @@ function TOOL.BuildCPanel(self)
 		end
 	end
 	panel:ControlHelp("Uniformly rescale texture coordinates")
+	panel:Help("To update an existing controller with this value, select it with right click, hold E, and then left click it")
 
 	local panel = vgui.Create("DForm")
 	panel:SetName("Clientside Options")
@@ -536,5 +553,6 @@ function TOOL:DrawHUD(test)
 
 		draw.DrawText("models: " .. (trace.Entity.models and #trace.Entity.models or 0), "BudgetLabel", scr.x, scr.y, white, TEXT_ALIGN_LEFT)
 		draw.DrawText("triangles: " .. (trace.Entity.tricount or 0), "BudgetLabel", scr.x, scr.y + 16, white, TEXT_ALIGN_LEFT)
+		draw.DrawText("texscale: " .. (trace.Entity:GetTextureScale() or 0), "BudgetLabel", scr.x, scr.y + 32, white, TEXT_ALIGN_LEFT)
 	end
 end

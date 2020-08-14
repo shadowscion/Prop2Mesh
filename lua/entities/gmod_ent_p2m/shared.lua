@@ -95,7 +95,11 @@ if CLIENT then
 		self.boxtime = CurTime()
 	end
 
+	local allowTexScale = GetConVar("p2m_allow_texscale")
 	function ENT:OnTextureScaleChanged(varname, oldvalue, newvalue)
+		if not allowTexScale:GetBool() then
+			return
+		end
 		timer.Simple(0.1, function()
 			if oldvalue == newvalue then
 				return

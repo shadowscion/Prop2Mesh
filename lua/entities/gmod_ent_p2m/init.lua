@@ -1,12 +1,14 @@
 -- -----------------------------------------------------------------------------
-AddCSLuaFile("cl_fixup.lua")
+AddCSLuaFile("p2m/p2mlib.lua")
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-util.AddNetworkString("p2m_stream")
-util.AddNetworkString("p2m_refresh")
+
+-- -----------------------------------------------------------------------------
+util.AddNetworkString("p2mnet.getmodels")
+util.AddNetworkString("p2mnet.invalidate")
 
 
 -- -----------------------------------------------------------------------------
@@ -27,274 +29,108 @@ end
 -- -----------------------------------------------------------------------------
 function ENT:SetPlayer(ply)
 	self:SetNWEntity("Founder", ply)
+	self:SetNWString("FounderID", ply:SteamID64())
 end
 
 
 -- -----------------------------------------------------------------------------
--- credit Ramalayha (https://github.com/Facepunch/garrysmod-requests/issues/1660)
-local function getBodygroupMask(ent)
-	local mask = 0
-	local offset = 1
-
-	for index = 1, ent:GetNumBodyGroups() do
-		local bg = ent:GetBodygroup(index)
-		mask = mask + offset * bg
-		offset = offset * ent:GetBodygroupCount(index)
-	end
-
-	return mask
+function ENT:SetTextureScale(scale)
+	local scale = math.floor(scale * 0.5) * 2
+	duplicator.StoreEntityModifier(self, "p2m_mods", { tscale = scale } )
+	self:SetNWInt("P2M_TSCALE", scale)
+	self:Invalidate()
 end
 
 
 -- -----------------------------------------------------------------------------
-local build = {}
-build["prop_physics"] = function(pos, ang, ent)
-	local data = {}
-	data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), pos, ang)
-	data.mdl = string.lower(ent:GetModel())
-
-	local scale = ent:GetManipulateBoneScale(0)
-	if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
-		data.scale = scale
-	end
-
-	local bgrp = getBodygroupMask(ent)
-	if bgrp ~= 0 then
-		data.bgrp = bgrp
-	end
-
-	local clips = ent.ClipData
-	if clips then
-		for _, clip in ipairs(clips) do
-			if clip.inside then
-				data.inv = true
-			end
-			data.clips = data.clips or {}
-			data.clips[#data.clips + 1] = { n = clip.n:Forward(), d = clip.d + clip.n:Forward():Dot(ent:OBBCenter()) }
-		end
-	end
-
-	return data
+function ENT:SetMeshScale(scale)
+	local scale = math.Clamp(scale, 0.1, 1)
+	duplicator.StoreEntityModifier(self, "p2m_mods", { mscale = scale } )
+	self:SetNWFloat("P2M_MSCALE", scale)
+	self:Invalidate()
 end
 
-build["gmod_wire_hologram"] = function(pos, ang, ent)
-	local holo
-	for k, v in pairs(ent:GetTable().OnDieFunctions.holo_cleanup.Args[1].data.holos) do
-		if v.ent == ent then
-			holo = { scale = v.scale, clips = v.clips }
-			continue
-		end
-	end
-	if not holo then
-		return
-	end
 
-	local data = { holo = true }
-	data.pos, data.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), pos, ang)
-	data.mdl = string.lower(ent:GetModel())
-
-	local bgrp = getBodygroupMask(ent)
-	if bgrp ~= 0 then
-		data.bgrp = bgrp
-	end
-
-	if holo.clips then
-		for k, v in pairs(holo.clips) do
-			if v.localentid == 0 then
-				continue
-			end
-			local clipTo = Entity(v.localentid)
-			if not IsValid(clipTo) then
-				continue
-			end
-			local normal = ent:WorldToLocal(clipTo:LocalToWorld(v.normal) - clipTo:GetPos() + ent:GetPos())
-			local origin = ent:WorldToLocal(clipTo:LocalToWorld(v.origin))
-			data.clips = data.clips or {}
-			data.clips[#data.clips + 1] = { n = normal, d = normal:Dot(origin) }
-		end
-	end
-
-	if holo.scale then
-		if holo.scale.x ~= 1 or holo.scale.y ~= 1 or holo.scale.z ~= 1 then
-			data.scale = Vector(holo.scale)
-		end
-	end
-
-	return data
-end
-
-function ENT:BuildFromTable(tbl)
-	duplicator.ClearEntityModifier(self, "p2m_packets")
-
-	local pos = self:GetPos()
-	local ang = self:GetAngles()
-
-	local function get()
-		local ret = {}
-		local xl, yl, zl = -6, -6, -6
-		local xu, yu, zu = 6, 6, 6
-
-		for _, ent in ipairs(tbl) do
-			if not IsValid(ent) then
-				continue
-			end
-			local class = ent:GetClass()
-			if build[class] then
-				local data = build[class](pos, ang, ent)
-				if data then
-					table.insert(ret, data)
-					xl = math.min(xl, data.pos.x)
-					yl = math.min(yl, data.pos.y)
-					zl = math.min(zl, data.pos.z)
-					xu = math.max(xu, data.pos.x)
-					yu = math.max(yu, data.pos.y)
-					zu = math.max(zu, data.pos.z)
-				end
-			end
-			coroutine.yield(false)
-		end
-
-		self:SetRMinX(xl)
-		self:SetRMinY(yl)
-		self:SetRMinZ(zl)
-		self:SetRMaxX(xu)
-		self:SetRMaxY(yu)
-		self:SetRMaxZ(zu)
-
-		return ret
-	end
-	self.compile = coroutine.create(function()
-		local json = util.Compress(util.TableToJSON(get()))
-		local packets = {}
-		for i = 1, string.len(json), 32000 do
-			local c = string.sub(json, i, i + math.min(32000, string.len(json) - i + 1) - 1)
-			packets[#packets + 1] = { c, string.len(c) }
-		end
-
-		packets.crc = util.CRC(json)
-
-		self:Network(packets)
-
-		duplicator.StoreEntityModifier(self, "p2m_packets", packets)
-
-		coroutine.yield(true)
+-- -----------------------------------------------------------------------------
+function ENT:Invalidate(ply)
+	timer.Simple(0.1, function()
+		net.Start("p2mnet.invalidate")
+		net.WriteEntity(self)
+		if ply then net.Send(ply) else net.Broadcast() end
 	end)
 end
 
 
 -- -----------------------------------------------------------------------------
-function ENT:RemoveFromTable(remove)
-	if not remove or table.Count(remove) == 0 then
-		return
-	end
-	local packets = self.EntityMods and self.EntityMods.p2m_packets
-	if not packets then
-		return
-	end
+function ENT:SetModelsFromTable(data)
+	duplicator.ClearEntityModifier(self, "p2m_packets")
 
-	local reconstruct = ""
-	for k, packet in ipairs(self.EntityMods.p2m_packets) do
-		reconstruct = reconstruct .. packet[1]
-	end
-
-	local new = {}
-	local old = util.JSONToTable(util.Decompress(reconstruct))
-	for k, model in ipairs(old) do
-		if not remove[k] then
-			new[#new + 1] = model
-		end
-	end
-
-	local json = util.Compress(util.TableToJSON(new))
+	local json = util.Compress(util.TableToJSON(data))
 	local packets = {}
 	for i = 1, string.len(json), 32000 do
 		local c = string.sub(json, i, i + math.min(32000, string.len(json) - i + 1) - 1)
 		packets[#packets + 1] = { c, string.len(c) }
 	end
+
 	packets.crc = util.CRC(json)
 
-	duplicator.ClearEntityModifier(self, "p2m_packets")
+	self:SetNWString("P2M_CRC", packets.crc)
+	self:Invalidate()
+
 	duplicator.StoreEntityModifier(self, "p2m_packets", packets)
-
-	self:Network(packets)
 end
 
 
 -- -----------------------------------------------------------------------------
-function ENT:Think()
-	if self.compile then
-		local mark = SysTime()
-		while SysTime() - mark < 0.1 do
-			local _, msg = coroutine.resume(self.compile)
-			if msg then
-				self.compile = nil
-				break
-			end
-		end
-	end
+function ENT:GetPackets()
+	return self.EntityMods and self.EntityMods.p2m_packets
 end
 
 
 -- -----------------------------------------------------------------------------
-function ENT:Network(packets, ply)
-	if not packets then
+net.Receive("p2mnet.getmodels", function(len, ply)
+	local controller = net.ReadEntity()
+	if not IsValid(controller) or controller:GetClass() ~= "gmod_ent_p2m" then
 		return
 	end
-	for i, packet in ipairs(packets) do
-		net.Start("p2m_stream")
-			net.WriteEntity(self)
-			net.WriteUInt(i, 16)
-			net.WriteUInt(packet[2], 32)
-			net.WriteData(packet[1], packet[2])
-			if i == #packets then
-				net.WriteBool(true)
+	local packets = controller:GetPackets()
+	if packets and packets.crc == controller:GetCRC() then
+		for i, packet in ipairs(packets) do
+			net.Start("p2mnet.getmodels")
 				net.WriteString(packets.crc)
-			else
-				net.WriteBool(false)
-			end
-		if ply then net.Send(ply) else net.Broadcast() end
-	end
-end
-
-local rantispam = {}
-net.Receive("p2m_refresh", function(len, ply)
-	if not IsValid(ply) then
-		return
-	end
-
-	local self = net.ReadEntity()
-	if IsValid(self) then
-		if self:GetClass() ~= "gmod_ent_p2m" then
-			return
+				net.WriteUInt(i, 16)
+				net.WriteUInt(packet[2], 32)
+				net.WriteData(packet[1], packet[2])
+				net.WriteBool(i == #packets)
+			net.Send(ply)
 		end
-		self:Network(self.EntityMods.p2m_packets, ply)
-		return
-	end
-
-	if not rantispam[ply] or CurTime() - rantispam[ply] > 15 then
-		for _, ent in pairs(ents.FindByClass("gmod_ent_p2m")) do
-			ent:Network(ent.EntityMods.p2m_packets, ply)
-		end
-		rantispam[ply] = CurTime()
-	else
-		ply:ChatPrint("Please wait before using this command again")
 	end
 end)
 
 
 -- -----------------------------------------------------------------------------
 duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
-	local self = ents.Create(data.Class)
-	if not IsValid(self) then
+	local controller = ents.Create(data.Class)
+	if not IsValid(controller) then
 		return false
 	end
 
-	duplicator.DoGeneric(self, data)
-	self:Spawn()
-	self:Activate()
-	self:SetPlayer(ply)
-	ply:AddCount(data.Class, self)
-	ply:AddCleanup(data.Class, self)
+	duplicator.DoGeneric(controller, data)
+	controller:Spawn()
+	controller:Activate()
+	controller:SetPlayer(ply)
 
-	return self
+	if data.EntityMods then
+		if data.EntityMods.p2m_packets then
+			controller:SetNWString("P2M_CRC", data.EntityMods.p2m_packets.crc)
+		end
+		if data.EntityMods.p2m_mods then
+			controller:SetNWInt("P2M_TSCALE", data.EntityMods.p2m_mods.tscale or 0)
+			controller:SetNWFloat("P2M_MSCALE", data.EntityMods.p2m_mods.mscale or 1)
+		end
+	end
+
+	controller:Invalidate()
+
+	return controller
 end, "Data")

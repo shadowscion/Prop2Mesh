@@ -1,550 +1,454 @@
 -- -----------------------------------------------------------------------------
 include("shared.lua")
-include("cl_fixup.lua")
+include("p2m/p2mlib.lua")
 
-local drawhud = {}
+--[[
 
-local Vector = Vector
+	todo:
+		clear caches if not used after some amount of time
+]]
+
+local max_frame_time = CreateClientConVar("prop2mesh_build_time", 0.001, true, false, "Lower to reduce stuttering", 0.001, 0.1)
+
+local disable_rendering
+CreateClientConVar("prop2mesh_disable_rendering", "0", true, false)
+cvars.AddChangeCallback("prop2mesh_disable_rendering", function(convar_name, value_old, value_new)
+	disable_rendering = value_new ~= "0"
+end)
+
+
+
+-- -----------------------------------------------------------------------------
+local coroutine = coroutine
 local string = string
-local surface = surface
 local render = render
-
-local p2m_disable = CreateClientConVar("p2m_disable_rendering", "0", true, false)
-local p2m_build_time = CreateClientConVar("p2m_build_time", 0.05, true, false, "Lower to reduce stuttering", 0.001, 0.1)
-local p2m_allow_texscale = CreateClientConVar("p2m_allow_texscale", "1", true, false)
-
-
--- -----------------------------------------------------------------------------
-function ENT:Initialize()
-	self.matrix = Matrix()
-	self:SetRenderBounds(
-		Vector(self:GetRMinX(), self:GetRMinY(), self:GetRMinZ()),
-		Vector(self:GetRMaxX(), self:GetRMaxY(), self:GetRMaxZ()))
-	self.tricount = 0
-	self.progress = 0
-end
+local table = table
+local cam = cam
+local net = net
 
 
 -- -----------------------------------------------------------------------------
-function ENT:OnRemove()
-	self:RemoveMeshes()
-	drawhud[self] = nil
-end
+local p2mlib = p2mlib
 
-function ENT:RemoveMeshes()
-	if self.meshes then
-		for _, m in pairs(self.meshes) do
-			if m:IsValid() then
-				m:Destroy()
+local p2m_getmodels = {}
+local p2m_getmeshes = {}
+local p2m_models    = {}
+local p2m_meshes    = {}
+local p2m_usedby    = {}
+
+
+-- -----------------------------------------------------------------------------
+function P2M_Flush(gb)
+	for crc, scales in pairs(p2m_meshes) do
+		for scale, parts in pairs(scales) do
+			for p, part in ipairs(parts) do
+				part:Destroy()
+				part = nil
 			end
+		end
+	end
+	p2m_meshes    = {}
+	p2m_getmodels = {}
+	p2m_getmeshes = {}
+	p2m_models    = {}
+	p2m_usedby    = {}
+	if gb then collectgarbage() end
+end
+
+
+-- -----------------------------------------------------------------------------
+function P2M_Dump()
+	local msg = {}
+	for crc, v in pairs(p2m_models) do
+		msg[#msg + 1] = string.format("\tcrc: %s\n", crc)
+		msg[#msg + 1] = string.format("\t\tmodels: %d\n", v.count)
+		msg[#msg + 1] = string.format("\t\ttriangles: %d\n", v.triangles)
+	end
+	MsgC(Color(255,255,0), "Models:\n", Color(255,255,255), table.concat(msg))
+
+	local msg = {}
+	for crc, scales in pairs(p2m_meshes) do
+		msg[#msg + 1] = string.format("\tcrc: %s\n", crc)
+		for scale, parts in pairs(scales) do
+			msg[#msg + 1] = string.format("\t\tuv scale: %d\n", scale)
+			msg[#msg + 1] = string.format("\t\t\timeshes: %d\n", #parts)
+		end
+	end
+	MsgC(Color(255,255,0), "Meshes:\n", Color(255,255,255), table.concat(msg))
+
+	local msg = {}
+	for crc, v in pairs(p2m_usedby) do
+		msg[#msg + 1] = string.format("\tcrc: %s\n", crc)
+		for ent, time in pairs(v) do
+			msg[#msg + 1] = string.format("\t\tent: %s\n", tostring(ent))
+		end
+	end
+	MsgC(Color(255,255,0), "Used By:\n", Color(255,255,255), table.concat(msg))
+end
+
+
+-- -----------------------------------------------------------------------------
+local function P2M_ClearUsed(crc, ent)
+	if p2m_usedby[crc] then
+		p2m_usedby[crc][ent] = nil
+		if next(p2m_usedby[crc]) == nil then
+			p2m_usedby[crc] = nil
 		end
 	end
 end
 
 
 -- -----------------------------------------------------------------------------
-local function sign(n)
-	if n == 0 then
-		return 0
-	else
-		return n > 0 and 1 or -1
-	end
-end
-
-local function GetBoxDir(vec)
-	local x, y, z = math.abs(vec.x), math.abs(vec.y), math.abs(vec.z)
-	if x > y and x > z then
-		return vec.x < -0 and -1 or 1
-	elseif y > z then
-		return vec.y < 0 and -2 or 2
-	end
-	return vec.z < 0 and -3 or 3
-end
-
-local function GetBoxUV(vert, dir, scale)
-	local scale = 1 / scale
-	if dir == -1 or dir == 1 then
-		return vert.z * sign(dir) * scale, vert.y * scale
-	elseif dir == -2 or dir == 2 then
-		return vert.x * scale, vert.z * sign(dir) * scale
-	else
-		return vert.x * -sign(dir) * scale, vert.y * scale
-	end
+local function P2M_GetMeshes(crc, scale)
+	return p2m_meshes[crc] and p2m_meshes[crc][scale]
 end
 
 
 -- -----------------------------------------------------------------------------
-local function copy(v)
-	return {
-		pos    = Vector(v.pos),
-		normal = Vector(v.normal),
-		u      = v.u,
-		v      = v.v,
-	}
-end
-
-local function clip(v1, v2, plane, length)
-	local d1 = v1.pos:Dot(plane) - length
-	local d2 = v2.pos:Dot(plane) - length
-	local t  = d1 / (d1 - d2)
-	return {
-		pos    = v1.pos + t * (v2.pos - v1.pos),
-		normal = v1.normal + t * (v2.normal - v1.normal),
-		u      = v1.u + t * (v2.u - v1.u),
-		v      = v1.v + t * (v2.v - v1.v),
-	}
-end
-
--- method https://github.com/chenchenyuyu/DEMO/blob/b6bf971a302c71403e0e34e091402982dfa3cd2d/app/src/pages/vr/decal/decalGeometry.js#L102
-local function ApplyClippingPlane(verts, plane, length)
-	local temp = {}
-	for i = 1, #verts, 3 do
-		local d1 = length - verts[i + 0].pos:Dot(plane)
-		local d2 = length - verts[i + 1].pos:Dot(plane)
-		local d3 = length - verts[i + 2].pos:Dot(plane)
-
-		local ov1 = d1 > 0
-		local ov2 = d2 > 0
-		local ov3 = d3 > 0
-
-		local total = (ov1 and 1 or 0) + (ov2 and 1 or 0) + (ov3 and 1 or 0)
-
-		local nv1, nv2, nv3, nv4
-
-		if total == 0 then
-			temp[#temp + 1] = verts[i + 0]
-			temp[#temp + 1] = verts[i + 1]
-			temp[#temp + 1] = verts[i + 2]
-		elseif total == 1 then
-			if ov1 then
-				nv1 = verts[i + 1]
-				nv2 = verts[i + 2]
-				nv3 = clip(verts[i + 0], nv1, plane, length)
-				nv4 = clip(verts[i + 0], nv2, plane, length)
-
-				temp[#temp + 1] = copy(nv1)
-				temp[#temp + 1] = copy(nv2)
-				temp[#temp + 1] = nv3
-				temp[#temp + 1] = nv4
-				temp[#temp + 1] = copy(nv3)
-				temp[#temp + 1] = copy(nv2)
-			elseif ov2 then
-				nv1 = verts[i + 0]
-				nv2 = verts[i + 2]
-				nv3 = clip(verts[i + 1], nv1, plane, length)
-				nv4 = clip(verts[i + 1], nv2, plane, length)
-
-				temp[#temp + 1] = nv3
-				temp[#temp + 1] = copy(nv2)
-				temp[#temp + 1] = copy(nv1)
-				temp[#temp + 1] = copy(nv2)
-				temp[#temp + 1] = copy(nv3)
-				temp[#temp + 1] = nv4
-			elseif ov3 then
-				nv1 = verts[i + 0]
-				nv2 = verts[i + 1]
-				nv3 = clip(verts[i + 2], nv1, plane, length)
-				nv4 = clip(verts[i + 2], nv2, plane, length)
-
-				temp[#temp + 1] = copy(nv1)
-				temp[#temp + 1] = copy(nv2)
-				temp[#temp + 1] = nv3
-				temp[#temp + 1] = nv4
-				temp[#temp + 1] = copy(nv3)
-				temp[#temp + 1] = copy(nv2)
-			end
-		elseif total == 2 then
-			if not ov1 then
-				nv1 = copy(verts[i + 0])
-				nv2 = clip(nv1, verts[i + 1], plane, length)
-				nv3 = clip(nv1, verts[i + 2], plane, length)
-
-				temp[#temp + 1] = nv1
-				temp[#temp + 1] = nv2
-				temp[#temp + 1] = nv3
-			elseif not ov2 then
-				nv1 = copy(verts[i + 1])
-				nv2 = clip(nv1, verts[i + 2], plane, length)
-				nv3 = clip(nv1, verts[i + 0], plane, length)
-
-				temp[#temp + 1] = nv1
-				temp[#temp + 1] = nv2
-				temp[#temp + 1] = nv3
-			elseif not ov3 then
-				nv1 = copy(verts[i + 2])
-				nv2 = clip(nv1, verts[i + 0], plane, length)
-				nv3 = clip(nv1, verts[i + 1], plane, length)
-
-				temp[#temp + 1] = nv1
-				temp[#temp + 1] = nv2
-				temp[#temp + 1] = nv3
-			end
-		end
-		coroutine.yield(false)
+local function P2M_BuildMeshes(crc, scale)
+	if not p2m_models[crc] then
+		return
 	end
-	return temp
+
+	local models = util.JSONToTable(util.Decompress(p2m_models[crc].data))
+	local bounds
+	if not p2m_models[crc].mins or not p2m_models[crc].maxs then
+		bounds = true
+	end
+	if not p2m_models[crc].count then
+		p2m_models[crc].count = #models
+	end
+
+	local meshparts, mins, maxs = p2mlib.modelsToMeshes(true, models, scale, bounds)
+	if meshparts then
+		local vcount  = 0
+		local imeshes = {}
+		for k, part in ipairs(meshparts) do
+			local imesh = Mesh()
+			imesh:BuildFromTriangles(part)
+			imeshes[#imeshes + 1] = imesh
+			vcount = vcount + #part
+			coroutine.yield(false, 1)
+		end
+
+		if not p2m_meshes[crc] then
+			p2m_meshes[crc] = {}
+		end
+
+		p2m_meshes[crc][scale] = imeshes
+		p2m_models[crc].triangles = vcount / 3
+	end
+	if mins and maxs then
+		p2m_models[crc].mins = mins
+		p2m_models[crc].maxs = maxs
+	end
+
+	models = nil
 end
 
 
 -- -----------------------------------------------------------------------------
-local angle = Angle()
-local angle90 = Angle(0, 90, 0)
-
-function ENT:ResetMeshes()
-	self:RemoveMeshes()
-
-	self.meshes = {}
-
-	local vertexcount = 0
-	local meshverts = {}
-	local infocache = {}
-
-	local mVertex = Matrix()
-	local mModel = Matrix()
-	local mSelf = Matrix()
-	mSelf:SetTranslation(self:GetPos())
-	mSelf:SetAngles(self:GetAngles())
-	local mSelfInverse = mSelf:GetInverse()
-
-	drawhud[self] = true
-
-	local doScaleTextures
-	if p2m_allow_texscale:GetBool() and self:GetTextureScale() ~= 0 then
-		doScaleTextures = math.Clamp(self:GetTextureScale(), 4, 128)
+local function P2M_CheckMeshes(crc, scale)
+	if not p2m_models[crc] then
+		return
 	end
-
-	self.rebuild = coroutine.create(function()
-		for _, model in pairs(self.models) do
-			-- model info
-			local meshdata
-			if infocache[model.mdl] then
-				meshdata = infocache[model.mdl][model.bgrp or 0]
-			else
-				infocache[model.mdl] = {}
-			end
-			if not meshdata then
-				meshdata = util.GetModelMeshes(model.mdl, 0, model.bgrp or 0)
-				if meshdata then
-					infocache[model.mdl][model.bgrp or 0] = meshdata
-				else
-					continue
-				end
-			end
-
-			-- hud update
-			self.progress = _ / #self.models
-
-			-- fixup
-			local ang = model.ang
-			local scale = model.scale
-			local clips
-
-			local fix = p2mfix[model.mdl]
-			if not fix then
-				fix = p2mfix[string.GetPathFromFilename(model.mdl)]
-			end
-			if fix then
-				ang = Angle(ang.p, ang.y, ang.r)
-				ang:RotateAroundAxis(ang:Up(), 90)
-
-				if model.clips then
-					clips = {}
-					for _, clip in ipairs(model.clips) do
-						local normal = Vector(clip.n)
-						normal:Rotate(-angle90)
-						clips[#clips + 1] = {
-							n = normal,
-							d = clip.d,
-						}
-					end
-				end
-				if scale then
-					if model.holo then
-						scale = Vector(scale.y, scale.x, scale.z)
-					else
-						scale = Vector(scale.x, scale.z, scale.y)
-					end
-				end
-			end
-			if not clips then
-				clips = model.clips
-			end
-
-			-- fake entity
-			mModel:SetTranslation(model.pos)
-			mModel:SetAngles(ang)
-			mModel = mSelf * mModel
-
-			-- vertices
-			local modelverts = {}
-			if clips then
-				-- create scaled vert list
-				for _, part in ipairs(meshdata) do
-					for _, vert in ipairs(part.triangles) do
-						modelverts[#modelverts + 1] = {
-							pos    = scale and vert.pos * scale or vert.pos,
-							normal = vert.normal,
-							u      = vert.u,
-							v      = vert.v,
-						}
-						coroutine.yield(false)
-					end
-				end
-
-				-- create clipped vert list
-				for _, clip in ipairs(clips) do
-					modelverts = ApplyClippingPlane(modelverts, clip.n, clip.d)
-				end
-
-				-- localize vert list
-				local temp = {}
-				for _, vert in ipairs(modelverts) do
-					mVertex:SetTranslation(vert.pos)
-
-					local normal = Vector(vert.normal)
-					normal:Rotate(ang)
-
-					temp[#temp + 1] = {
-						pos    = (mSelfInverse * (mModel * mVertex)):GetTranslation(),
-						normal = normal,
-						u      = vert.u,
-						v      = vert.v,
-					}
-					coroutine.yield(false)
-				end
-
-				-- visclip renderinside flag
-				if model.inv then
-					for i = #temp, 1, -1 do
-						temp[#temp + 1] = temp[i]
-						coroutine.yield(false)
-					end
-				end
-				modelverts = temp
-			else
-				for _, part in ipairs(meshdata) do
-					for _, vert in ipairs(part.triangles) do
-						if scale then
-							mVertex:SetTranslation(vert.pos * scale)
-						else
-							mVertex:SetTranslation(vert.pos)
-						end
-
-						local normal = Vector(vert.normal.x, vert.normal.y, vert.normal.z)
-						normal:Rotate(ang)
-
-						modelverts[#modelverts + 1] = {
-							pos    = (mSelfInverse * (mModel * mVertex)):GetTranslation(),
-							normal = normal,
-							u      = vert.u,
-							v      = vert.v,
-						}
-						coroutine.yield(false)
-					end
-				end
-			end
-
-			if doScaleTextures then
-				for i = 1, #modelverts, 3 do
-					local dir = GetBoxDir((modelverts[i + 1].pos - modelverts[i].pos):Cross(modelverts[i + 2].pos - modelverts[i].pos):GetNormalized())
-					modelverts[i + 0].u, modelverts[i + 0].v = GetBoxUV(modelverts[i + 0].pos, dir, doScaleTextures)
-					modelverts[i + 1].u, modelverts[i + 1].v = GetBoxUV(modelverts[i + 1].pos, dir, doScaleTextures)
-					modelverts[i + 2].u, modelverts[i + 2].v = GetBoxUV(modelverts[i + 2].pos, dir, doScaleTextures)
-					coroutine.yield(false)
-				end
-			end
-
-			-- create meshes
-			if #meshverts + #modelverts >= 65535 then
-				local m = Mesh()
-				m:BuildFromTriangles(meshverts)
-				self.meshes[#self.meshes + 1] = m
-				meshverts = {}
-			end
-
-			for _, vert in ipairs(modelverts) do
-				meshverts[#meshverts + 1] = vert
-				vertexcount = vertexcount + 1
-				coroutine.yield(false)
-			end
-		end
-
-		-- create meshes
-		local m = Mesh()
-		m:BuildFromTriangles(meshverts)
-		self.meshes[#self.meshes + 1] = m
-
-		self.tricount = vertexcount / 3
-
+	scale = math.floor(scale or 0)
+	if p2m_meshes[crc] and p2m_meshes[crc][scale] then
+		-- checkvalid
+		return
+	end
+	if p2m_getmeshes[crc] and p2m_getmeshes[crc][scale] then
+		return
+	end
+	if not p2m_getmeshes[crc] then
+		p2m_getmeshes[crc] = {}
+	end
+	p2m_getmeshes[crc][scale] = coroutine.create(function()
+		P2M_BuildMeshes(crc, scale)
 		coroutine.yield(true)
 	end)
 end
 
 
 -- -----------------------------------------------------------------------------
-function ENT:Think()
-	self.matrix = self:GetWorldTransformMatrix()
-	if p2m_disable:GetBool() then
-		if self.rebuild then
-			drawhud[self] = nil
-			self.rebuild = nil
-		end
+local pbar
+local pbar_border = Color(0,0,0)
+local pbar_inside = Color(0,255,0)
+local pbar_faded = Color(165,255,165)
+
+hook.Add("HUDPaint", "p2m.progressbar", function()
+	if not pbar then
 		return
 	end
-	if self.rebuild then
-		local mark = SysTime()
-		while SysTime() - mark < p2m_build_time:GetFloat() do
-			local _, msg = coroutine.resume(self.rebuild)
-			if msg then
-				drawhud[self] = nil
-				self.rebuild = nil
-				break
+
+	local w = 96
+	local h = 24
+	local x = ScrW() - w - 24
+	local y = h
+
+	draw.RoundedBox(2, x, y, w, h, pbar_border)
+	draw.RoundedBox(2, x + 2, y + 2, pbar*(w - 4), h - 4, pbar_inside)
+	draw.RoundedBoxEx(2, x + 2, y + 2, pbar*(w - 4), (h - 4)*0.333, pbar_faded, true, true)
+
+	surface.SetDrawColor(255,255,0,255)
+	surface.DrawRect(x + 2 + pbar*(w - 6), y + 2, 2, h - 4)
+end)
+
+local function P2M_HandleGetMeshes()
+	local crc, request = next(p2m_getmeshes)
+	if crc and request then
+		local scale, thread = next(request)
+		if scale and thread then
+			local mark = SysTime()
+			while SysTime() - mark < max_frame_time:GetFloat() do
+				local succ, done, progress = coroutine.resume(thread)
+				pbar = progress
+				if not succ or done then
+					request[scale] = nil
+					break
+				end
 			end
+		else
+			p2m_getmeshes[crc] = nil
+			pbar = nil
 		end
 	end
+end
+hook.Add("Think", "p2mthink.getmeshes", P2M_HandleGetMeshes)
+
+
+-- -----------------------------------------------------------------------------
+local function P2M_CheckModels(crc, ent)
+	if not p2m_usedby[crc] then
+		p2m_usedby[crc] = {}
+	end
+	p2m_usedby[crc][ent] = CurTime()
+	if not p2m_models[crc] then
+		if not p2m_getmodels[crc] then
+			p2m_getmodels[crc] = { status = "init", time = CurTime(), from = ent }
+		else
+			if p2m_getmodels[crc].status == "init" then
+				p2m_getmodels[crc].time = CurTime()
+			end
+		end
+		return false
+	else
+	end
+	return true
 end
 
 
 -- -----------------------------------------------------------------------------
-local red = Color(255, 0, 0, 15)
+local function P2M_HandleGetModels()
+	local crc, request = next(p2m_getmodels)
+	if crc and request then
+		if request.status == "init" and CurTime() - request.time > 0.5 then
+			if IsValid(request.from) then
+				net.Start("p2mnet.getmodels")
+				net.WriteEntity(request.from)
+				net.SendToServer()
+				request.status = "wait"
+			else
+				request.status = "kill"
+			end
+		end
+		if request.status == "kill" then
+			p2m_getmodels[crc] = nil
+		end
+	end
+end
+hook.Add("Think", "p2mthink.getmodels", P2M_HandleGetModels)
 
-function ENT:Draw()
-	if p2m_disable:GetBool() then
-		self:DrawModel()
+
+-- -----------------------------------------------------------------------------
+local function P2M_HandleNetModels()
+	local crc     = net.ReadString()
+	local request = p2m_getmodels[crc]
+
+	if not request then
 		return
 	end
-	--[[
-	if self:GetNWBool("hidemodel") then
-		if self.materialName ~= self:GetMaterial() then
-			self.materialName = self:GetMaterial()
-			if self.materialName ~= "" then
-				self.material = Material(self.materialName)
-			end
-		end
-		if self.material and not self.material:IsError() then
-			render.SetMaterial(self.material)
-		else
-			self:DrawModel()
-		end
-	else
-		self:DrawModel()
+
+	local packetid = net.ReadUInt(16)
+	if packetid == 1 then
+		request.data = {}
 	end
-	]]
+
+	local packetlen = net.ReadUInt(32)
+	local packetstr = net.ReadData(packetlen)
+
+	request.data[#request.data + 1] = packetstr
+
+	if net.ReadBool() then
+		local data = table.concat(request.data)
+		if crc == util.CRC(data) then
+			p2m_models[crc] = { data = data }
+		else
+		end
+		request.status = "kill"
+	end
+end
+net.Receive("p2mnet.getmodels", P2M_HandleNetModels)
+
+
+-- -----------------------------------------------------------------------------
+function ENT:GetModelCount()
+	return p2m_models[self:GetCRC()] and p2m_models[self:GetCRC()].count or 0
+end
+
+function ENT:GetTriangleCount()
+	return p2m_models[self:GetCRC()] and p2m_models[self:GetCRC()].triangles or 0
+end
+
+
+-- -----------------------------------------------------------------------------
+function ENT:Initialize()
+	self.rmatrix = Matrix()
+	self.boxcolor1 = HSVToColor(math.random(0, 360), 1, 1)
+	self.boxcolor1.a = 50
+	self.boxcolor2 = Color(self.boxcolor1.r, self.boxcolor1.g, self.boxcolor1.b, 10)
+end
+
+
+-- -----------------------------------------------------------------------------
+function ENT:Draw()
 	self:DrawModel()
-	if self.meshes then
-		cam.PushModelMatrix(self.matrix)
-		for _, m in pairs(self.meshes) do
-			if not m:IsValid() then
-				continue
-			end
-			m:Draw()
+	if disable_rendering or self.checkmodels or self.checkmeshes then
+		return
+	end
+	local meshes = P2M_GetMeshes(self:GetCRC(), self:GetTextureScale())
+	if meshes then
+		cam.PushModelMatrix(self.rmatrix)
+		for m = 1, #meshes do
+			meshes[m]:Draw()
 		end
 		cam.PopModelMatrix()
+	else
 	end
-	if self.boxtime then
-		if not self.models or self.rebuild then
-			return
-		end
-		if LocalPlayer() ~= self:GetPlayer() then
-			return
-		end
-		if CurTime() - self.boxtime > 3 then
-			self.boxtime = nil
-			return
-		end
-		render.SetColorMaterial()
-		local min, max = self:GetRenderBounds()
-		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), min, max, red)
-		render.DrawBox(self:GetPos(), self:GetAngles(), min, max, red)
-	end
-
+	--[[
+	cam.IgnoreZ(true)
+	local mins, maxs = self:GetRenderBounds()
+	render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1)
+	render.SetColorMaterial()
+	render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor2)
+	local mins, maxs = self:GetModelBounds()
+	render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1)
+	cam.IgnoreZ(false)
+	]]
 end
 
 
 -- -----------------------------------------------------------------------------
-hook.Add("HUDPaint", "p2m.loadoverlay", function()
-	for ent, _ in pairs(drawhud) do
-		if not IsValid(ent) then
-			drawhud[ent] = nil
-			continue
+function ENT:OnRemove()
+	local crc = self:GetCRC()
+	local ent = self
+	timer.Simple(0, function()
+		if not self:IsValid() then
+			P2M_ClearUsed(crc, ent)
 		end
-		if not ent.rebuild then
-			drawhud[ent] = nil
-			continue
-		end
-		local scr = ent:GetPos():ToScreen()
-		local perc = ent.progress or 0
-
-		local w = 96
-		local h = 32
-
-		surface.SetDrawColor(50, 50, 50, 150)
-		surface.DrawRect(scr.x, scr.y, w, h)
-
-		surface.SetDrawColor(0, 0, 0, 150)
-		surface.DrawOutlinedRect(scr.x, scr.y, w, h)
-
-		surface.SetDrawColor(80, 160, 80, 150)
-		surface.DrawRect(scr.x + 1, scr.y + 1, (w - 2)*perc, h - 2)
-
-		surface.SetTextColor(255, 255, 255)
-		surface.SetFont("BudgetLabel")
-		local str = string.format("%d%%", perc*100)
-		local tw, th = surface.GetTextSize(str)
-		surface.SetTextPos(scr.x + w*0.5 - tw*0.5, scr.y + h*0.5 - th*0.5)
-		surface.DrawText(str)
-	end
-end)
+	end)
+end
 
 
 -- -----------------------------------------------------------------------------
-net.Receive("p2m_stream", function()
-	local self = net.ReadEntity()
-	if IsValid(self) then
-		local packetid = net.ReadUInt(16)
-		if packetid == 1 then
-			self.packets = ""
-		end
-		local packetln = net.ReadUInt(32)
-		local packetst = net.ReadData(packetln, packetln)
+function ENT:CheckScale()
+	local models = p2m_models[self:GetCRC()]
+	if models and models.mins and models.maxs then
+		local scalar = self:GetMeshScale()
+		if scalar == 1 then
+			self.rescale = nil
+			self.lerpscale_a = nil
+			self.lerpscale_b = nil
+			self.meshscale_v = nil
+			self.meshscale_n = nil
+		else
+			if self.meshscale_n ~= scalar then
+				self.rescale = 0
+				self.meshscale_n = scalar
+				self.lerpscale_a = Vector(1, 1, 1)
+				self.lerpscale_b = self.lerpscale_a * scalar
 
-		self.packets = self.packets .. packetst
-
-		local done = net.ReadBool()
-		if done then
-			local crc = net.ReadString()
-			if crc == util.CRC(self.packets) then
-				timer.Simple(0.1, function()
-					if not IsValid(self) or not self.packets then
-						return
-					end
-					self.models = util.JSONToTable(util.Decompress(self.packets))
-					self:ResetMeshes()
-				end)
+				self:SetRenderBounds(models.mins * scalar, models.maxs * scalar)
 			end
 		end
+		return nil
 	end
-end)
+	return true
+end
+
+function ENT:DoScale()
+	self.rescale = math.min(1, self.rescale + FrameTime() * 2)
+	self.meshscale_v = LerpVector(self.rescale, self.lerpscale_a, self.lerpscale_b)
+	if self.rescale == 1 then
+		self.rescale = nil
+	end
+end
 
 
 -- -----------------------------------------------------------------------------
-hook.Add("OnEntityCreated", "p2m_refresh", function(self)
-	if not IsValid(self) then
-		return
+function ENT:CheckRenderBounds()
+	local models = p2m_models[self:GetCRC()]
+	if models and models.mins and models.maxs then
+		self:SetRenderBounds(models.mins, models.maxs)
+		return nil
 	end
-	if self:GetClass() ~= "gmod_ent_p2m" then
-		return
-	end
-	if self.models then
-		self:ResetMeshes()
-	else
-		net.Start("p2m_refresh")
-		net.WriteEntity(self)
-		net.SendToServer()
-	end
-end)
+	return true
+end
 
-concommand.Add("p2m_refresh_all", function()
-	net.Start("p2m_refresh")
-	net.SendToServer()
+
+-- -----------------------------------------------------------------------------
+function ENT:Think()
+	if disable_rendering then
+		return
+	end
+
+	self.rmatrix = self:GetWorldTransformMatrix()
+	if self.meshscale_v then
+		self.rmatrix:Scale(self.meshscale_v)
+	end
+
+	if self.checkmodels and self:GetCRC() then
+		P2M_CheckModels(self:GetCRC(), self)
+		self.checkmeshes = true
+		self.checkmodels = nil
+	end
+	if self.checkmeshes then
+		if p2m_models[self:GetCRC()] then
+			P2M_CheckMeshes(self:GetCRC(), self:GetTextureScale())
+			self.checkmeshes = nil
+		end
+	end
+
+	if self.checkbounds then
+		self.checkbounds = self:CheckRenderBounds()
+	end
+	if self.checkscale then
+		self.checkscale = self:CheckScale()
+	end
+	if self.rescale then
+		self:DoScale()
+	end
+
+	if self:GetColor().a ~= 255 then
+		self.RenderGroup = RENDERGROUP_BOTH
+	else
+		self.RenderGroup = RENDERGROUP_OPAQUE
+	end
+end
+
+
+-- -----------------------------------------------------------------------------
+local class = "gmod_ent_p2m"
+local function Snapshot(self)
+	if not self:IsValid() or self:GetClass() ~= class then
+		return
+	end
+	self.checkmodels = true
+	self.checkbounds = true
+	self.checkscale  = true
+end
+hook.Add("OnEntityCreated", "p2m_created", Snapshot)
+
+net.Receive("p2mnet.invalidate", function()
+	hook.Run("OnEntityCreated", net.ReadEntity())
 end)

@@ -2,12 +2,8 @@
 include("shared.lua")
 include("p2m/p2mlib.lua")
 
---[[
 
-	todo:
-		clear caches if not used after some amount of time
-]]
-
+local max_cache_time = 10 * 60
 local max_frame_time = CreateClientConVar("prop2mesh_build_time", 0.001, true, false, "Lower to reduce stuttering", 0.001, 0.1)
 
 local disable_rendering
@@ -15,7 +11,6 @@ CreateClientConVar("prop2mesh_disable_rendering", "0", true, false)
 cvars.AddChangeCallback("prop2mesh_disable_rendering", function(convar_name, value_old, value_new)
 	disable_rendering = value_new ~= "0"
 end)
-
 
 
 -- -----------------------------------------------------------------------------
@@ -35,6 +30,7 @@ local p2m_getmeshes = {}
 local p2m_models    = {}
 local p2m_meshes    = {}
 local p2m_usedby    = {}
+local p2m_marked    = {}
 
 
 -- -----------------------------------------------------------------------------
@@ -52,6 +48,7 @@ function P2M_Flush(gb)
 	p2m_getmeshes = {}
 	p2m_models    = {}
 	p2m_usedby    = {}
+	p2m_marked    = {}
 	if gb then collectgarbage() end
 end
 
@@ -84,18 +81,51 @@ function P2M_Dump()
 		end
 	end
 	MsgC(Color(255,255,0), "Used By:\n", Color(255,255,255), table.concat(msg))
+
+	local msg = {}
+	for crc, v in pairs(p2m_marked) do
+		msg[#msg + 1] = string.format("\tcrc: %s\n", crc)
+	end
+	MsgC(Color(255,255,0), "Marked for deletion:\n", Color(255,255,255), table.concat(msg))
 end
 
 
 -- -----------------------------------------------------------------------------
+local function P2M_Unmark(crc)
+	p2m_marked[crc] = nil
+end
+
 local function P2M_ClearUsed(crc, ent)
 	if p2m_usedby[crc] then
 		p2m_usedby[crc][ent] = nil
 		if next(p2m_usedby[crc]) == nil then
 			p2m_usedby[crc] = nil
+			p2m_marked[crc] = CurTime()
 		end
 	end
 end
+
+local function P2M_Clear(crc)
+	for uv, parts in pairs(p2m_meshes[crc]) do
+		for p, part in pairs(parts) do
+			part:Destroy()
+			part = nil
+		end
+	end
+	p2m_meshes[crc] = nil
+	p2m_models[crc] = nil
+	p2m_usedby[crc] = nil
+end
+
+timer.Create("p2m_clearcached", 30, 0, function()
+	local ct = CurTime()
+	for crc, time in pairs(p2m_marked) do
+		if ct - time > max_cache_time then
+			P2M_Clear(crc)
+			p2m_marked[crc] = nil
+		end
+	end
+end)
 
 
 -- -----------------------------------------------------------------------------
@@ -415,6 +445,7 @@ function ENT:Think()
 	if self.checkmeshes then
 		if p2m_models[self:GetCRC()] then
 			P2M_CheckMeshes(self:GetCRC(), self:GetTextureScale())
+			P2M_Unmark(self:GetCRC())
 			self.checkmeshes = nil
 		end
 	end

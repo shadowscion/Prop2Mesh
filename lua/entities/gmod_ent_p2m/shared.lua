@@ -1,11 +1,13 @@
 -- -----------------------------------------------------------------------------
 DEFINE_BASECLASS("base_anim")
 
-ENT.PrintName   = "Prop 2 Mesh"
+ENT.PrintName   = "P2M Controller"
 ENT.Author      = "shadowscion"
 ENT.AdminOnly   = false
 ENT.Spawnable   = false
 ENT.RenderGroup = RENDERGROUP_OPAQUE
+
+cleanup.Register("gmod_ent_p2m")
 
 
 -- -----------------------------------------------------------------------------

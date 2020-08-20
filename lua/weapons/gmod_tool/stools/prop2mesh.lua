@@ -109,7 +109,7 @@ if SERVER then
 					self.Controller:SetTextureScale(self:GetClientNumber("o_texture_scale"))
 					self:SetController()
 					self:SetStage(0)
-					return
+					return true
 				end
 			end
 

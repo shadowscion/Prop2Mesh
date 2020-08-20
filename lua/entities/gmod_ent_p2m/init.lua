@@ -5,8 +5,6 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-cleanup.Register("gmod_ent_p2m")
-
 
 -- -----------------------------------------------------------------------------
 util.AddNetworkString("p2mnet.getmodels")
@@ -30,8 +28,8 @@ end
 
 -- -----------------------------------------------------------------------------
 function ENT:SetPlayer(ply)
-	ply:AddCount(self:GetClass(), self)
-	ply:AddCleanup(self:GetClass(), self)
+	ply:AddCount("gmod_ent_p2m", self)
+	ply:AddCleanup("gmod_ent_p2m", self)
 	self:SetNWEntity("Founder", ply)
 	self:SetNWString("FounderID", ply:SteamID64())
 end

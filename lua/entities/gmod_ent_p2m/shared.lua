@@ -3,6 +3,8 @@ DEFINE_BASECLASS("base_anim")
 
 ENT.PrintName   = "Prop 2 Mesh"
 ENT.Author      = "shadowscion"
+ENT.AdminOnly   = false
+ENT.Spawnable   = false
 ENT.RenderGroup = RENDERGROUP_OPAQUE
 
 

@@ -17,8 +17,9 @@ if SERVER then
 	local controller_mat = "models/debug/debugwhite"
 
 	local class_whitelist = {
-		gmod_wire_hologram = { col = Color(125, 255, 125, 125), mat = "models/debug/debugwhite" },
 		prop_physics       = { col = Color(255, 125, 125, 125), mat = "models/debug/debugwhite" },
+		starfall_hologram  = { col = Color(255, 125, 255, 125), mat = "models/debug/debugwhite" },
+		gmod_wire_hologram = { col = Color(125, 255, 125, 125), mat = "models/debug/debugwhite", IsOwner = function(ply, ent) return ent:GetPlayer() == ply end },
 	}
 
 
@@ -32,7 +33,11 @@ if SERVER then
 
 	local function CanSelect(ply, ent)
 		local disp = class_whitelist[ent:GetClass()]
-		if not disp or not IsOwner(ply, ent) then
+		if not disp then
+			return false
+		end
+		local checkOwner = disp.IsOwner or IsOwner
+		if not checkOwner(ply, ent) then
 			return false
 		end
 		return disp
@@ -164,6 +169,7 @@ if SERVER then
 
 		local class_blacklist  = {
 			prop_physics       = self:GetClientNumber("s_ignore_props") ~= 0,
+			starfall_hologram  = self:GetClientNumber("s_ignore_holos") ~= 0,
 			gmod_wire_hologram = self:GetClientNumber("s_ignore_holos") ~= 0,
 		}
 
@@ -311,22 +317,9 @@ if SERVER then
 		return self.Controller
 	end
 
+
 	-- -----------------------------------------------------------------------------
-	local function getBodygroupMask(ent)
-		local mask = 0
-		local offset = 1
-
-		for index = 0, ent:GetNumBodyGroups() - 1 do
-			local bg = ent:GetBodygroup(index)
-			mask = mask + offset * bg
-			offset = offset * ent:GetBodygroupCount(index)
-		end
-
-		return mask
-	end
-
 	local special = {}
-
 	special.prop_physics = function(entry, ent)
 		local scale = ent:GetManipulateBoneScale(0)
 		if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
@@ -352,7 +345,6 @@ if SERVER then
 			end
 		end
 	end
-
 	special.gmod_wire_hologram = function(entry, ent)
 		local holo
 		for k, v in pairs(ent:GetTable().OnDieFunctions.holo_cleanup.Args[1].data.holos) do
@@ -392,6 +384,44 @@ if SERVER then
 				::invalid::
 			end
 		end
+	end
+	special.starfall_hologram = function(entry, ent)
+		entry.holo = true
+
+		if ent.scale then
+			entry.scale = Vector(ent.scale)
+		end
+
+		if ent.clips then
+			for k, v in pairs(ent.clips) do
+				if not IsValid(v.entity) then
+					goto invalid
+				end
+				local normal = ent:WorldToLocal(v.entity:LocalToWorld(v.normal) - v.entity:GetPos() + ent:GetPos())
+				local origin = ent:WorldToLocal(v.entity:LocalToWorld(v.origin))
+				if not entry.clips then
+					entry.clips = {}
+				end
+				entry.clips[#entry.clips + 1] = { n = normal, d = normal:Dot(origin) }
+
+				::invalid::
+			end
+		end
+	end
+
+
+	-- -----------------------------------------------------------------------------
+	local function getBodygroupMask(ent)
+		local mask = 0
+		local offset = 1
+
+		for index = 0, ent:GetNumBodyGroups() - 1 do
+			local bg = ent:GetBodygroup(index)
+			mask = mask + offset * bg
+			offset = offset * ent:GetBodygroupCount(index)
+		end
+
+		return mask
 	end
 
 

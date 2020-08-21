@@ -3,7 +3,7 @@ include("shared.lua")
 include("p2m/p2mlib.lua")
 
 
-local max_cache_time = 10 * 60
+local max_cache_time = 5 * 60
 local max_frame_time = CreateClientConVar("prop2mesh_build_time", 0.001, true, false, "Lower to reduce stuttering", 0.001, 0.1)
 
 local disable_rendering
@@ -335,7 +335,7 @@ end
 function ENT:Initialize()
 	self.rmatrix = Matrix()
 	self.boxcolor1 = HSVToColor(math.random(0, 360), 1, 1)
-	self.boxcolor1.a = 50
+	self.boxcolor1.a = 75
 	self.boxcolor2 = Color(self.boxcolor1.r, self.boxcolor1.g, self.boxcolor1.b, 10)
 end
 
@@ -355,16 +355,6 @@ function ENT:Draw()
 		cam.PopModelMatrix()
 	else
 	end
-	--[[
-	cam.IgnoreZ(true)
-	local mins, maxs = self:GetRenderBounds()
-	render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1)
-	render.SetColorMaterial()
-	render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor2)
-	local mins, maxs = self:GetModelBounds()
-	render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1)
-	cam.IgnoreZ(false)
-	]]
 end
 
 

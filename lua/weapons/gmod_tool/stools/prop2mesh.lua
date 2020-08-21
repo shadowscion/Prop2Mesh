@@ -3,6 +3,8 @@ TOOL.Category   = "Render"
 TOOL.Name       = "#tool.prop2mesh.name"
 TOOL.Command    = nil
 
+local ent_class = "gmod_ent_p2m"
+
 
 -- -----------------------------------------------------------------------------
 if SERVER then
@@ -48,7 +50,7 @@ if SERVER then
 	end
 
 	local function MakeEnt(trace, owner, tscale, mscale)
-		local ent = ents.Create("gmod_ent_p2m")
+		local ent = ents.Create(ent_class)
 
 		ent:SetModel("models/hunter/plates/plate.mdl")
 		ent:SetMaterial("p2m/grid")
@@ -61,7 +63,7 @@ if SERVER then
 		ent:SetTextureScale(tscale)
 		ent:SetMeshScale(mscale)
 
-		undo.Create("gmod_ent_p2m")
+		undo.Create(ent_class)
 			undo.AddEntity(ent)
 			undo.SetPlayer(owner)
 		undo.Finish()
@@ -83,6 +85,11 @@ if SERVER then
 				MakeEnt(trace, self:GetOwner(), self:GetClientNumber("o_texture_scale"), self:GetClientNumber("o_mesh_scale"))
 				return true
 			end
+		elseif trace.Entity == self.Controller and next(self.Selection) == nil and self:GetOwner():KeyDown(IN_USE) then
+			self.Controller:SetTextureScale(self:GetClientNumber("o_texture_scale"))
+			self:SetController()
+			self:SetStage(0)
+			return true
 		end
 
 		return false
@@ -96,7 +103,7 @@ if SERVER then
 		end
 
 		if self:GetStage() == 0 and not self.Controller then
-			if IsOwner(self:GetOwner(), trace.Entity) and trace.Entity:GetClass() == "gmod_ent_p2m" then
+			if IsOwner(self:GetOwner(), trace.Entity) and trace.Entity:GetClass() == ent_class then
 				self:SetController(trace.Entity)
 				self:SetStage(1)
 				return true
@@ -462,16 +469,16 @@ TOOL.Information = {
 	{ name = "right_select_pents", stage = 1, icon2 = "gui/key.png" },
 	{ name = "reload_deselect1",   stage = 1 },
 	{ name = "right_select_ctrl",  stage = 1 },
-	{ name = "right_select_upd",   stage = 1, icon2 = "gui/key.png" },
+	{ name = "left_select_upd",   stage = 1, icon2 = "gui/key.png" },
 }
 
-language.Add("tool.prop2mesh.left_spawn", "Spawn a prop to mesh controller")
-language.Add("tool.prop2mesh.right_select", "Select a prop to mesh controller")
-language.Add("tool.prop2mesh.right_select_rents", "Hold SPRINT key to filter and select multiple entities")
-language.Add("tool.prop2mesh.right_select_pents", "Hold WALK key to filter and select child entities")
-language.Add("tool.prop2mesh.right_select_upd", "Hold USE key to update texture scale")
-language.Add("tool.prop2mesh.reload_deselect1", "Deselect all entities, again to deselect controller")
-language.Add("tool.prop2mesh.right_select_ctrl", "Select the controller again to finalize")
+language.Add("tool.prop2mesh.left_spawn", "Left click to spawn a controller")
+language.Add("tool.prop2mesh.right_select", "Right click to select a controller")
+language.Add("tool.prop2mesh.right_select_rents", "Hold SPRINT key and right click to filter and select multiple entities")
+language.Add("tool.prop2mesh.right_select_pents", "Hold WALK key and right click to filter and select entities parented to target")
+language.Add("tool.prop2mesh.left_select_upd", "Hold USE and left click a selected controller to update texture scale")
+language.Add("tool.prop2mesh.reload_deselect1", "Deselect all entities, again to deselect the controller")
+language.Add("tool.prop2mesh.right_select_ctrl", "Right click the selected controller again to finalize")
 
 local ConVars = {
 	["s_radius"]             = 512,
@@ -485,6 +492,7 @@ local ConVars = {
 	["o_texture_scale"]      = 0,
 	["o_mesh_scale"]         = 1,
 	["o_autocenter"]         = 0,
+	["t_hud_enabled"]        = 1,
 }
 TOOL.ClientConVar = ConVars
 
@@ -505,7 +513,6 @@ end
 local function DForm_ToolBehavior(self)
 	local panel = vgui.Create("DForm")
 	panel:SetName("Tool Behavior")
-	panel:SetAnimTime(0)
 
 	local help = panel:Help("General filters")
 	help:DockMargin(0, 0, 0, 0)
@@ -543,6 +550,8 @@ local function DForm_ToolBehavior(self)
 	panel:NumSlider("Selection radius", "prop2mesh_s_radius", 0, 2048, 0)
 	panel:ControlHelp("Hold SPRINT while right clicking to select all unfiltered entities within this radius")
 
+	panel:CheckBox("Enable tool HUD", "prop2mesh_t_hud_enabled")
+
 	return panel
 end
 
@@ -551,16 +560,17 @@ end
 local function DForm_EntityOptions(self)
 	local panel = vgui.Create("DForm")
 	panel:SetName("Entity Options")
-	panel:SetAnimTime(0)
 
 	local slider = panel:NumSlider("Texture scale", "prop2mesh_o_texture_scale", 0, 128, 0)
+	slider.Label:SetTooltip("Hold USE and left click a selected controller to update this")
 	panel:ControlHelp("Uniformly rescale texture coordinates")
 
 	local slider = panel:NumSlider("Mesh scale", "prop2mesh_o_mesh_scale", 0.01, 1, 2)
+	slider.Label:SetTooltip("Note: scaled meshes always auto center")
 	panel:ControlHelp("Rescale the entire mesh")
 
 	local cbox = panel:CheckBox("Autocenter", "prop2mesh_o_autocenter")
-	panel:ControlHelp("Center the mesh around average position of selection local to controller. NOTE: scaled meshes always use this")
+	panel:ControlHelp("Center the mesh around average position of selection local to the controller")
 
 	slider.OnValueChanged = function(_, value)
 		if value ~= 1 then
@@ -582,7 +592,6 @@ end
 local function DForm_ClientOptions(self)
 	local panel = vgui.Create("DForm")
 	panel:SetName("Client Options")
-	panel:SetAnimTime(0)
 
 	panel:CheckBox("Disable rendering", "prop2mesh_disable_rendering")
 
@@ -597,7 +606,6 @@ end
 local function DForm_Statistics(self)
 	local panel = vgui.Create("DForm")
 	panel:SetName("Statistics")
-	panel:SetAnimTime(0)
 	panel:DockPadding(0, 0, 0, 10)
 
 	local dtree = vgui.Create("DTree", panel)
@@ -612,7 +620,7 @@ local function DForm_Statistics(self)
 	panel.Header.OnCursorEntered = function()
 		dtree:Clear()
 		local struct = {}
-		for _, controller in ipairs(ents.FindByClass("gmod_ent_p2m")) do
+		for _, controller in ipairs(ents.FindByClass(ent_class)) do
 			local owner = controller:GetPlayer()
 			if IsValid(owner) then
 				if not struct[owner] then
@@ -648,8 +656,6 @@ end
 
 -- -----------------------------------------------------------------------------
 TOOL.BuildCPanel = function(self)
-	self:SetAnimTime(0)
-
 	local button = self:Button("Reset tool options")
 	button.DoClick = SetDefaults
 
@@ -657,4 +663,71 @@ TOOL.BuildCPanel = function(self)
 	self:AddPanel(DForm_EntityOptions(self))
 	self:AddPanel(DForm_ClientOptions(self))
 	self:AddPanel(DForm_Statistics(self))
+end
+
+
+-- -----------------------------------------------------------------------------
+local string = string
+local render = render
+local draw = draw
+
+local overlay_font = "TargetID"
+local overlay_color = Color(255,255,255)
+local overlay_ent
+
+function TOOL:DrawHUD()
+	if self:GetClientNumber("t_hud_enabled") == 0 then
+		overlay_ent = nil
+		return
+	end
+
+	local trace = LocalPlayer():GetEyeTrace()
+	if not trace.Hit then
+		overlay_ent = nil
+		return
+	end
+	if IsValid(overlay_ent) then
+		if trace.Entity ~= overlay_ent and trace.Entity:GetClass() == ent_class then
+			overlay_ent = trace.Entity
+			return
+		end
+
+		local dir = overlay_ent:GetPos() - trace.StartPos
+		if dir:LengthSqr() > 1000000 or (trace.HitPos - trace.StartPos):GetNormalized():Dot(dir:GetNormalized()) < 0.667 then
+			overlay_ent = nil
+			return
+		end
+
+		local pos = overlay_ent:GetPos()
+		local ang = overlay_ent:GetAngles()
+
+		cam.Start3D()
+		local mins, maxs = overlay_ent:GetModelBounds()
+		render.DrawWireframeBox(pos, ang, mins, maxs, overlay_ent.boxcolor1)
+
+		mins, maxs = overlay_ent:GetRenderBounds()
+		render.DrawWireframeBox(pos, ang, mins, maxs, overlay_ent.boxcolor1)
+		render.SetColorMaterial()
+		render.DrawBox(pos, ang, mins, maxs, overlay_ent.boxcolor2)
+		cam.End3D()
+
+		overlay_color.r = overlay_ent.boxcolor1.r
+		overlay_color.g = overlay_ent.boxcolor1.g
+		overlay_color.b = overlay_ent.boxcolor1.b
+
+		local scr = pos:ToScreen()
+		local x = math.Round(scr.x) - 64
+		local y = math.Round(scr.y) - 128
+
+		local owner = overlay_ent:GetPlayer()
+		draw.DrawText(string.format("owner: %s", IsValid(owner) and owner:Nick() or "none"), overlay_font, x, y, overlay_color, TEXT_ALIGN_LEFT)
+		draw.DrawText(string.format("models: %d", overlay_ent:GetModelCount()), overlay_font, x, y + 16, overlay_color, TEXT_ALIGN_LEFT)
+		draw.DrawText(string.format("triangles: %d", overlay_ent:GetTriangleCount()), overlay_font, x, y + 32, overlay_color, TEXT_ALIGN_LEFT)
+		draw.DrawText(string.format("tex scale: %d", overlay_ent:GetTextureScale()), overlay_font, x, y + 48, overlay_color, TEXT_ALIGN_LEFT)
+		draw.DrawText(string.format("mesh scale: %d", overlay_ent:GetMeshScale()), overlay_font, x, y + 64, overlay_color, TEXT_ALIGN_LEFT)
+	else
+		if trace.Entity:GetClass() == ent_class then
+			overlay_ent = trace.Entity
+		end
+	end
 end

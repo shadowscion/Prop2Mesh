@@ -125,7 +125,7 @@ end
 
 -- -----------------------------------------------------------------------------
 local function P2M_Build(e2, controller)
-	if #controller.E2P2MResevoir == 0 then
+	if #controller.E2P2MResevoir == 0 or #controller.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	controller:SetModelsFromTable(controller.E2P2MResevoir)
@@ -146,7 +146,7 @@ local function P2M_CheckClips(array)
 	local clips = {}
 
 	for i = 1, #array, 2 do
-		if i > LIMIT_CLIPS then
+		if i > LIMIT_CLIPS*2 then
 			break
 		end
 		local op1 = array[i + 0]

@@ -539,6 +539,7 @@ local function SetDefaults()
 	GetConVar("prop2mesh_build_time"):Revert()
 end
 
+
 -- -----------------------------------------------------------------------------
 local function DForm_ToolBehavior(self)
 	local panel = vgui.Create("DForm")
@@ -623,10 +624,16 @@ local function DForm_ClientOptions(self)
 	local panel = vgui.Create("DForm")
 	panel:SetName("Client Options")
 
-	panel:CheckBox("Disable rendering", "prop2mesh_disable_rendering")
-
 	local slider = panel:NumSlider("Mesh build speed", "prop2mesh_build_time", 0.001, 0.1, 3)
 	panel:ControlHelp("Maximum time between frames while building a mesh")
+
+	local cvar = GetConVar("prop2mesh_max_tris_softcap")
+	local slider = panel:NumSlider("Triangle limit", "prop2mesh_max_tris_softcap", cvar:GetMin(), cvar:GetMax(), 0)
+	slider:GetTextArea():SetWide(54)
+
+	panel:ControlHelp("Limit drawing of triangles belonging to other players")
+
+	panel:CheckBox("Disable rendering", "prop2mesh_disable_rendering")
 
 	return panel
 end

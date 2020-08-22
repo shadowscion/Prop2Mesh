@@ -6,10 +6,21 @@ include("p2m/p2mlib.lua")
 local max_cache_time = 5 * 60
 local max_frame_time = CreateClientConVar("prop2mesh_build_time", 0.001, true, false, "Lower to reduce stuttering", 0.001, 0.1)
 
+local suppress_global = false
 local disable_rendering
 CreateClientConVar("prop2mesh_disable_rendering", "0", true, false)
 cvars.AddChangeCallback("prop2mesh_disable_rendering", function(convar_name, value_old, value_new)
 	disable_rendering = value_new ~= "0"
+end)
+
+local current_tris_hardcap = 0
+local current_tris_softcap = 0
+local max_tris_hardcap = 10000000 -- max number of triangles stored in memory
+local max_tris_softcap = 1000000  -- max number of triangles on screen
+
+CreateClientConVar("prop2mesh_max_tris_softcap", max_tris_softcap, true, false, "max number of triangles on screen", 0, max_tris_hardcap)
+cvars.AddChangeCallback("prop2mesh_max_tris_softcap", function(convar_name, value_old, value_new)
+	max_tris_softcap = math.floor(value_new)
 end)
 
 
@@ -18,6 +29,8 @@ local coroutine = coroutine
 local string = string
 local render = render
 local table = table
+local pairs = pairs
+local next = next
 local cam = cam
 local net = net
 
@@ -43,13 +56,16 @@ function P2M_Flush(gb)
 			end
 		end
 	end
+
+	current_tris_hardcap = 0
+
 	p2m_meshes    = {}
 	p2m_getmodels = {}
 	p2m_getmeshes = {}
 	p2m_models    = {}
 	p2m_usedby    = {}
 	p2m_marked    = {}
-	if gb then collectgarbage() end
+	if gb then timer.Simple(2, collectgarbage) end
 end
 
 
@@ -97,7 +113,9 @@ end
 
 local function P2M_ClearUsed(crc, ent)
 	if p2m_usedby[crc] then
-		p2m_usedby[crc][ent] = nil
+		if p2m_usedby[crc][ent] then
+			p2m_usedby[crc][ent] = nil
+		end
 		if next(p2m_usedby[crc]) == nil then
 			p2m_usedby[crc] = nil
 			p2m_marked[crc] = CurTime()
@@ -112,9 +130,17 @@ local function P2M_Clear(crc)
 			part = nil
 		end
 	end
+	current_tris_hardcap = current_tris_hardcap - p2m_models[crc].triangles
 	p2m_meshes[crc] = nil
 	p2m_models[crc] = nil
 	p2m_usedby[crc] = nil
+end
+
+local function P2M_ClearNow()
+	for crc, time in pairs(p2m_marked) do
+		P2M_Clear(crc)
+		p2m_marked[crc] = nil
+	end
 end
 
 timer.Create("p2m_clearcached", 30, 0, function()
@@ -150,30 +176,39 @@ local function P2M_BuildMeshes(crc, scale)
 	end
 
 	local meshparts, mins, maxs = p2mlib.modelsToMeshes(true, models, scale, bounds)
+	if mins and maxs then
+		p2m_models[crc].mins = mins
+		p2m_models[crc].maxs = maxs
+	end
 	if meshparts then
-		local vcount  = 0
+		local vcount = 0
+		for i = 1, #meshparts do
+			vcount = vcount + #meshparts[i]
+		end
+		p2m_models[crc].triangles = vcount / 3
+
+		if current_tris_hardcap + p2m_models[crc].triangles > max_tris_hardcap then -- if over hardcap, clear marked meshes and check again
+			P2M_ClearNow()
+		end
+		if current_tris_hardcap + p2m_models[crc].triangles > max_tris_hardcap then -- if still over, cancel
+			return
+		end
+		current_tris_hardcap = current_tris_hardcap + p2m_models[crc].triangles
+
 		local imeshes = {}
-		for k, part in ipairs(meshparts) do
+		for i = 1, #meshparts do
 			local imesh = Mesh()
-			imesh:BuildFromTriangles(part)
-			imeshes[#imeshes + 1] = imesh
-			vcount = vcount + #part
-			coroutine.yield(false, 1)
+			imesh:BuildFromTriangles(meshparts[i])
+			if imesh:IsValid() then
+				imeshes[#imeshes + 1] = imesh
+			end
 		end
 
 		if not p2m_meshes[crc] then
 			p2m_meshes[crc] = {}
 		end
-
 		p2m_meshes[crc][scale] = imeshes
-		p2m_models[crc].triangles = vcount / 3
 	end
-	if mins and maxs then
-		p2m_models[crc].mins = mins
-		p2m_models[crc].maxs = maxs
-	end
-
-	models = nil
 end
 
 
@@ -224,7 +259,16 @@ hook.Add("HUDPaint", "p2m.progressbar", function()
 	surface.DrawRect(x + 2 + pbar*(w - 6), y + 2, 2, h - 4)
 end)
 
+local menuIsOpen
+hook.Add("OnSpawnMenuOpen", "p2m.suppress", function() menuIsOpen = true end)
+hook.Add("OnSpawnMenuClose", "p2m.suppress", function() menuIsOpen = false end)
+
+
+-- -----------------------------------------------------------------------------
 local function P2M_HandleGetMeshes()
+	suppress_global = menuIsOpen or gui.IsGameUIVisible() or FrameTime() == 0
+	current_tris_softcap = 0
+
 	local crc, request = next(p2m_getmeshes)
 	if crc and request then
 		local scale, thread = next(request)
@@ -332,45 +376,6 @@ end
 
 
 -- -----------------------------------------------------------------------------
-function ENT:Initialize()
-	self.rmatrix = Matrix()
-	self.boxcolor1 = HSVToColor(math.random(0, 360), 1, 1)
-	self.boxcolor1.a = 75
-	self.boxcolor2 = Color(self.boxcolor1.r, self.boxcolor1.g, self.boxcolor1.b, 10)
-end
-
-
--- -----------------------------------------------------------------------------
-function ENT:Draw()
-	self:DrawModel()
-	if disable_rendering or self.checkmodels or self.checkmeshes then
-		return
-	end
-	local meshes = P2M_GetMeshes(self:GetCRC(), self:GetTextureScale())
-	if meshes then
-		cam.PushModelMatrix(self.rmatrix)
-		for m = 1, #meshes do
-			meshes[m]:Draw()
-		end
-		cam.PopModelMatrix()
-	else
-	end
-end
-
-
--- -----------------------------------------------------------------------------
-function ENT:OnRemove()
-	local crc = self:GetCRC()
-	local ent = self
-	timer.Simple(0, function()
-		if not self:IsValid() then
-			P2M_ClearUsed(crc, ent)
-		end
-	end)
-end
-
-
--- -----------------------------------------------------------------------------
 function ENT:CheckScale()
 	local models = p2m_models[self:GetCRC()]
 	if models and models.mins and models.maxs then
@@ -417,9 +422,32 @@ end
 
 
 -- -----------------------------------------------------------------------------
+function ENT:CheckSoftcap()
+	current_tris_softcap = current_tris_softcap + self:GetTriangleCount()
+	self.suppress = current_tris_softcap > max_tris_softcap
+	return self.suppress
+end
+
+
+-- -----------------------------------------------------------------------------
+function ENT:Initialize()
+	self.rmatrix = Matrix()
+	self.boxcolor1 = HSVToColor(math.random(0, 360), 1, 1)
+	self.boxcolor1.a = 75
+	self.boxcolor2 = Color(self.boxcolor1.r, self.boxcolor1.g, self.boxcolor1.b, 10)
+end
+
+
+-- -----------------------------------------------------------------------------
 function ENT:Think()
 	if disable_rendering then
 		return
+	end
+
+	if self:GetColor().a ~= 255 then
+		self.RenderGroup = RENDERGROUP_BOTH
+	else
+		self.RenderGroup = RENDERGROUP_OPAQUE
 	end
 
 	self.rmatrix = self:GetWorldTransformMatrix()
@@ -436,10 +464,14 @@ function ENT:Think()
 		if p2m_models[self:GetCRC()] then
 			P2M_CheckMeshes(self:GetCRC(), self:GetTextureScale())
 			P2M_Unmark(self:GetCRC())
+			self.checksoftcap = self:GetPlayer() ~= LocalPlayer()
 			self.checkmeshes = nil
 		end
 	end
 
+	if self.checksoftcap then
+		self:CheckSoftcap()
+	end
 	if self.checkbounds then
 		self.checkbounds = self:CheckRenderBounds()
 	end
@@ -449,12 +481,43 @@ function ENT:Think()
 	if self.rescale then
 		self:DoScale()
 	end
+end
 
-	if self:GetColor().a ~= 255 then
-		self.RenderGroup = RENDERGROUP_BOTH
-	else
-		self.RenderGroup = RENDERGROUP_OPAQUE
+
+-- -----------------------------------------------------------------------------
+function ENT:Draw()
+	self:DrawModel()
+	if self.suppress or suppress_global then
+		local mins, maxs = self:GetRenderBounds()
+		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1, true)
+		render.SetColorMaterial()
+		render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor2, true)
+		return
 	end
+	if disable_rendering or self.checkmodels or self.checkmeshes then
+		return
+	end
+	local meshes = P2M_GetMeshes(self:GetCRC(), self:GetTextureScale())
+	if meshes then
+		cam.PushModelMatrix(self.rmatrix)
+		for m = 1, #meshes do
+			meshes[m]:Draw()
+		end
+		cam.PopModelMatrix()
+	else
+	end
+end
+
+
+-- -----------------------------------------------------------------------------
+function ENT:OnRemove()
+	local crc = self:GetCRC()
+	local ent = self
+	timer.Simple(0, function()
+		if not self:IsValid() then
+			P2M_ClearUsed(crc, ent)
+		end
+	end)
 end
 
 

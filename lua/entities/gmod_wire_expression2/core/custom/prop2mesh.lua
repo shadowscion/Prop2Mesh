@@ -26,9 +26,7 @@ registerCallback("construct",
 registerCallback("destruct",
 	function(self)
 		for ent, mode in pairs(self.data.p2m) do
-			if IsValid(ent) then
-				ent:Remove()
-			end
+			if ent then ent:Remove() end
 		end
 	end
 )

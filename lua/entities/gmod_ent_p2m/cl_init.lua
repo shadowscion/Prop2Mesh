@@ -47,6 +47,10 @@ local p2m_marked    = {}
 
 
 -- -----------------------------------------------------------------------------
+if P2M_Flush then
+	P2M_Flush()
+end
+
 function P2M_Flush(gb)
 	for crc, scales in pairs(p2m_meshes) do
 		for scale, parts in pairs(scales) do
@@ -432,9 +436,9 @@ end
 -- -----------------------------------------------------------------------------
 function ENT:Initialize()
 	self.rmatrix = Matrix()
-	self.boxcolor1 = HSVToColor(math.random(0, 360), 1, 1)
-	self.boxcolor1.a = 75
-	self.boxcolor2 = Color(self.boxcolor1.r, self.boxcolor1.g, self.boxcolor1.b, 10)
+	self.boxcolor1 = HSVToColor(math.random(0, 20)*18, 1, 1)
+	self.boxcolor1.a = 25
+	self.boxcolor2 = Color(self.boxcolor1.r, self.boxcolor1.g, self.boxcolor1.b, 5)
 end
 
 

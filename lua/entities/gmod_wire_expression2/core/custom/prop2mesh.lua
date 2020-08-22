@@ -26,7 +26,7 @@ registerCallback("construct",
 registerCallback("destruct",
 	function(self)
 		for ent, mode in pairs(self.data.p2m) do
-			if mode then
+			if IsValid(ent) then
 				ent:Remove()
 			end
 		end
@@ -246,6 +246,13 @@ e2function void entity:p2mSetMaterial(string material)
 		return
 	end
 	E2Lib.setMaterial(this, material)
+end
+
+e2function void entity:p2mSetModel(string model)
+	if not P2M_CanManipulate(self, this, "mdl") then
+		return
+	end
+	this:SetModel(model)
 end
 
 

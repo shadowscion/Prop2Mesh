@@ -78,6 +78,13 @@ if SERVER then
 		return ent
 	end
 
+	-- -----------------------------------------------------------------------------
+	function TOOL:Deploy()
+		if self:GetStage() == 0 and IsValid(self.Controller) and next(self.Selection) ~= nil then
+			self:SetStage(1)
+		end
+	end
+
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:LeftClick(trace)

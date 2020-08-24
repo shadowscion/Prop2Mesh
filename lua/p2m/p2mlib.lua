@@ -357,7 +357,6 @@ local function push(str)
 	if pushTo then pushTo[lower(str)] = true end
 end
 
-
 pushTo = funkyFolder
 push("models/props_phx/construct/glass/")
 push("models/props_phx/construct/plastic/")
@@ -645,3 +644,11 @@ push("models/props_mining/diesel_generator.mdl")
 push("models/props_mining/ceiling_winch01.mdl")
 push("models/props_mining/elevator_winch_cog.mdl")
 --push("models/props_mining/diesel_generator_crank.mdl") -- special
+push("models/nova/chair_plastic01.mdl")
+push("models/nova/chair_wood01.mdl")
+push("models/nova/chair_office02.mdl")
+push("models/nova/chair_office01.mdl")
+push("models/props/de_inferno/hr_i/inferno_vintage_radio/inferno_vintage_radio.mdl")
+push("models/radar/radar_sp_mid.mdl")
+push("models/radar/radar_sp_sml.mdl")
+push("models/radar/radar_sp_big.mdl")

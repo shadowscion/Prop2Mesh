@@ -128,6 +128,9 @@ local function P2M_ClearUsed(crc, ent)
 end
 
 local function P2M_Clear(crc)
+	if not p2m_meshes[crc] then
+		return
+	end
 	for uv, parts in pairs(p2m_meshes[crc]) do
 		for p, part in pairs(parts) do
 			part:Destroy()

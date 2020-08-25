@@ -490,8 +490,19 @@ function ENT:Think()
 	else
 		self.RenderGroup = RENDERGROUP_OPAQUE
 	end
+end
 
-	self:SetNextClientThink(CurTime() + 0.125)
+
+-- -----------------------------------------------------------------------------
+function ENT:DrawCube()
+	render.SuppressEngineLighting(true)
+	render.SetMaterial(self.controllerMaterial)
+	local mins, maxs = self:GetHitBoxBounds(0, 0)
+	if not mins or not maxs then
+		mins, maxs = self:GetModelBounds()
+	end
+	render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self:GetColor(), true)
+	render.SuppressEngineLighting(false)
 end
 
 
@@ -500,16 +511,15 @@ function ENT:Draw()
 	if not self.singlemesh then
 		self:DrawModel()
 	end
+	if disable_rendering then
+		return
+	end
 
-	if self.suppress or suppress_global then
+	if suppress_global or self.suppress or self.checkmodels or self.checkmeshes then
 		local mins, maxs = self:GetRenderBounds()
 		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1, true)
 		render.SetColorMaterial()
 		render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor2, true)
-		return
-	end
-
-	if disable_rendering or self.checkmodels or self.checkmeshes then
 		return
 	end
 
@@ -531,50 +541,18 @@ function ENT:Draw()
 		cam.PopModelMatrix()
 	else
 		self:DrawModel()
-		render.SuppressEngineLighting(true)
-		render.SetMaterial(self.controllerMaterial)
-		local mins, maxs = self:GetHitBoxBounds(0, 0)
-		if not mins or not maxs then
-			mins, maxs = self:GetModelBounds()
-		end
-		render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self:GetColor(), true)
-		render.SuppressEngineLighting(false)
+		self:DrawCube()
 	end
 end
 
+
+-- -----------------------------------------------------------------------------
 function ENT:GetRenderMesh()
 	if self.singlemesh then
 		return { Mesh = self.singlemesh, Material = self.defaultMaterial, Matrix = self.meshscale_m }
 	end
 	return nil
 end
-
--- function ENT:Draw()
--- 	self:DrawModel()
--- 	if self.suppress or suppress_global then
--- 		local mins, maxs = self:GetRenderBounds()
--- 		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1, true)
--- 		render.SetColorMaterial()
--- 		render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor2, true)
--- 		return
--- 	end
--- 	if disable_rendering or self.checkmodels or self.checkmeshes then
--- 		return
--- 	end
--- 	local meshes = P2M_GetMeshes(self:GetCRC(), self:GetTextureScale())
--- 	if meshes then
--- 		local rmatrix = self:GetWorldTransformMatrix()
--- 		if self.meshscale_v then
--- 			rmatrix:Scale(self.meshscale_v)
--- 		end
--- 		cam.PushModelMatrix(rmatrix)
--- 		for m = 1, #meshes do
--- 			meshes[m]:Draw()
--- 		end
--- 		cam.PopModelMatrix()
--- 	else
--- 	end
--- end
 
 
 -- -----------------------------------------------------------------------------

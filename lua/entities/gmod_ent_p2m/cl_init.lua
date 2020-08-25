@@ -409,6 +409,8 @@ end
 
 
 -- -----------------------------------------------------------------------------
+local vCountWarn = true
+
 function p2m.BuildMeshes(crc, tscale)
 
 	if not p2m.models[crc] or p2m.meshes[crc] and p2m.meshes[crc][tscale] then
@@ -433,7 +435,7 @@ function p2m.BuildMeshes(crc, tscale)
 	p2m.models[crc].vcount = vcount
 	p2m.models[crc].tcount = vcount / 3
 
-	if p2m.hardcap_current + (vcount / 3) > hardcap_maximum then -- if over cap, delete marked and checked again
+	if p2m.hardcap_current + (vcount / 3) > hardcap_maximum then -- if over cap, delete marks and check again
 		p2m.FlushMarks()
 	end
 	if p2m.hardcap_current + (vcount / 3) > hardcap_maximum then -- if still over, oh well
@@ -450,7 +452,10 @@ function p2m.BuildMeshes(crc, tscale)
 	end
 
 	if #parts > 1 then
-		chat.AddText(Color(255, 125, 125), "Vertex count has exceeded 65000, dynamic lighting will not work on this mesh!")
+		if vCountWarn then
+			chat.AddText(Color(255, 125, 125), "Vertex count has exceeded 65000, dynamic lighting will not work on this mesh!")
+			vCountWarn =nil
+		end
 	end
 
 	return #meshes > 0 and meshes

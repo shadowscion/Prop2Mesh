@@ -55,7 +55,9 @@ function P2M_Flush(gb)
 	for crc, scales in pairs(p2m_meshes) do
 		for scale, parts in pairs(scales) do
 			for p, part in ipairs(parts) do
-				part:Destroy()
+				if IsValid(part) then
+					part:Destroy()
+				end
 				part = nil
 			end
 		end
@@ -133,7 +135,9 @@ local function P2M_Clear(crc)
 	end
 	for uv, parts in pairs(p2m_meshes[crc]) do
 		for p, part in pairs(parts) do
-			part:Destroy()
+			if IsValid(part) then
+				part:Destroy()
+			end
 			part = nil
 		end
 	end
@@ -163,9 +167,17 @@ end)
 
 -- -----------------------------------------------------------------------------
 local function P2M_GetMeshes(crc, scale)
-	return p2m_meshes[crc] and p2m_meshes[crc][scale]
+	if p2m_meshes[crc] and p2m_meshes[crc][scale] then
+		if #p2m_meshes[crc][scale] == 1 then
+			return p2m_meshes[crc][scale][1], true
+		end
+		return p2m_meshes[crc][scale], false
+	end
+	return nil
 end
-
+-- local function P2M_GetMeshes(crc, scale)
+-- 	return p2m_meshes[crc] and p2m_meshes[crc][scale]
+-- end
 
 -- -----------------------------------------------------------------------------
 local function P2M_BuildMeshes(crc, scale)
@@ -388,32 +400,21 @@ function ENT:CheckScale()
 	if models and models.mins and models.maxs then
 		local scalar = self:GetMeshScale()
 		if scalar == 1 then
-			self.rescale = nil
-			self.lerpscale_a = nil
-			self.lerpscale_b = nil
-			self.meshscale_v = nil
 			self.meshscale_n = nil
+			self.meshscale_v = nil
+			self.meshscale_m = nil
 		else
 			if self.meshscale_n ~= scalar then
-				self.rescale = 0
 				self.meshscale_n = scalar
-				self.lerpscale_a = Vector(1, 1, 1)
-				self.lerpscale_b = self.lerpscale_a * scalar
-
+				self.meshscale_v = Vector(scalar, scalar, scalar)
+				self.meshscale_m = self.meshscale_m or Matrix()
+				self.meshscale_m:SetScale(self.meshscale_v)
 				self:SetRenderBounds(models.mins * scalar, models.maxs * scalar)
 			end
 		end
 		return nil
 	end
 	return true
-end
-
-function ENT:DoScale()
-	self.rescale = math.min(1, self.rescale + FrameTime() * 2)
-	self.meshscale_v = LerpVector(self.rescale, self.lerpscale_a, self.lerpscale_b)
-	if self.rescale == 1 then
-		self.rescale = nil
-	end
 end
 
 
@@ -438,7 +439,9 @@ end
 
 -- -----------------------------------------------------------------------------
 function ENT:Initialize()
-	self.rmatrix = Matrix()
+	self.defaultMaterial = Material("p2m/grid")
+	self.controllerMaterial = Material("p2m/grid")
+
 	self.boxcolor1 = HSVToColor(math.random(0, 20)*18, 1, 1)
 	self.boxcolor1.a = 25
 	self.boxcolor2 = Color(self.boxcolor1.r, self.boxcolor1.g, self.boxcolor1.b, 5)
@@ -449,17 +452,6 @@ end
 function ENT:Think()
 	if disable_rendering then
 		return
-	end
-
-	if self:GetColor().a ~= 255 then
-		self.RenderGroup = RENDERGROUP_BOTH
-	else
-		self.RenderGroup = RENDERGROUP_OPAQUE
-	end
-
-	self.rmatrix = self:GetWorldTransformMatrix()
-	if self.meshscale_v then
-		self.rmatrix:Scale(self.meshscale_v)
 	end
 
 	if self.checkmodels and self:GetCRC() then
@@ -485,15 +477,30 @@ function ENT:Think()
 	if self.checkscale then
 		self.checkscale = self:CheckScale()
 	end
-	if self.rescale then
-		self:DoScale()
+
+	if self.singlemesh then
+		local mymat = self:GetMaterial()
+		if self.controllerMaterial:GetName() ~= mymat then
+			self.controllerMaterial = mymat == "" and self.defaultMaterial or Material(mymat)
+		end
 	end
+
+	if self:GetColor().a ~= 255 then
+		self.RenderGroup = RENDERGROUP_BOTH
+	else
+		self.RenderGroup = RENDERGROUP_OPAQUE
+	end
+
+	self:SetNextClientThink(CurTime() + 0.125)
 end
 
 
 -- -----------------------------------------------------------------------------
 function ENT:Draw()
-	self:DrawModel()
+	if not self.singlemesh then
+		self:DrawModel()
+	end
+
 	if self.suppress or suppress_global then
 		local mins, maxs = self:GetRenderBounds()
 		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1, true)
@@ -501,25 +508,79 @@ function ENT:Draw()
 		render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor2, true)
 		return
 	end
+
 	if disable_rendering or self.checkmodels or self.checkmeshes then
 		return
 	end
-	local meshes = P2M_GetMeshes(self:GetCRC(), self:GetTextureScale())
-	if meshes then
-		cam.PushModelMatrix(self.rmatrix)
+
+	local meshes, isOneMesh = P2M_GetMeshes(self:GetCRC(), self:GetTextureScale())
+	self.singlemesh = isOneMesh and meshes
+
+	if not isOneMesh then
+		if not meshes then
+			return
+		end
+		local rmatrix = self:GetWorldTransformMatrix()
+		if self.meshscale_v then
+			rmatrix:Scale(self.meshscale_v)
+		end
+		cam.PushModelMatrix(rmatrix)
 		for m = 1, #meshes do
 			meshes[m]:Draw()
 		end
 		cam.PopModelMatrix()
 	else
+		self:DrawModel()
+		render.SuppressEngineLighting(true)
+		render.SetMaterial(self.controllerMaterial)
+		local mins, maxs = self:GetHitBoxBounds(0, 0)
+		if not mins or not maxs then
+			mins, maxs = self:GetModelBounds()
+		end
+		render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self:GetColor(), true)
+		render.SuppressEngineLighting(false)
 	end
 end
+
+function ENT:GetRenderMesh()
+	if self.singlemesh then
+		return { Mesh = self.singlemesh, Material = self.defaultMaterial, Matrix = self.meshscale_m }
+	end
+	return nil
+end
+
+-- function ENT:Draw()
+-- 	self:DrawModel()
+-- 	if self.suppress or suppress_global then
+-- 		local mins, maxs = self:GetRenderBounds()
+-- 		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor1, true)
+-- 		render.SetColorMaterial()
+-- 		render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self.boxcolor2, true)
+-- 		return
+-- 	end
+-- 	if disable_rendering or self.checkmodels or self.checkmeshes then
+-- 		return
+-- 	end
+-- 	local meshes = P2M_GetMeshes(self:GetCRC(), self:GetTextureScale())
+-- 	if meshes then
+-- 		local rmatrix = self:GetWorldTransformMatrix()
+-- 		if self.meshscale_v then
+-- 			rmatrix:Scale(self.meshscale_v)
+-- 		end
+-- 		cam.PushModelMatrix(rmatrix)
+-- 		for m = 1, #meshes do
+-- 			meshes[m]:Draw()
+-- 		end
+-- 		cam.PopModelMatrix()
+-- 	else
+-- 	end
+-- end
 
 
 -- -----------------------------------------------------------------------------
 function ENT:OnRemove()
-	local crc = self:GetCRC()
 	local ent = self
+	local crc = self:GetCRC()
 	timer.Simple(0, function()
 		if not self:IsValid() then
 			P2M_ClearUsed(crc, ent)

@@ -1,4 +1,4 @@
-p2mlib = {}
+p2mlib = p2mlib or {}
 
 local p2mlib = p2mlib
 

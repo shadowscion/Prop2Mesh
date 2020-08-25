@@ -7,12 +7,13 @@ include("shared.lua")
 
 
 -- -----------------------------------------------------------------------------
-util.AddNetworkString("p2mnet.getmodels")
-util.AddNetworkString("p2mnet.invalidate")
+util.AddNetworkString("NetP2M.GetModels")
+util.AddNetworkString("NetP2M.UpdateAll")
 
 
 -- -----------------------------------------------------------------------------
 function ENT:Initialize()
+
 	self:DrawShadow(false)
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetMoveType(MOVETYPE_VPHYSICS)
@@ -23,48 +24,65 @@ function ENT:Initialize()
 		phys:EnableMotion(false)
 		phys:Wake()
 	end
+
 end
 
 
 -- -----------------------------------------------------------------------------
 function ENT:SetPlayer(ply)
+
 	ply:AddCount("gmod_ent_p2m", self)
 	ply:AddCleanup("gmod_ent_p2m", self)
+
 	self:SetNWEntity("Founder", ply)
 	self:SetNWString("FounderID", ply:SteamID64())
+
 end
 
 
 -- -----------------------------------------------------------------------------
 function ENT:SetTextureScale(scale)
+
 	local scale = math.floor(scale * 0.5) * 2
+
 	duplicator.StoreEntityModifier(self, "p2m_mods", { tscale = scale } )
+
 	self:SetNWInt("P2M_TSCALE", scale)
+
 	self:Invalidate()
+
 end
 
 
 -- -----------------------------------------------------------------------------
 function ENT:SetMeshScale(scale)
+
 	local scale = math.Clamp(scale, 0.1, 1)
+
 	duplicator.StoreEntityModifier(self, "p2m_mods", { mscale = scale } )
+
 	self:SetNWFloat("P2M_MSCALE", scale)
+
 	self:Invalidate()
+
 end
 
 
 -- -----------------------------------------------------------------------------
 function ENT:Invalidate(ply)
+
 	timer.Simple(0.1, function()
-		net.Start("p2mnet.invalidate")
+		net.Start("NetP2M.UpdateAll")
 		net.WriteEntity(self)
 		if ply then net.Send(ply) else net.Broadcast() end
 	end)
+
 end
 
 
 -- -----------------------------------------------------------------------------
 function ENT:SetModelsFromTable(data)
+
 	duplicator.ClearEntityModifier(self, "p2m_packets")
 
 	local json = util.Compress(util.TableToJSON(data))
@@ -77,9 +95,11 @@ function ENT:SetModelsFromTable(data)
 	packets.crc = util.CRC(json)
 
 	self:SetNWString("P2M_CRC", packets.crc)
+
 	self:Invalidate()
 
 	duplicator.StoreEntityModifier(self, "p2m_packets", packets)
+
 end
 
 
@@ -90,15 +110,17 @@ end
 
 
 -- -----------------------------------------------------------------------------
-net.Receive("p2mnet.getmodels", function(len, ply)
+net.Receive("NetP2M.GetModels", function(len, ply)
+
 	local controller = net.ReadEntity()
 	if not IsValid(controller) or controller:GetClass() ~= "gmod_ent_p2m" then
 		return
 	end
+
 	local packets = controller:GetPackets()
 	if packets and packets.crc == controller:GetCRC() then
 		for i, packet in ipairs(packets) do
-			net.Start("p2mnet.getmodels")
+			net.Start("NetP2M.GetModels")
 				net.WriteString(packets.crc)
 				net.WriteUInt(i, 16)
 				net.WriteUInt(packet[2], 32)
@@ -107,11 +129,13 @@ net.Receive("p2mnet.getmodels", function(len, ply)
 			net.Send(ply)
 		end
 	end
+
 end)
 
 
 -- -----------------------------------------------------------------------------
 duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
+
 	local controller = ents.Create(data.Class)
 	if not IsValid(controller) then
 		return false
@@ -135,4 +159,5 @@ duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
 	controller:Invalidate()
 
 	return controller
+
 end, "Data")

@@ -8,6 +8,7 @@ local ent_class = "gmod_ent_p2m"
 
 -- -----------------------------------------------------------------------------
 if SERVER then
+
 	list.Add( "OverrideMaterials", "p2m/grid")
 
 	TOOL.Controller = nil
@@ -25,25 +26,33 @@ if SERVER then
 
 	-- -----------------------------------------------------------------------------
 	local function IsOwner(ply, ent)
+
 		if CPPI and ent:CPPIGetOwner() ~= ply then
 			return false
 		end
+
 		return true
+
 	end
 
 	local function CanSelect(ply, ent)
+
 		local disp = class_whitelist[ent:GetClass()]
 		if not disp then
 			return false
 		end
+
 		local checkOwner = disp.IsOwner or IsOwner
 		if not checkOwner(ply, ent) then
 			return false
 		end
+
 		return disp
+
 	end
 
 	local function GetHitAngle(trace)
+
 		local ang
 		if math.abs(trace.HitNormal.x) < 0.001 and math.abs(trace.HitNormal.y) < 0.001 then
 			ang = Vector(0, 0, trace.HitNormal.z):Angle()
@@ -51,10 +60,13 @@ if SERVER then
 			ang = trace.HitNormal:Angle()
 		end
 		ang.p = ang.p + 90
+
 		return ang
+
 	end
 
 	local function MakeEnt(trace, owner, tscale, mscale)
+
 		local ent = ents.Create(ent_class)
 
 		ent:SetModel("models/hunter/plates/plate.mdl")
@@ -76,18 +88,22 @@ if SERVER then
 		duplicator.StoreEntityModifier(ent, "material", { MaterialOverride = ent:GetMaterial() })
 
 		return ent
+
 	end
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:Deploy()
+
 		if self:GetStage() == 0 and IsValid(self.Controller) and next(self.Selection) ~= nil then
 			self:SetStage(1)
 		end
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:LeftClick(trace)
+
 		if not trace.Hit then
 			return false
 		end
@@ -105,11 +121,13 @@ if SERVER then
 		end
 
 		return false
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:RightClick(trace)
+
 		if not trace.Hit then
 			return false
 		end
@@ -152,24 +170,29 @@ if SERVER then
 		end
 
 		return false
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:Reload(trace)
+
 		if self:GetStage() == 0 or next(self.Selection) == nil then
 			self:SetController()
 			self:SetStage(0)
 		end
+
 		for ent, _ in pairs(self.Selection) do
 			self:DeselectEntity(ent)
 		end
 		self.Selection = {}
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:SelectByFilter(trace, group)
+
 		local ign_invis       = self:GetClientNumber("s_ignore_invisible") ~= 0
 		local ign_parented    = self:GetClientNumber("s_ignore_parented") ~= 0
 		local ign_constrained = self:GetClientNumber("s_ignore_constrained") ~= 0
@@ -246,6 +269,7 @@ if SERVER then
 
 			::skip::
 		end
+
 	end
 
 
@@ -254,10 +278,12 @@ if SERVER then
 		if self.Selection[ent] then
 			return
 		end
+
 		local disp = CanSelect(self:GetOwner(), ent)
 		if not disp then
 			return
 		end
+
 		self.Selection[ent] = {
 			old_col = ent:GetColor(),
 			old_mat = ent:GetMaterial(),
@@ -273,24 +299,29 @@ if SERVER then
 		ent:CallOnRemove("p2mtoolsel", function(e)
 			self.Selection[e] = nil
 		end)
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:DeselectEntity(ent)
+
 		if not self.Selection[ent] then
 			return
 		end
+
 		ent:SetColor(self.Selection[ent].old_col)
 		ent:SetMaterial(self.Selection[ent].old_mat)
 		ent:SetRenderMode(self.Selection[ent].old_mod)
 		ent:RemoveCallOnRemove("p2mtoolsel")
 		self.Selection[ent] = nil
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:SetController(ent)
+
 		if self.Controller then
 			self.Controller:SetColor(self.Controller.old_col)
 			self.Controller:SetMaterial(self.Controller.old_mat)
@@ -322,12 +353,14 @@ if SERVER then
 		end
 
 		return self.Controller
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	local special = {}
 	special.prop_physics = function(entry, ent)
+
 		local scale = ent:GetManipulateBoneScale(0)
 		if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
 			entry.scale = scale
@@ -351,8 +384,10 @@ if SERVER then
 				::invalid::
 			end
 		end
+
 	end
 	special.gmod_wire_hologram = function(entry, ent)
+
 		local holo
 		for k, v in pairs(ent:GetTable().OnDieFunctions.holo_cleanup.Args[1].data.holos) do
 			if v.ent == ent then
@@ -391,8 +426,10 @@ if SERVER then
 				::invalid::
 			end
 		end
+
 	end
 	special.starfall_hologram = function(entry, ent)
+
 		entry.holo = true
 
 		if ent.scale then
@@ -414,11 +451,13 @@ if SERVER then
 				::invalid::
 			end
 		end
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	local function getBodygroupMask(ent)
+
 		local mask = 0
 		local offset = 1
 
@@ -429,11 +468,13 @@ if SERVER then
 		end
 
 		return mask
+
 	end
 
 
 	-- -----------------------------------------------------------------------------
 	function TOOL:Finalize()
+
 		local pos = self.Controller:GetPos()
 		local ang = self.Controller:GetAngles()
 
@@ -475,9 +516,11 @@ if SERVER then
 		end
 		self.Selection = {}
 		self:SetStage(0)
+
 	end
 
 	return
+
 end
 
 
@@ -536,6 +579,7 @@ TOOL.ClientConVar = ConVars
 local help_font = "DebugFixedSmall"
 
 local function SetDefaults()
+
 	for var, _ in pairs(ConVars) do
 		local convar = GetConVar("prop2mesh_" .. var)
 		if convar then
@@ -544,11 +588,13 @@ local function SetDefaults()
 	end
 
 	GetConVar("prop2mesh_build_time"):Revert()
+
 end
 
 
 -- -----------------------------------------------------------------------------
 local function DForm_ToolBehavior(self)
+
 	local panel = vgui.Create("DForm")
 	panel:SetName("Tool Behavior")
 
@@ -591,11 +637,13 @@ local function DForm_ToolBehavior(self)
 	panel:CheckBox("Enable tool HUD", "prop2mesh_t_hud_enabled")
 
 	return panel
+
 end
 
 
 -- -----------------------------------------------------------------------------
 local function DForm_EntityOptions(self)
+
 	local panel = vgui.Create("DForm")
 	panel:SetName("Entity Options")
 
@@ -623,11 +671,13 @@ local function DForm_EntityOptions(self)
 	end
 
 	return panel
+
 end
 
 
 -- -----------------------------------------------------------------------------
 local function DForm_ClientOptions(self)
+
 	local panel = vgui.Create("DForm")
 	panel:SetName("Client Options")
 
@@ -643,11 +693,13 @@ local function DForm_ClientOptions(self)
 	panel:CheckBox("Disable rendering", "prop2mesh_disable_rendering")
 
 	return panel
+
 end
 
 
 -- -----------------------------------------------------------------------------
 local function DForm_Statistics(self)
+
 	local panel = vgui.Create("DForm")
 	panel:SetName("Statistics")
 	panel:DockPadding(0, 0, 0, 10)
@@ -692,14 +744,16 @@ local function DForm_Statistics(self)
 	end
 
 	local button = panel:Button("Output info to console")
-	button.DoClick = function() P2M_Dump() end
+	button.DoClick = p2mlib.dump
 
 	return panel
+
 end
 
 
 -- -----------------------------------------------------------------------------
 TOOL.BuildCPanel = function(self)
+
 	local button = self:Button("Reset tool options")
 	button.DoClick = SetDefaults
 
@@ -707,6 +761,7 @@ TOOL.BuildCPanel = function(self)
 	self:AddPanel(DForm_EntityOptions(self))
 	self:AddPanel(DForm_ClientOptions(self))
 	self:AddPanel(DForm_Statistics(self))
+
 end
 
 
@@ -720,6 +775,7 @@ local overlay_color = Color(255,255,255)
 local overlay_ent
 
 function TOOL:DrawHUD()
+
 	if self:GetClientNumber("t_hud_enabled") == 0 then
 		overlay_ent = nil
 		return
@@ -730,7 +786,9 @@ function TOOL:DrawHUD()
 		overlay_ent = nil
 		return
 	end
+
 	if IsValid(overlay_ent) then
+
 		if trace.Entity ~= overlay_ent and trace.Entity:GetClass() == ent_class then
 			overlay_ent = trace.Entity
 			return
@@ -746,18 +804,18 @@ function TOOL:DrawHUD()
 		local ang = overlay_ent:GetAngles()
 
 		cam.Start3D()
-		local mins, maxs = overlay_ent:GetModelBounds()
-		render.DrawWireframeBox(pos, ang, mins, maxs, overlay_ent.boxcolor1)
+			local mins, maxs = overlay_ent:GetModelBounds()
+			render.DrawWireframeBox(pos, ang, mins, maxs, overlay_ent.OutlineColor1)
 
-		mins, maxs = overlay_ent:GetRenderBounds()
-		render.DrawWireframeBox(pos, ang, mins, maxs, overlay_ent.boxcolor1)
-		render.SetColorMaterial()
-		render.DrawBox(pos, ang, mins, maxs, overlay_ent.boxcolor2)
+			mins, maxs = overlay_ent:GetRenderBounds()
+			render.DrawWireframeBox(pos, ang, mins, maxs, overlay_ent.OutlineColor1)
+			render.SetColorMaterial()
+			render.DrawBox(pos, ang, mins, maxs, overlay_ent.OutlineColor2)
 		cam.End3D()
 
-		overlay_color.r = overlay_ent.boxcolor1.r
-		overlay_color.g = overlay_ent.boxcolor1.g
-		overlay_color.b = overlay_ent.boxcolor1.b
+		overlay_color.r = overlay_ent.OutlineColor1.r
+		overlay_color.g = overlay_ent.OutlineColor1.g
+		overlay_color.b = overlay_ent.OutlineColor1.b
 
 		local scr = pos:ToScreen()
 		local x = math.Round(scr.x) - 64
@@ -769,9 +827,13 @@ function TOOL:DrawHUD()
 		draw.DrawText(string.format("triangles: %d", overlay_ent:GetTriangleCount()), overlay_font, x, y + 32, overlay_color, TEXT_ALIGN_LEFT)
 		draw.DrawText(string.format("tex scale: %d", overlay_ent:GetTextureScale()), overlay_font, x, y + 48, overlay_color, TEXT_ALIGN_LEFT)
 		draw.DrawText(string.format("mesh scale: %d", overlay_ent:GetMeshScale()), overlay_font, x, y + 64, overlay_color, TEXT_ALIGN_LEFT)
+
 	else
+
 		if trace.Entity:GetClass() == ent_class then
 			overlay_ent = trace.Entity
 		end
+
 	end
+
 end

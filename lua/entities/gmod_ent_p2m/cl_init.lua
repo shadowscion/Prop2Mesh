@@ -480,6 +480,10 @@ function p2m.RequestMeshes(controller)
 		return true
 	end
 
+	if p2m.marks[crc] then
+		p2m.marks[crc] = nil
+	end
+
 	local tscale = controller:GetTextureScale()
 	if p2m.meshes[crc] and p2m.meshes[crc][tscale] or p2m.getmeshes[crc] and p2m.getmeshes[crc][tscale] then
 		if p2m.debug then

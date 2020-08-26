@@ -354,6 +354,10 @@ function p2m.FlushMeshes()
 
 end
 
+concommand.Add("prop2mesh_flush", function()
+	p2m.FlushMeshes()
+end)
+
 timer.Create("P2M.DeleteMarks", 30, 0, function()
 	local ct = CurTime()
 	for crc, time in pairs(p2m.marks) do
@@ -542,7 +546,7 @@ end
 
 
 -- -----------------------------------------------------------------------------
-local pbar_num
+local pbar_num, pbar_slow
 
 hook.Add("Think", "P2M.Think", function()
 
@@ -569,8 +573,9 @@ hook.Add("Think", "P2M.Think", function()
 		if tscale and thread then
 			local mark = SysTime()
 			while SysTime() - mark < meshBuildTime:GetFloat() do
-				local succ, done, progress = coroutine.resume(thread)
+				local succ, done, progress, highpoly = coroutine.resume(thread)
 				pbar_num = progress
+				pbar_slow = highpoly
 				if not succ or done then
 					request[tscale] = nil
 					break
@@ -579,6 +584,7 @@ hook.Add("Think", "P2M.Think", function()
 		else
 			p2m.getmeshes[crc] = nil
 			pbar_num = nil
+			pbar_slow = nil
 		end
 	end
 
@@ -587,6 +593,8 @@ end)
 local pbar_border = Color(0,0,0)
 local pbar_inside = Color(0,255,0)
 local pbar_faded = Color(165,255,165)
+local pbar_inside_red = Color(255,0,0)
+local pbar_faded_red = Color(255,165,165)
 
 hook.Add("HUDPaint", "P2M.ProgressBar", function()
 
@@ -599,9 +607,12 @@ hook.Add("HUDPaint", "P2M.ProgressBar", function()
 	local x = ScrW() - w - 24
 	local y = h
 
+	local color1 = pbar_slow and pbar_inside_red or pbar_inside
+	local color2 = pbar_slow and pbar_faded_red or pbar_faded
+
 	draw.RoundedBox(2, x, y, w, h, pbar_border)
-	draw.RoundedBox(2, x + 2, y + 2, pbar_num*(w - 4), h - 4, pbar_inside)
-	draw.RoundedBoxEx(2, x + 2, y + 2, pbar_num*(w - 4), (h - 4)*0.333, pbar_faded, true, true)
+	draw.RoundedBox(2, x + 2, y + 2, pbar_num*(w - 4), h - 4, color1)
+	draw.RoundedBoxEx(2, x + 2, y + 2, pbar_num*(w - 4), (h - 4)*0.333, color2, true, true)
 	surface.SetDrawColor(255,255,0,255)
 	surface.DrawRect(x + 2 + pbar_num*(w - 6), y + 2, 2, h - 4)
 

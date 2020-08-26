@@ -3,7 +3,7 @@ p2mlib = p2mlib or {}
 local p2mlib = p2mlib
 
 local _MESH_VERTEX_LIMIT  = 65000
-local _HIGHPOLY_THRESHOLD = 5000
+local _HIGHPOLY_THRESHOLD = 15000
 
 local coroutine_yield = coroutine.yield
 
@@ -28,6 +28,7 @@ local function copy(v)
 		normal = Vector(v.normal),
 		u      = v.u,
 		v      = v.v,
+		rotate = v.rotate,
 	}
 end
 
@@ -67,6 +68,7 @@ local function clip(v1, v2, plane, length, getUV)
 	local vert = {
 		pos    = v1.pos + t * (v2.pos - v1.pos),
 		normal = v1.normal + t * (v2.normal - v1.normal),
+		rotate = v1.rotate or v2.rotate,
 	}
 	if getUV then
 		vert.u = v1.u + t * (v2.u - v1.u)
@@ -183,10 +185,15 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
 		maxs = Vector(1, 1, 1)
 	end
 
-	for m, model in ipairs(models) do
-		if p2mlib.isBlocked(model.mdl) then
+	local mCount = #models
+
+	for m = 1, mCount do
+		local model = models[m]
+		if not model or not model.mdl or p2mlib.isBlocked(model.mdl) then
 			continue
 		end
+
+		-- temporarily cache model meshes
 		local meshes
 		if meshcache[model.mdl] then
 			meshes = meshcache[model.mdl][model.bgrp or 0]
@@ -196,20 +203,34 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
 		if not meshes then
 			meshes = util.GetModelMeshes(model.mdl, 0, model.bgrp or 0)
 			if meshes then
+				meshes.isFunky = p2mlib.isFunky(model.mdl)
 				meshcache[model.mdl][model.bgrp or 0] = meshes
-				meshcache[model.mdl][model.bgrp or 0].isFunky = p2mlib.isFunky(model.mdl)
 			else
 				continue
 			end
 		end
 
+		-- setup
+		local mCountFrac = m * (1 / mCount)
 		local mScale = model.scale
 		local mClips = model.clips
-
 		local mFunky
+
+		-- some model are weird
 		if meshes.isFunky then
-			mFunky = Angle(model.ang)
-			mFunky:RotateAroundAxis(mFunky:Up(), 90)
+			local rotated = Angle(model.ang)
+			rotated:RotateAroundAxis(rotated:Up(), 90)
+
+			mFunky = {}
+			for p = 1, #meshes do
+				local valid, special = pcall(meshes.isFunky, p, #meshes, rotated, model.ang)
+				if valid then
+					local ang = special or rotated
+					mFunky[p] = { ang = ang, diff = ang ~= rotated }
+				else
+					mFunky[p] = { ang = rotated }
+				end
+			end
 
 			if mScale then
 				if model.holo then
@@ -218,50 +239,60 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
 					mScale = Vector(mScale.x, mScale.z, mScale.y)
 				end
 			end
+
 			if mClips then
 				local clips = {}
-				for _, clip in ipairs(mClips) do
-					local normal = Vector(clip.n)
+				for c = 1, #mClips do
+					local normal = Vector(mClips[c].n)
 					rotate(normal, a90)
 					clips[#clips + 1] = {
+						no = mClips[c].n,
 						n = normal,
-						d = clip.d,
+						d = mClips[c].d,
 					}
 				end
 				mClips = clips
 			end
 		end
 
+		-- attempt to prevent lag spikes
 		local highpoly
 		if threaded then
 			local vertcount = 0
-			for p, part in ipairs(meshes) do
-				vertcount = vertcount + #part.triangles
+			for p = 1, #meshes do
+				vertcount = vertcount + #meshes[p].triangles
 			end
-			highpoly = vertcount / 3 > _HIGHPOLY_THRESHOLD
+			highpoly = vertcount > _HIGHPOLY_THRESHOLD
 		end
 
+		-- model vertex manipulations
 		local modelverts = {}
-		for p, part in ipairs(meshes) do
-			for v, vert in ipairs(part.triangles) do
-				local pos = Vector(vert.pos)
+		for p = 1, #meshes do
+			local partmesh   = meshes[p].triangles
+			local partrotate = mFunky and mFunky[p]
+			local partverts  = {}
+
+			for v = 1, #partmesh do
+				local vert   = partmesh[v]
+				local pos    = Vector(vert.pos)
 				local normal = Vector(vert.normal)
 
 				if mScale then
-					pos.x = pos.x * mScale.x
-					pos.y = pos.y * mScale.y
-					pos.z = pos.z * mScale.z
-				end
-
-				if not mClips then
-					rotate(normal, mFunky or model.ang)
-					rotate(pos, mFunky or model.ang)
-					add(pos, model.pos)
+					if partrotate and partrotate.diff then
+						pos.x = pos.x * model.scale.x
+						pos.y = pos.y * model.scale.y
+						pos.z = pos.z * model.scale.z
+					else
+						pos.x = pos.x * mScale.x
+						pos.y = pos.y * mScale.y
+						pos.z = pos.z * mScale.z
+					end
 				end
 
 				local vcopy = {
-					pos = pos,
+					pos    = pos,
 					normal = normal,
+					rotate = partrotate,
 				}
 
 				if not texmul then
@@ -269,28 +300,52 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
 					vcopy.v = vert.v
 				end
 
-				modelverts[#modelverts + 1] = vcopy
+				partverts[#partverts + 1] = vcopy
 
 				if highpoly then
-					coroutine_yield(false, m / #models)
+					coroutine_yield(false, mCountFrac, true)
 				end
 			end
-		end
 
-		if mClips then
-			for _, clip in ipairs(mClips) do
-				modelverts = applyClippingPlane(modelverts, clip.n, clip.d, not texmul)
+			if mClips then
+				if partrotate then
+					for c = 1, #mClips do
+						partverts = applyClippingPlane(partverts, partrotate.diff and mClips[c].no or mClips[c].n, mClips[c].d, not texmul)
+						if highpoly then
+							coroutine_yield(false, mCountFrac, true)
+						end
+					end
+				else
+					for c = 1, #mClips do
+						partverts = applyClippingPlane(partverts, mClips[c].n, mClips[c].d, not texmul)
+						if highpoly then
+							coroutine_yield(false, mCountFrac, true)
+						end
+					end
+				end
 			end
-			for v, vert in ipairs(modelverts) do
-				rotate(vert.normal, mFunky or model.ang)
-				rotate(vert.pos, mFunky or model.ang)
+
+			for v = 1, #partverts do
+				local vert = partverts[v]
+				if vert.rotate then
+					rotate(vert.normal, vert.rotate.ang or model.ang)
+					rotate(vert.pos, vert.rotate.ang or model.ang)
+					vert.rotate = nil
+				else
+					rotate(vert.normal, model.ang)
+					rotate(vert.pos, model.ang)
+				end
 				add(vert.pos, model.pos)
+
+				modelverts[#modelverts + 1] = vert
+
 				if highpoly then
-					coroutine_yield(false, m / #models)
+					coroutine_yield(false, mCountFrac, true)
 				end
 			end
 		end
 
+		-- texture coordinates
 		if texmul then
 			for i = 1, #modelverts, 3 do
 				local normal = cross(modelverts[i + 2].pos - modelverts[i].pos, modelverts[i + 1].pos - modelverts[i].pos)
@@ -302,30 +357,33 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
 				modelverts[i + 2].u, modelverts[i + 2].v = getBoxUV(modelverts[i + 2].pos, boxDir, texmul)
 
 				if highpoly then
-					coroutine_yield(false, m / #models)
+					coroutine_yield(false, mCountFrac, true)
 				end
 			end
 		end
 
+		-- duplicate verts in reverse if renderinside flag
 		if model.inv then
 			for i = #modelverts, 1, -1 do
 				modelverts[#modelverts + 1] = modelverts[i]
 			end
 		end
 
+		-- vertex groups
 		if #nextpart + #modelverts > _MESH_VERTEX_LIMIT then
 			meshparts[#meshparts + 1] = {}
 			nextpart = meshparts[#meshparts]
 		end
-		for v, vert in ipairs(modelverts) do
-			nextpart[#nextpart + 1] = vert
+
+		for v = 1, #modelverts do
+			nextpart[#nextpart + 1] = modelverts[v]
 			if getbounds then
-				calcbounds(mins, maxs, vert.pos)
+				calcbounds(mins, maxs, modelverts[v].pos)
 			end
 		end
 
 		if threaded then
-			coroutine_yield(false, m / #models)
+			coroutine_yield(false, mCountFrac, false)
 		end
 	end
 
@@ -345,18 +403,22 @@ end
 
 function p2mlib.isFunky(model)
 	if funkyModel[model] then
-		return true
+		return funkyModel[model]
 	elseif funkyFolder[path(model)] then
-		return true
+		return funkyFolder[path(model)]
 	end
 	return false
 end
 
 local pushTo
-local function push(str)
-	if pushTo then pushTo[lower(str)] = true end
+local function push(str, func)
+	if pushTo then
+		pushTo[lower(str)] = func or true
+	end
 end
 
+
+-- FOLDERS
 pushTo = funkyFolder
 push("models/props_phx/construct/glass/")
 push("models/props_phx/construct/plastic/")
@@ -364,11 +426,6 @@ push("models/props_phx/construct/windows/")
 push("models/props_phx/construct/wood/")
 push("models/props_phx/misc/")
 push("models/props_phx/trains/tracks/")
-push("models/sprops/trans/miscwheels/")
-push("models/sprops/trans/wheel_b/")
-push("models/sprops/trans/wheel_big_g/")
-push("models/sprops/trans/wheel_d/")
-push("models/sprops/trans/wheel_f/")
 push("models/squad/sf_bars/")
 push("models/squad/sf_plates/")
 push("models/squad/sf_tris/")
@@ -381,8 +438,12 @@ push("models/bull/gates/")
 push("models/bull/various/")
 push("models/jaanus/wiretool/")
 push("models/kobilica/")
+push("models/sprops/trans/wheel_f/")
+push("models/sprops/trans/wheels_g/")
+push("models/sprops/trans/wheel_big_g/")
 
 
+-- MODELS
 pushTo = funkyModel
 push("models/sprops/trans/fender_a/a_fender30.mdl")
 push("models/sprops/trans/fender_a/a_fender35.mdl")
@@ -652,3 +713,38 @@ push("models/props/de_inferno/hr_i/inferno_vintage_radio/inferno_vintage_radio.m
 push("models/radar/radar_sp_mid.mdl")
 push("models/radar/radar_sp_sml.mdl")
 push("models/radar/radar_sp_big.mdl")
+
+
+-- SPECIAL FOLDERS
+pushTo = funkyFolder
+
+push("models/sprops/trans/wheel_b/", function(partnum, numparts, rotated, normal)
+	if partnum == 1 then return rotated else return normal end
+end)
+push("models/sprops/trans/wheel_d/", function(partnum, numparts, rotated, normal)
+	if partnum == 1 or partnum == 2 then return rotated else return normal end
+end)
+
+
+-- SPECIAL MODELS
+pushTo = funkyModel
+
+local fix = function(partnum, numparts, rotated, normal)
+	if partnum == 1 then return rotated else return normal end
+end
+push("models/sprops/trans/miscwheels/thin_moto15.mdl", fix)
+push("models/sprops/trans/miscwheels/thin_moto20.mdl", fix)
+push("models/sprops/trans/miscwheels/thin_moto25.mdl", fix)
+push("models/sprops/trans/miscwheels/thin_moto30.mdl", fix)
+push("models/sprops/trans/miscwheels/thick_moto15.mdl", fix)
+push("models/sprops/trans/miscwheels/thick_moto20.mdl", fix)
+push("models/sprops/trans/miscwheels/thick_moto25.mdl", fix)
+push("models/sprops/trans/miscwheels/thick_moto30.mdl", fix)
+
+local fix = function(partnum, numparts, rotated, normal)
+	if partnum == 1 or partnum == 2 then return rotated else return normal end
+end
+push("models/sprops/trans/miscwheels/tank15.mdl", fix)
+push("models/sprops/trans/miscwheels/tank20.mdl", fix)
+push("models/sprops/trans/miscwheels/tank25.mdl", fix)
+push("models/sprops/trans/miscwheels/tank30.mdl", fix)

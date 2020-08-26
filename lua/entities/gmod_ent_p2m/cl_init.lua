@@ -88,6 +88,8 @@ function ENT:Draw()
 		self:DrawModel()
 	elseif self.MeshGroup then
 		self:DrawMeshGroup()
+	else
+		self:DrawModel()
 	end
 
 end
@@ -385,12 +387,11 @@ function p2m.RequestModels(controller)
 
 	if not p2m.models[crc] then
 		if not p2m.getmodels[crc] then
-			p2m.getmodels[crc] = { status = "init", from = controller }
+			p2m.getmodels[crc] = { status = "init", time = CurTime(), from = controller }
 			if p2m.debug then
 				p2m.debugmsg("Model Request Started ", crc)
 			end
-		end
-		if p2m.getmodels[crc].status == "init" then
+		elseif p2m.getmodels[crc].status == "init" then
 			p2m.getmodels[crc].time = CurTime()
 			if p2m.debug then
 				p2m.debugmsg("Model Request Halted ", crc)

@@ -123,11 +123,17 @@ end
 
 -- -----------------------------------------------------------------------------
 local function P2M_Build(e2, controller)
-	if #controller.E2P2MResevoir == 0 or #controller.E2P2MResevoir > LIMIT_MODELS then
-		return
+	if #controller.E2P2MResevoir == 0 then
+		return false
 	end
+	if #controller.E2P2MResevoir > LIMIT_MODELS then
+		return false, string.format("P2M Controller reached %d model limit!", LIMIT_MODELS)
+	end
+
 	controller:SetModelsFromTable(controller.E2P2MResevoir)
 	controller.E2P2MResevoir = {}
+
+	return true
 end
 
 
@@ -204,7 +210,11 @@ e2function void entity:p2mBuild()
 		this.E2P2MResevoir = {} -- important!!
 		return
 	end
-	P2M_Build(self, this)
+
+	local succ, code = P2M_Build(self, this)
+	if not succ and code then
+		error(code)
+	end
 end
 
 

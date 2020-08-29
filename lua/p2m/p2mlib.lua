@@ -365,7 +365,11 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
 		-- duplicate verts in reverse if renderinside flag
 		if model.inv then
 			for i = #modelverts, 1, -1 do
-				modelverts[#modelverts + 1] = modelverts[i]
+				modelverts[#modelverts + 1] = copy(modelverts[i])
+				modelverts[#modelverts].normal = -modelverts[#modelverts].normal
+				if highpoly then
+					coroutine_yield(false, mCountFrac, true)
+				end
 			end
 		end
 

@@ -158,10 +158,35 @@ if SERVER then
 				elseif self:GetOwner():KeyDown(IN_WALK) then
 					self:SelectByFilter(trace, trace.Entity:GetChildren())
 				else
-					if self.Selection[trace.Entity] then
-						self:DeselectEntity(trace.Entity)
+					if self:GetClientNumber("s_ignore_props") == 1 and self:GetClientNumber("s_ignore_holos") == 0 then
+						local class_whitelist = {
+							gmod_wire_hologram = true,
+							starfall_hologram = true,
+						}
+
+						local find = {}
+						local cone = ents.FindInCone(trace.StartPos, trace.Normal, trace.HitPos:Distance(trace.StartPos) * 2, math.cos(math.rad(3)))
+
+						for k, ent in ipairs(cone) do
+							if class_whitelist[ent:GetClass()] and CanSelect(self:GetOwner(), ent) then
+								find[#find + 1] = { ent = ent, len = (trace.StartPos - ent:GetPos()):LengthSqr() }
+							end
+						end
+
+						for k, v in SortedPairsByMemberValue(find, "len") do
+							if self.Selection[v.ent] then
+								self:DeselectEntity(v.ent)
+							else
+								self:SelectEntity(v.ent)
+							end
+							break
+						end
 					else
-						self:SelectEntity(trace.Entity)
+						if self.Selection[trace.Entity] then
+							self:DeselectEntity(trace.Entity)
+						else
+							self:SelectEntity(trace.Entity)
+						end
 					end
 				end
 			end

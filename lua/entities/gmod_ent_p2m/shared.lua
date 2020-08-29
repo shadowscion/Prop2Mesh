@@ -89,8 +89,14 @@ properties.Add("p2m_export_e2", {
 					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r)
 
 			elseif model.scale and not model.clips then
+				local x, y, z = model.scale.x, model.scale.y, model.scale.z
+				if p2mlib.isFunky(model.mdl) then
+					local t = y
+					y = z
+					z = t
+				end
 				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f))\n",
-					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.scale.x, model.scale.y, model.scale.z)
+					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z)
 
 			elseif model.scale and model.clips then
 				local sclips = {}
@@ -102,8 +108,14 @@ properties.Add("p2m_export_e2", {
 						sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 					end
 				end
+				local x, y, z = model.scale.x, model.scale.y, model.scale.z
+				if p2mlib.isFunky(model.mdl) then
+					local t = y
+					y = z
+					z = t
+				end
 				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, array(%s))\n",
-					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.scale.x, model.scale.y, model.scale.z, model.inv and 1 or 0, table.concat(sclips))
+					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, table.concat(sclips))
 
 			elseif not model.scale and model.clips then
 				local sclips = {}

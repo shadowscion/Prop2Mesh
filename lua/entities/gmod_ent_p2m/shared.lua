@@ -77,7 +77,7 @@ properties.Add("p2m_export_e2", {
 			return
 		end
 
-		local header = string.format("local P2M = p2mCreate(entity():pos(), entity():angles(), %d, %.3f)\n\n", ent:GetTextureScale(), ent:GetMeshScale())
+		local header = string.format("local P2M = p2mCreate(entity():pos(), entity():angles(), %d, %f)\n\n", ent:GetTextureScale(), ent:GetMeshScale())
 		local footer = "\nP2M:p2mBuild()\n\n"
 
 		local export = { "@name\n@inputs\n@outputs\n@persist\n@trigger\n\n", header }
@@ -85,11 +85,11 @@ properties.Add("p2m_export_e2", {
 
 		for k, model in SortedPairsByMemberValue(util.JSONToTable(util.Decompress(p2mlib.models[crc].data)), "mdl") do
 			if not model.scale and not model.clips then
-				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%.3f, %.3f, %.3f), ang(%.3f, %.3f, %.3f))\n",
+				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f))\n",
 					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r)
 
 			elseif model.scale and not model.clips then
-				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%.3f, %.3f, %.3f), ang(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f))\n",
+				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f))\n",
 					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.scale.x, model.scale.y, model.scale.z)
 
 			elseif model.scale and model.clips then
@@ -97,12 +97,12 @@ properties.Add("p2m_export_e2", {
 				for i, clip in ipairs(model.clips) do
 					local pos = clip.n * clip.d
 					if i ~= #model.clips then
-						sclips[#sclips + 1] = string.format("vec(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+						sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 					else
-						sclips[#sclips + 1] = string.format("vec(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+						sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 					end
 				end
-				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%.3f, %.3f, %.3f), ang(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f), %d, array(%s))\n",
+				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, array(%s))\n",
 					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.scale.x, model.scale.y, model.scale.z, model.inv and 1 or 0, table.concat(sclips))
 
 			elseif not model.scale and model.clips then
@@ -110,12 +110,12 @@ properties.Add("p2m_export_e2", {
 				for i, clip in ipairs(model.clips) do
 					local pos = clip.n * clip.d
 					if i ~= #model.clips then
-						sclips[#sclips + 1] = string.format("vec(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+						sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 					else
-						sclips[#sclips + 1] = string.format("vec(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+						sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 					end
 				end
-				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%.3f, %.3f, %.3f), ang(%.3f, %.3f, %.3f), %d, array(%s))\n",
+				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, array(%s))\n",
 					model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, table.concat(sclips))
 
 			end

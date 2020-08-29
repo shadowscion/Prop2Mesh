@@ -379,7 +379,8 @@ if SERVER then
 					entry.clips = {}
 				end
 
-				entry.clips[#entry.clips + 1] = { n = clip.n:Forward(), d = clip.d + clip.n:Forward():Dot(ent:OBBCenter()) }
+				local normal = clip.n:Forward()
+				entry.clips[#entry.clips + 1] = { n = normal, d = clip.d + normal:Dot(ent:OBBCenter()) }
 
 				::invalid::
 			end
@@ -416,11 +417,12 @@ if SERVER then
 				if not IsValid(clipTo) then
 					goto invalid
 				end
-				local normal = ent:WorldToLocal(clipTo:LocalToWorld(v.normal) - clipTo:GetPos() + ent:GetPos())
-				local origin = ent:WorldToLocal(clipTo:LocalToWorld(v.origin))
 				if not entry.clips then
 					entry.clips = {}
 				end
+
+				local normal = ent:WorldToLocal(clipTo:LocalToWorld(v.normal:GetNormalized()) - clipTo:GetPos() + ent:GetPos())
+				local origin = ent:WorldToLocal(clipTo:LocalToWorld(v.origin))
 				entry.clips[#entry.clips + 1] = { n = normal, d = normal:Dot(origin) }
 
 				::invalid::
@@ -441,11 +443,12 @@ if SERVER then
 				if not IsValid(v.entity) then
 					goto invalid
 				end
-				local normal = ent:WorldToLocal(v.entity:LocalToWorld(v.normal) - v.entity:GetPos() + ent:GetPos())
-				local origin = ent:WorldToLocal(v.entity:LocalToWorld(v.origin))
 				if not entry.clips then
 					entry.clips = {}
 				end
+
+				local normal = ent:WorldToLocal(v.entity:LocalToWorld(v.normal:GetNormalized()) - v.entity:GetPos() + ent:GetPos())
+				local origin = ent:WorldToLocal(v.entity:LocalToWorld(v.origin))
 				entry.clips[#entry.clips + 1] = { n = normal, d = normal:Dot(origin) }
 
 				::invalid::

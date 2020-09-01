@@ -127,7 +127,7 @@ function ENT:Draw()
 		return
 	end
 
-	if enableCrossSection then
+	if enableCrossSection and self:GetPlayer() == LocalPlayer() then
 		self:DrawCrossSection()
 	else
 		if self.Mesh then

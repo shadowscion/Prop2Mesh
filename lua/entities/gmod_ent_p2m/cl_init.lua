@@ -2,6 +2,7 @@
 include("shared.lua")
 include("p2m/p2mlib.lua")
 
+local notification = notification
 local coroutine = coroutine
 local surface = surface
 local string = string
@@ -56,45 +57,71 @@ end)
 
 
 -- -----------------------------------------------------------------------------
+local enableNotify = GetConVar("prop2mesh_t_hud_enabled")
 local normals = {
 	Vector(-1, 0, 0), Vector(0, -1, 0), Vector(0, 0, -1)
 }
 
-local enableCrossSection
-concommand.Add("prop2mesh_crosssection", function()
-	if enableCrossSection == 4 then
-		enableCrossSection = nil
+local enableSplitView
+concommand.Add("prop2mesh_splitview", function()
+	if enableSplitView == 4 then
+		enableSplitView = nil
+		notification.AddLegacy("P2M: Split view off", NOTIFY_HINT, 2)
 		return
 	end
-	enableCrossSection = (enableCrossSection or 0) + 1
+	enableSplitView = (enableSplitView or 0) + 1
+	if enableNotify:GetBool() then
+		notification.AddLegacy(string.format("P2M: Split view mode %d", enableSplitView), NOTIFY_HINT, 2)
+	end
 end)
 
-function ENT:DrawCrossSection()
+
+-- -----------------------------------------------------------------------------
+function ENT:DrawSplitView()
+
+	if not self.Mesh and not self.MeshGroup then
+		self:DrawModel()
+		return
+	end
+
+	local state  = render.EnableClipping(true)
+
+	local mins, maxs = self:GetRenderBounds()
+	local origin = self:LocalToWorld((mins + maxs)*0.5)
+	local normal = normals[enableSplitView] or EyeVector()
+	local dirdot = normal:Dot(origin)
 
 	if self.Mesh then
-		local state  = render.EnableClipping(true)
 
 		self:DrawFakeController()
 
-		local mins, maxs = self:GetRenderBounds()
-		local normal = normals[enableCrossSection] or EyeVector()
-
-		render.PushCustomClipPlane(normal, normal:Dot(self:LocalToWorld((mins + maxs)*0.5)))
+		render.PushCustomClipPlane(normal, dirdot)
 		self:DrawModel()
 		render.PopCustomClipPlane()
 
-		render.SetBlend(0.125)
-		render.PushCustomClipPlane(-normal, -normal:Dot(self:LocalToWorld((mins + maxs)*0.5)))
+		render.SetBlend(0.1)
+		render.PushCustomClipPlane(-normal, -dirdot)
 		self:DrawModel()
 		render.PopCustomClipPlane()
 		render.SetBlend(1)
 
-		render.EnableClipping(state)
-	elseif self.MeshGroup then
-		self:DrawMeshGroup()
 	else
+
 		self:DrawModel()
+
+		render.PushCustomClipPlane(normal, dirdot)
+		self:DrawMeshGroup()
+		render.PopCustomClipPlane()
+
+		render.SetBlend(0.1)
+		render.PushCustomClipPlane(-normal, -dirdot)
+		self:DrawMeshGroup()
+		render.PopCustomClipPlane()
+		render.SetBlend(1)
+
 	end
+
+	render.EnableClipping(state)
 
 end
 
@@ -127,13 +154,14 @@ function ENT:Draw()
 		return
 	end
 
-	if enableCrossSection and self:GetPlayer() == LocalPlayer() then
-		self:DrawCrossSection()
+	if enableSplitView and self:GetPlayer() == LocalPlayer() then
+		self:DrawSplitView()
 	else
 		if self.Mesh then
 			self:DrawFakeController()
-			self:DrawModel()
+			self:DrawModel() -- RenderMesh
 		elseif self.MeshGroup then
+			self:DrawModel() -- actual model
 			self:DrawMeshGroup()
 		else
 			self:DrawModel()
@@ -144,19 +172,14 @@ end
 
 
 -- -----------------------------------------------------------------------------
+local csent_ghost = ClientsideModel("models/error.mdl")
+csent_ghost:SetNoDraw(true)
+
 function ENT:DrawFakeController()
 
-	local mins, maxs = self:GetHitBoxBounds(0, 0)
-	if not mins or not maxs then
-		mins, maxs = self:GetModelBounds()
-	end
-
-	render.SuppressEngineLighting(true)
-
-	render.SetMaterial(self.Material2)
-	render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self:GetColor(), true)
-
-	render.SuppressEngineLighting(false)
+	render.ModelMaterialOverride(self.Material2)
+	render.Model({ model = self:GetModel(), pos = self:GetPos(), angle = self:GetAngles() }, csent_ghost)
+	render.ModelMaterialOverride(nil)
 
 end
 
@@ -504,11 +527,9 @@ function p2m.BuildMeshes(crc, tscale)
 		meshes[#meshes]:BuildFromTriangles(parts[i])
 	end
 
-	if #parts > 1 then
-		if vCountWarn then
-			chat.AddText(Color(255, 125, 125), "Vertex count has exceeded 65000, dynamic lighting will not work on this mesh!")
-			vCountWarn =nil
-		end
+	if vCountWarn and #parts > 1 then
+		chat.AddText(Color(255, 125, 125), "Vertex count has exceeded 65000, dynamic lighting will not work on this mesh!")
+		vCountWarn = nil
 	end
 
 	return #meshes > 0 and meshes
@@ -599,7 +620,8 @@ end
 
 
 -- -----------------------------------------------------------------------------
-local pbar_num, pbar_slow
+local progress_slow = "P2M: Building mesh..."
+local progress_fast = "P2M: Building mesh"
 
 hook.Add("Think", "P2M.Think", function()
 
@@ -627,47 +649,17 @@ hook.Add("Think", "P2M.Think", function()
 			local mark = SysTime()
 			while SysTime() - mark < meshBuildTime:GetFloat() do
 				local succ, done, progress, highpoly = coroutine.resume(thread)
-				pbar_num = progress
-				pbar_slow = highpoly
+				notification.AddProgress("P2M.Progress", highpoly and progress_slow or progress_fast, progress)
 				if not succ or done then
 					request[tscale] = nil
 					break
 				end
 			end
 		else
+			notification.Kill("P2M.Progress")
 			p2m.getmeshes[crc] = nil
-			pbar_num = nil
-			pbar_slow = nil
 		end
 	end
-
-end)
-
-local pbar_border = Color(0,0,0)
-local pbar_inside = Color(0,255,0)
-local pbar_faded = Color(165,255,165)
-local pbar_inside_red = Color(255,0,0)
-local pbar_faded_red = Color(255,165,165)
-
-hook.Add("HUDPaint", "P2M.ProgressBar", function()
-
-	if not pbar_num then
-		return
-	end
-
-	local w = 96
-	local h = 24
-	local x = ScrW() - w - 24
-	local y = h
-
-	local color1 = pbar_slow and pbar_inside_red or pbar_inside
-	local color2 = pbar_slow and pbar_faded_red or pbar_faded
-
-	draw.RoundedBox(2, x, y, w, h, pbar_border)
-	draw.RoundedBox(2, x + 2, y + 2, pbar_num*(w - 4), h - 4, color1)
-	draw.RoundedBoxEx(2, x + 2, y + 2, pbar_num*(w - 4), (h - 4)*0.333, color2, true, true)
-	surface.SetDrawColor(255,255,0,255)
-	surface.DrawRect(x + 2 + pbar_num*(w - 6), y + 2, 2, h - 4)
 
 end)
 

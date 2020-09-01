@@ -101,68 +101,6 @@ end)
 
 
 -- -----------------------------------------------------------------------------
-local wireframe = Material("models/debug/debugwhite")
-
-function ENT:DrawSplitView()
-
-	if not self.Mesh and not self.MeshGroup then
-		self:DrawModel()
-		return
-	end
-
-	local state  = render.EnableClipping(true)
-
-	local mins, maxs = self:GetRenderBounds()
-	local origin = self:LocalToWorld((mins + maxs)*0.5)
-	local normal = splitViews[enableSplitView](IsValid(self:GetParent()) and self:GetParent() or self)
-	local dirdot = normal:Dot(origin)
-
-	if self.Mesh then
-
-		self:DrawFakeController()
-
-		render.PushCustomClipPlane(normal, dirdot)
-			self:DrawModel()
-		render.PopCustomClipPlane()
-
-		render.PushCustomClipPlane(-normal, -dirdot)
-		render.ModelMaterialOverride(wireframe)
-		render.SetColorModulation(1, 1, 1)
-		render.SetBlend(0.025)
-		render.SuppressEngineLighting(true)
-			self:DrawModel()
-		render.SuppressEngineLighting(false)
-		render.SetBlend(1)
-		render.ModelMaterialOverride(nil)
-		render.PopCustomClipPlane()
-
-	else
-
-		render.PushCustomClipPlane(normal, dirdot)
-			self:DrawModel()
-			self:DrawMeshGroup()
-		render.PopCustomClipPlane()
-
-		render.PushCustomClipPlane(-normal, -dirdot)
-		render.ModelMaterialOverride(wireframe)
-		render.SetColorModulation(1, 1, 1)
-		render.SetBlend(0.025)
-		render.SuppressEngineLighting(true)
-			self:DrawModel()
-			self:DrawMeshGroup()
-		render.SuppressEngineLighting(false)
-		render.SetBlend(1)
-		render.ModelMaterialOverride(nil)
-		render.PopCustomClipPlane()
-
-	end
-
-	render.EnableClipping(state)
-
-end
-
-
--- -----------------------------------------------------------------------------
 function ENT:Draw()
 
 	if globalDisable:GetBool() or globalSuppress then
@@ -195,9 +133,12 @@ function ENT:Draw()
 	else
 		if self.Mesh then
 			self:DrawFakeController()
-			self:DrawModel() -- RenderMesh
+			render.ModelMaterialOverride(self.MaterialMeshes)
+			self:DrawModel()
+			render.ModelMaterialOverride(nil)
 		elseif self.MeshGroup then
-			self:DrawModel() -- actual model
+			self:DrawModel()
+			render.SetMaterial(self.MaterialMeshes)
 			self:DrawMeshGroup()
 		else
 			self:DrawModel()
@@ -208,14 +149,79 @@ end
 
 
 -- -----------------------------------------------------------------------------
-local csent_ghost = ClientsideModel("models/error.mdl")
-csent_ghost:SetNoDraw(true)
+local wireframe = Material("models/debug/debugwhite")
 
+function ENT:DrawSplitView()
+
+	if not self.Mesh and not self.MeshGroup then
+		self:DrawModel()
+		return
+	end
+
+	local state  = render.EnableClipping(true)
+
+	local mins, maxs = self:GetRenderBounds()
+	local origin = self:LocalToWorld((mins + maxs)*0.5)
+	local normal = splitViews[enableSplitView](IsValid(self:GetParent()) and self:GetParent() or self)
+	local dirdot = normal:Dot(origin)
+
+	if self.Mesh then
+
+		render.ModelMaterialOverride(self.MaterialMeshes)
+		self:DrawFakeController()
+		render.PushCustomClipPlane(normal, dirdot)
+		self:DrawModel()
+		render.PopCustomClipPlane()
+
+		render.PushCustomClipPlane(-normal, -dirdot)
+		render.ModelMaterialOverride(wireframe)
+		render.SetColorModulation(1, 1, 1)
+		render.SetBlend(0.025)
+		render.SuppressEngineLighting(true)
+		self:DrawModel()
+		render.SuppressEngineLighting(false)
+		render.SetBlend(1)
+		render.PopCustomClipPlane()
+		render.ModelMaterialOverride(nil)
+
+	else
+
+		render.PushCustomClipPlane(normal, dirdot)
+		self:DrawModel()
+		render.SetMaterial(self.MaterialMeshes)
+		self:DrawMeshGroup()
+		render.PopCustomClipPlane()
+
+		render.PushCustomClipPlane(-normal, -dirdot)
+		render.SetColorModulation(1, 1, 1)
+		render.SetBlend(0.025)
+		render.SuppressEngineLighting(true)
+		self:DrawModel()
+		render.SetMaterial(wireframe)
+		self:DrawMeshGroup()
+		render.SuppressEngineLighting(false)
+		render.SetBlend(1)
+		render.PopCustomClipPlane()
+
+	end
+
+	render.EnableClipping(state)
+
+end
+
+
+-- -----------------------------------------------------------------------------
 function ENT:DrawFakeController()
 
-	render.ModelMaterialOverride(self.Material2)
-	render.Model({ model = self:GetModel(), pos = self:GetPos(), angle = self:GetAngles() }, csent_ghost)
-	render.ModelMaterialOverride(nil)
+	local mins, maxs = self:GetHitBoxBounds(0, 0)
+	if not mins or not maxs then
+		mins, maxs = self:GetModelBounds()
+	end
+
+	render.SuppressEngineLighting(true)
+	render.SetMaterial(self.MaterialMeshes)
+	render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self:GetColor(), true)
+	render.SuppressEngineLighting(false)
 
 end
 
@@ -265,12 +271,25 @@ end
 
 
 -- -----------------------------------------------------------------------------
+function ENT:GetRenderMaterial()
+
+	local mat = self:GetMaterial()
+
+	if self.MaterialName ~= mat then
+		self.MaterialName = mat
+		self.MaterialMeshes = self.MaterialName == "" and self.MaterialDefault or Material(self.MaterialName)
+	end
+
+end
+
+
+-- -----------------------------------------------------------------------------
 function ENT:GetRenderMeshes()
 
 	local parts = p2m.GetMeshes(self:GetCRC(), self:GetTextureScale())
 	if parts and #parts > 0 then
 		if #parts == 1 then
-			self.Mesh = { Mesh = parts[1], Material = self.Material1, Matrix = self.ScaleM }
+			self.Mesh = { Mesh = parts[1], Material = self.MaterialDefault, Matrix = self.ScaleM }
 		else
 			self.MeshGroup = parts
 			self.Mesh = nil
@@ -323,13 +342,7 @@ function ENT:Think()
 	end
 
 	self:GetRenderMeshes()
-
-	if self.Mesh then
-		local mat = self:GetMaterial()
-		if not self.Material2 or self.Material2:GetName() ~= mat then
-			self.Material2 = mat == "" and self.Material1 or Material(mat)
-		end
-	end
+	self:GetRenderMaterial()
 
 	if self:GetColor().a ~= 255 then
 		self.RenderGroup = RENDERGROUP_BOTH
@@ -343,8 +356,8 @@ end
 -- -----------------------------------------------------------------------------
 function ENT:Initialize()
 
-	self.Material1 = Material("p2m/grid") -- getrendermesh default
-	self.Material2 = Material("p2m/grid") -- for the fake controller when using getrendermesh
+	self.MaterialDefault = Material("hunter/myplastic") -- getrendermesh default
+	self.MaterialMeshes = Material("p2m/grid") -- for the fake controller when using getrendermesh
 
 	self.OutlineColor1 = HSVToColor(math.random(0, 360), 0.75, 0.95)
 	self.OutlineColor1.a = 25

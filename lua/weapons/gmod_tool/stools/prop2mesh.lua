@@ -94,9 +94,11 @@ if SERVER then
 	-- -----------------------------------------------------------------------------
 	function TOOL:Deploy()
 
-		if self:GetStage() == 0 and IsValid(self.Controller) and next(self.Selection) ~= nil then
-			self:SetStage(1)
-		end
+		timer.Simple(0.1, function()
+			if IsValid(self.Controller) then
+				self:SetStage(1)
+			end
+		end)
 
 	end
 
@@ -159,7 +161,7 @@ if SERVER then
 					self:SelectByFilter(trace, trace.Entity:GetChildren())
 				else
 					if self:GetClientNumber("s_ignore_props") == 1 and self:GetClientNumber("s_ignore_holos") == 0 then
-						local class_whitelist = {
+						local whitelist = {
 							gmod_wire_hologram = true,
 							starfall_hologram = true,
 						}
@@ -168,7 +170,7 @@ if SERVER then
 						local cone = ents.FindInCone(trace.StartPos, trace.Normal, trace.HitPos:Distance(trace.StartPos) * 2, math.cos(math.rad(3)))
 
 						for k, ent in ipairs(cone) do
-							if class_whitelist[ent:GetClass()] and CanSelect(self:GetOwner(), ent) then
+							if whitelist[ent:GetClass()] and CanSelect(self:GetOwner(), ent) then
 								find[#find + 1] = { ent = ent, len = (trace.StartPos - ent:GetPos()):LengthSqr() }
 							end
 						end

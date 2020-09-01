@@ -57,19 +57,43 @@ end)
 
 
 -- -----------------------------------------------------------------------------
-local enableNotify = GetConVar("prop2mesh_t_hud_enabled")
-local normals = {
-	Vector(-1, 0, 0), Vector(0, -1, 0), Vector(0, 0, -1)
+local splitViews = {
+	function (self) return -self:GetForward() end,
+	function (self) return self:GetForward() end,
+	function (self) return -self:GetRight() end,
+	function (self) return self:GetRight() end,
+	function (self) return -self:GetUp() end,
+	function (self) return self:GetUp() end,
+	function() return EyeVector() end,
 }
 
+local enableNotify = GetConVar("prop2mesh_t_hud_enabled")
 local enableSplitView
-concommand.Add("prop2mesh_splitview", function()
-	if enableSplitView == 4 then
+
+concommand.Add("prop2mesh_splitview", function(ply, cmd, args)
+
+	if enableSplitView and enableSplitView == #splitViews then
 		enableSplitView = nil
-		notification.AddLegacy("P2M: Split view off", NOTIFY_HINT, 2)
+		if enableNotify:GetBool() then
+			notification.AddLegacy("P2M: Split view off", NOTIFY_HINT, 2)
+		end
 		return
 	end
-	enableSplitView = (enableSplitView or 0) + 1
+
+	if args[1] then
+		local enum = math.Clamp(math.floor(tonumber(args[1])), 0, #splitViews)
+		if enum == 0 then
+			enableSplitView = nil
+			if enableNotify:GetBool() then
+				notification.AddLegacy("P2M: Split view off", NOTIFY_HINT, 2)
+			end
+			return
+		end
+		enableSplitView = enum
+	else
+		enableSplitView = (enableSplitView or 0) + 1
+	end
+
 	if enableNotify:GetBool() then
 		notification.AddLegacy(string.format("P2M: Split view mode %d", enableSplitView), NOTIFY_HINT, 2)
 	end
@@ -77,6 +101,8 @@ end)
 
 
 -- -----------------------------------------------------------------------------
+local wireframe = Material("models/debug/debugwhite")
+
 function ENT:DrawSplitView()
 
 	if not self.Mesh and not self.MeshGroup then
@@ -88,7 +114,7 @@ function ENT:DrawSplitView()
 
 	local mins, maxs = self:GetRenderBounds()
 	local origin = self:LocalToWorld((mins + maxs)*0.5)
-	local normal = normals[enableSplitView] or EyeVector()
+	local normal = splitViews[enableSplitView](IsValid(self:GetParent()) and self:GetParent() or self)
 	local dirdot = normal:Dot(origin)
 
 	if self.Mesh then
@@ -96,28 +122,38 @@ function ENT:DrawSplitView()
 		self:DrawFakeController()
 
 		render.PushCustomClipPlane(normal, dirdot)
-		self:DrawModel()
+			self:DrawModel()
 		render.PopCustomClipPlane()
 
-		render.SetBlend(0.1)
 		render.PushCustomClipPlane(-normal, -dirdot)
-		self:DrawModel()
-		render.PopCustomClipPlane()
+		render.ModelMaterialOverride(wireframe)
+		render.SetColorModulation(1, 1, 1)
+		render.SetBlend(0.025)
+		render.SuppressEngineLighting(true)
+			self:DrawModel()
+		render.SuppressEngineLighting(false)
 		render.SetBlend(1)
+		render.ModelMaterialOverride(nil)
+		render.PopCustomClipPlane()
 
 	else
 
-		self:DrawModel()
-
 		render.PushCustomClipPlane(normal, dirdot)
-		self:DrawMeshGroup()
+			self:DrawModel()
+			self:DrawMeshGroup()
 		render.PopCustomClipPlane()
 
-		render.SetBlend(0.1)
 		render.PushCustomClipPlane(-normal, -dirdot)
-		self:DrawMeshGroup()
-		render.PopCustomClipPlane()
+		render.ModelMaterialOverride(wireframe)
+		render.SetColorModulation(1, 1, 1)
+		render.SetBlend(0.025)
+		render.SuppressEngineLighting(true)
+			self:DrawModel()
+			self:DrawMeshGroup()
+		render.SuppressEngineLighting(false)
 		render.SetBlend(1)
+		render.ModelMaterialOverride(nil)
+		render.PopCustomClipPlane()
 
 	end
 
@@ -201,8 +237,6 @@ end
 
 -- -----------------------------------------------------------------------------
 function ENT:DrawMeshGroup()
-
-	self:DrawModel()
 
 	if not self.MeshGroup then
 		return

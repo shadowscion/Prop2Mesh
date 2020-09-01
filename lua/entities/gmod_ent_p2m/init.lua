@@ -1,5 +1,6 @@
 -- -----------------------------------------------------------------------------
 AddCSLuaFile("p2m/p2mlib.lua")
+AddCSLuaFile("p2m/funkymodels.lua")
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 

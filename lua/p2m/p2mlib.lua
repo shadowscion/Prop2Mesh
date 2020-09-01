@@ -718,6 +718,7 @@ push("models/radar/radar_sp_mid.mdl")
 push("models/radar/radar_sp_sml.mdl")
 push("models/radar/radar_sp_big.mdl")
 push("models/props/coop_kashbah/coop_stealth_boat/coop_stealth_boat_animated.mdl")
+push("models/items/ammopack_small.mdl")
 
 
 -- SPECIAL FOLDERS

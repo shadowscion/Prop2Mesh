@@ -56,6 +56,50 @@ end)
 
 
 -- -----------------------------------------------------------------------------
+local normals = {
+	Vector(-1, 0, 0), Vector(0, -1, 0), Vector(0, 0, -1)
+}
+
+local enableCrossSection
+concommand.Add("prop2mesh_crosssection", function()
+	if enableCrossSection == 4 then
+		enableCrossSection = nil
+		return
+	end
+	enableCrossSection = (enableCrossSection or 0) + 1
+end)
+
+function ENT:DrawCrossSection()
+
+	if self.Mesh then
+		local state  = render.EnableClipping(true)
+
+		self:DrawFakeController()
+
+		local mins, maxs = self:GetRenderBounds()
+		local normal = normals[enableCrossSection] or EyeVector()
+
+		render.PushCustomClipPlane(normal, normal:Dot(self:LocalToWorld((mins + maxs)*0.5)))
+		self:DrawModel()
+		render.PopCustomClipPlane()
+
+		render.SetBlend(0.125)
+		render.PushCustomClipPlane(-normal, -normal:Dot(self:LocalToWorld((mins + maxs)*0.5)))
+		self:DrawModel()
+		render.PopCustomClipPlane()
+		render.SetBlend(1)
+
+		render.EnableClipping(state)
+	elseif self.MeshGroup then
+		self:DrawMeshGroup()
+	else
+		self:DrawModel()
+	end
+
+end
+
+
+-- -----------------------------------------------------------------------------
 function ENT:Draw()
 
 	if globalDisable:GetBool() or globalSuppress then
@@ -83,13 +127,17 @@ function ENT:Draw()
 		return
 	end
 
-	if self.Mesh then
-		self:DrawFakeController()
-		self:DrawModel()
-	elseif self.MeshGroup then
-		self:DrawMeshGroup()
+	if enableCrossSection then
+		self:DrawCrossSection()
 	else
-		self:DrawModel()
+		if self.Mesh then
+			self:DrawFakeController()
+			self:DrawModel()
+		elseif self.MeshGroup then
+			self:DrawMeshGroup()
+		else
+			self:DrawModel()
+		end
 	end
 
 end

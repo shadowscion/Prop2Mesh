@@ -83,6 +83,33 @@ properties.Add("p2m_export_e2", {
 		local export = { "@name\n@inputs\n@outputs\n@persist\n@trigger\n\n", header }
 		local mcount = 0
 
+		--[[
+		local models = util.JSONToTable(util.Decompress(p2mlib.models[crc].data))
+		table.sort(models, function(a, b)
+			return a.pos.x < b.pos.x
+		end)
+
+		local props = {}
+		local holos = {}
+
+		for k, model in ipairs(models) do
+			if model.holo then tbl = holos else tbl = props end
+			if model.clips then
+				table.insert(tbl, 1, model)
+			else
+				table.insert(tbl, model)
+			end
+		end
+
+		local models = {}
+		for k, v in ipairs(holos) do
+			table.insert(models, v)
+		end
+		for k, v in ipairs(props) do
+			table.insert(models, v)
+		end
+		]]
+
 		for k, model in SortedPairsByMemberValue(util.JSONToTable(util.Decompress(p2mlib.models[crc].data)), "mdl") do
 			if not model.scale and not model.clips then
 				export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f))\n",

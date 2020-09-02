@@ -9,18 +9,20 @@ local ent_class = "gmod_ent_p2m"
 -- -----------------------------------------------------------------------------
 if SERVER then
 
+	util.AddNetworkString("P2M.ToolE2Mode")
+
 	list.Add( "OverrideMaterials", "p2m/grid")
 
 	TOOL.Controller = nil
 	TOOL.Selection  = {}
 
-	local controller_col = Color(0, 0, 255, 125)
-	local controller_mat = "models/debug/debugwhite"
+	local controller_col = Color(50, 50, 255, 200)
+	local controller_mat = "debug/debugdrawflat"
 
 	local class_whitelist = {
-		prop_physics       = { col = Color(255, 125, 125, 125), mat = "models/debug/debugwhite" },
-		starfall_hologram  = { col = Color(255, 125, 255, 125), mat = "models/debug/debugwhite" },
-		gmod_wire_hologram = { col = Color(125, 255, 125, 125), mat = "models/debug/debugwhite", IsOwner = function(ply, ent) return ent:GetPlayer() == ply end },
+		prop_physics       = { col = Color(255, 50, 50, 75),   mat = "debug/debugdrawflat" },
+		starfall_hologram  = { col = Color(255, 50, 255, 75), mat = "debug/debugdrawflat" },
+		gmod_wire_hologram = { col = Color(50, 255, 50, 75),   mat = "debug/debugdrawflat", IsOwner = function(ply, ent) return ent:GetPlayer() == ply end },
 	}
 
 
@@ -110,6 +112,14 @@ if SERVER then
 			return false
 		end
 
+		if self:GetClientNumber("t_mode") == 1 then
+			if next(self.Selection) ~= nil then
+				self:Finalize(1)
+				return true
+			end
+			return false
+		end
+
 		if self:GetStage() == 0 then
 			if trace.HitWorld or IsOwner(self:GetOwner(), trace.Entity) then
 				MakeEnt(trace, self:GetOwner(), self:GetClientNumber("o_texture_scale"), self:GetClientNumber("o_mesh_scale"))
@@ -134,64 +144,42 @@ if SERVER then
 			return false
 		end
 
-		if self:GetStage() == 0 and not self.Controller then
-			if IsOwner(self:GetOwner(), trace.Entity) and trace.Entity:GetClass() == ent_class then
-				self:SetController(trace.Entity)
-				self:SetStage(1)
-				return true
-			end
-		end
+		local mode = self:GetClientNumber("t_mode")
 
-		if self:GetStage() == 1 and self.Controller then
-			if next(self.Selection) == nil then
-				if self:GetOwner():KeyDown(IN_USE) then
-					self.Controller:SetTextureScale(self:GetClientNumber("o_texture_scale"))
-					self:SetController()
-					self:SetStage(0)
+		if mode == 0 then
+			if self:GetStage() == 0 and not self.Controller then
+				if IsOwner(self:GetOwner(), trace.Entity) and trace.Entity:GetClass() == ent_class then
+					self:SetController(trace.Entity)
+					self:SetStage(1)
 					return true
 				end
 			end
 
-			if trace.Entity == self.Controller and next(self.Selection) ~= nil then
-				self:Finalize()
-			else
-				if self:GetOwner():KeyDown(IN_SPEED) then
-					self:SelectByFilter(trace, ents.FindInSphere(trace.HitPos, math.Clamp(self:GetClientNumber("s_radius"), 0, 2048)))
-				elseif self:GetOwner():KeyDown(IN_WALK) then
-					self:SelectByFilter(trace, trace.Entity:GetChildren())
-				else
-					if self:GetClientNumber("s_ignore_props") == 1 and self:GetClientNumber("s_ignore_holos") == 0 then
-						local whitelist = {
-							gmod_wire_hologram = true,
-							starfall_hologram = true,
-						}
-
-						local find = {}
-						local cone = ents.FindInCone(trace.StartPos, trace.Normal, trace.HitPos:Distance(trace.StartPos) * 2, math.cos(math.rad(3)))
-
-						for k, ent in ipairs(cone) do
-							if whitelist[ent:GetClass()] and CanSelect(self:GetOwner(), ent) then
-								find[#find + 1] = { ent = ent, len = (trace.StartPos - ent:GetPos()):LengthSqr() }
-							end
-						end
-
-						for k, v in SortedPairsByMemberValue(find, "len") do
-							if self.Selection[v.ent] then
-								self:DeselectEntity(v.ent)
-							else
-								self:SelectEntity(v.ent)
-							end
-							break
-						end
-					else
-						if self.Selection[trace.Entity] then
-							self:DeselectEntity(trace.Entity)
-						else
-							self:SelectEntity(trace.Entity)
-						end
+			if self:GetStage() == 1 and self.Controller then
+				if next(self.Selection) == nil then
+					if self:GetOwner():KeyDown(IN_USE) then
+						self.Controller:SetTextureScale(self:GetClientNumber("o_texture_scale"))
+						self:SetController()
+						self:SetStage(0)
+						return true
 					end
 				end
+
+				if trace.Entity == self.Controller and next(self.Selection) ~= nil then
+					self:Finalize(0)
+				else
+					self:SelectByTrace(trace)
+				end
+
+				return true
 			end
+		elseif mode == 1 then
+			if self.Controller then
+				self:SetController()
+				self:SetStage(0)
+			end
+
+			self:SelectByTrace(trace)
 
 			return true
 		end
@@ -214,6 +202,47 @@ if SERVER then
 		end
 		self.Selection = {}
 
+	end
+
+
+	-- -----------------------------------------------------------------------------
+	function TOOL:SelectByTrace(trace)
+		if self:GetOwner():KeyDown(IN_SPEED) then
+			self:SelectByFilter(trace, ents.FindInSphere(trace.HitPos, math.Clamp(self:GetClientNumber("s_radius"), 0, 2048)))
+		elseif self:GetOwner():KeyDown(IN_WALK) then
+			self:SelectByFilter(trace, trace.Entity:GetChildren())
+		else
+			if self:GetClientNumber("s_ignore_props") == 1 and self:GetClientNumber("s_ignore_holos") == 0 then
+				local whitelist = {
+					gmod_wire_hologram = true,
+					starfall_hologram = true,
+				}
+
+				local find = {}
+				local cone = ents.FindInCone(trace.StartPos, trace.Normal, trace.HitPos:Distance(trace.StartPos) * 2, math.cos(math.rad(3)))
+
+				for k, ent in ipairs(cone) do
+					if whitelist[ent:GetClass()] and CanSelect(self:GetOwner(), ent) then
+						find[#find + 1] = { ent = ent, len = (trace.StartPos - ent:GetPos()):LengthSqr() }
+					end
+				end
+
+				for k, v in SortedPairsByMemberValue(find, "len") do
+					if self.Selection[v.ent] then
+						self:DeselectEntity(v.ent)
+					else
+						self:SelectEntity(v.ent)
+					end
+					break
+				end
+			else
+				if self.Selection[trace.Entity] then
+					self:DeselectEntity(trace.Entity)
+				else
+					self:SelectEntity(trace.Entity)
+				end
+			end
+		end
 	end
 
 
@@ -503,12 +532,19 @@ if SERVER then
 
 
 	-- -----------------------------------------------------------------------------
-	function TOOL:Finalize()
+	function TOOL:Finalize(mode)
 
-		local pos = self.Controller:GetPos()
-		local ang = self.Controller:GetAngles()
+		local pos = Vector()
+		local ang = Angle()
+		local scl = 1
 
-		if self:GetClientNumber("o_autocenter") == 1 or self.Controller:GetMeshScale() ~= 1 then
+		if mode == 0 and self.Controller then
+			pos = self.Controller:GetPos()
+			ang = self.Controller:GetAngles()
+			scl = self.Controller:GetMeshScale()
+		end
+
+		if mode == 1 or self:GetClientNumber("o_autocenter") == 1 or scl ~= 1 then
 			pos = Vector()
 			local num = 0
 			for ent, _ in pairs(self.Selection) do
@@ -538,7 +574,11 @@ if SERVER then
 			data[#data + 1] = entry
 		end
 
-		self.Controller:SetModelsFromTable(data)
+		if not mode or mode == 0 then
+			self.Controller:SetModelsFromTable(data)
+		elseif mode == 1 then
+			self:SendModelsToPlayer(self:GetOwner(), data)
+		end
 
 		self:SetController()
 		for ent, _ in pairs(self.Selection) do
@@ -549,9 +589,38 @@ if SERVER then
 
 	end
 
+
+	-- -----------------------------------------------------------------------------
+	function TOOL:SendModelsToPlayer(ply, data)
+
+		local json = util.Compress(util.TableToJSON(data))
+		local size = string.len(json)
+		if size > 63000 then
+			return
+		end
+		net.Start("P2M.ToolE2Mode")
+			net.WriteUInt(size, 32)
+			net.WriteData(json, size)
+		net.Send(ply)
+
+	end
+
 	return
 
 end
+
+
+-- -----------------------------------------------------------------------------
+net.Receive("P2M.ToolE2Mode", function(len)
+	if not p2mlib then
+		return
+	end
+
+	local size = net.ReadUInt(32)
+	local json = util.JSONToTable(util.Decompress(net.ReadData(size)))
+
+	p2mlib.exportToE2(json, GetConVar("prop2mesh_o_texture_scale"):GetInt(), GetConVar("prop2mesh_o_mesh_scale"):GetInt())
+end)
 
 
 -- -----------------------------------------------------------------------------
@@ -579,7 +648,7 @@ TOOL.Information = {
 	{ name = "right_select_pents", stage = 1, icon2 = "gui/key.png" },
 	{ name = "reload_deselect1",   stage = 1 },
 	{ name = "right_select_ctrl",  stage = 1 },
-	{ name = "left_select_upd",   stage = 1, icon2 = "gui/key.png" },
+	{ name = "left_select_upd",    stage = 1, icon2 = "gui/key.png" },
 }
 
 language.Add("tool.prop2mesh.left_spawn", "Left click to spawn a controller")
@@ -603,6 +672,7 @@ local ConVars = {
 	["o_mesh_scale"]         = 1,
 	["o_autocenter"]         = 0,
 	["t_hud_enabled"]        = 1,
+	["t_mode"]               = 0,
 }
 TOOL.ClientConVar = ConVars
 
@@ -665,6 +735,8 @@ local function DForm_ToolBehavior(self)
 	panel:ControlHelp("Hold SPRINT while right clicking to select all unfiltered entities within this radius")
 
 	panel:CheckBox("Enable tool HUD", "prop2mesh_t_hud_enabled")
+	panel:CheckBox("E2 mode", "prop2mesh_t_mode")
+	panel:ControlHelp("Select entities as normal, but left click to finalize")
 
 	return panel
 
@@ -816,6 +888,11 @@ function TOOL:DrawHUD()
 		overlay_ent = nil
 		return
 	end
+
+	-- cam.Start3D()
+	-- 	local min, max = trace.Entity:GetCollisionBounds()
+	-- 	render.DrawWireframeBox(trace.Entity:GetPos(), trace.Entity:GetAngles(), min, max, Color(150, 150, 150, 255), true)
+	-- cam.End3D()
 
 	if IsValid(overlay_ent) then
 

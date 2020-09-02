@@ -84,14 +84,5 @@ properties.Add("p2m_options", {
 		sub:AddOption("Export to E2", function()
 			p2mlib.exportToE2(util.JSONToTable(util.Decompress(p2mlib.models[crc].data)), ent:GetTextureScale(), ent:GetMeshScale())
 		end):SetIcon("icon16/cog.png")
-
-		-- sub:AddOption("as .obj", function()
-		-- 	file.CreateDir("prop2mesh/exportobj")
-		-- 	Derma_StringRequest("", ".OBJ filename", "",
-		-- 	function(text)
-		-- 		local filename = string.gsub(string.StripExtension(string.GetFileFromFilename(text)), "%W","")
-		-- 		file.Write(string.format("prop2mesh/exportobj/%s.txt", filename), "testa")
-		-- 	end, function() end)
-		-- end):SetIcon("icon16/bullet_black.png")
 	end,
 })

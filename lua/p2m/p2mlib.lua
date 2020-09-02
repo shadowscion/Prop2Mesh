@@ -184,8 +184,10 @@ end
 
 
 -- -----------------------------------------------------------------------------
-function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
-	if texmul == 0 then texmul = nil else texmul = 1 / texmul end
+function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel)
+	if texmul then
+		if texmul == 0 then texmul = nil else texmul = 1 / texmul end
+	end
 
 	local meshcache = {}
 	local meshparts = { {} }
@@ -386,7 +388,7 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds)
 		end
 
 		-- vertex groups
-		if #nextpart + #modelverts > _MESH_VERTEX_LIMIT then
+		if #nextpart + #modelverts > _MESH_VERTEX_LIMIT or splitByModel then
 			meshparts[#meshparts + 1] = {}
 			nextpart = meshparts[#meshparts]
 		end
@@ -409,7 +411,63 @@ end
 
 -- -----------------------------------------------------------------------------
 function p2mlib.exportToOBJ(models, tscale)
+	local meshparts = p2mlib.modelsToMeshes(false, models, tscale, false, true)
 
+	local concat  = table.concat
+	local format  = string.format
+
+	local p_verts = "v %f %f %f\n"
+	local p_norms = "vn %f %f %f\n"
+	local p_uvws  = "vt %f %f\n"
+	local p_faces = "f %d/%d/%d %d/%d/%d %d/%d/%d\n"
+	local p_parts = "#PART NUMBER %d\n"
+
+	local function push(tbl, pattern, ...)
+		tbl[#tbl + 1] = format(pattern, ...)
+	end
+
+	local t_output = {}
+	local vnum = 1
+
+	for i = 2, #meshparts do
+		local part = meshparts[i]
+
+		local s_verts = {}
+		local s_norms = {}
+		local s_uvws  = {}
+		local s_faces = {}
+
+		for j = 1, #part, 3 do
+			local v1 = part[j + 0]
+			local v2 = part[j + 1]
+			local v3 = part[j + 2]
+
+			push(s_verts, p_verts, v1.pos.x, v1.pos.y, v1.pos.z)
+			push(s_verts, p_verts, v2.pos.x, v2.pos.y, v2.pos.z)
+			push(s_verts, p_verts, v3.pos.x, v3.pos.y, v3.pos.z)
+
+			push(s_norms, p_norms, v1.normal.x, v1.normal.y, v1.normal.z)
+			push(s_norms, p_norms, v2.normal.x, v2.normal.y, v2.normal.z)
+			push(s_norms, p_norms, v3.normal.x, v3.normal.y, v3.normal.z)
+
+			push(s_uvws, p_uvws, v1.u, v1.v)
+			push(s_uvws, p_uvws, v2.u, v2.v)
+			push(s_uvws, p_uvws, v3.u, v3.v)
+
+			push(s_faces, p_faces, vnum, vnum, vnum, vnum + 2, vnum + 2, vnum + 2, vnum + 1, vnum + 1, vnum + 1)
+			vnum = vnum + 3
+		end
+
+		t_output[#t_output + 1] = concat({
+			format("\no model %d\n", i - 1),
+			concat(s_verts),
+			concat(s_norms),
+			concat(s_uvws),
+			concat(s_faces)
+		})
+	end
+
+	return concat(t_output)
 end
 
 
@@ -419,50 +477,46 @@ function p2mlib.exportToE2(models, tscale, mscale)
 		return
 	end
 
-	local header = string.format("local P2M = p2mCreate(entity():pos(), entity():angles(), %d, %f)\n\n", tscale, mscale)
-	local footer = "\nP2M:p2mBuild()\nP2M:p2mSetParent(entity())\n"
+	table.sort(models, function(a, b)
+		return a.pos.x < b.pos.x
+	end)
 
-	local export = { "@name\n@inputs\n@outputs\n@persist\n@trigger\n\n", header }
+	local sortByClipped = {}
+	for k, v in ipairs(models) do
+		if not v.clips then
+			sortByClipped[#sortByClipped + 1] = v
+		else
+			table.insert(sortByClipped, 1, v)
+		end
+	end
+	models = sortByClipped
+
+	local pcount = 1
 	local mcount = 0
+	local mlimit = 250
 
-	-- table.sort(models, function(a, b)
-	-- 	return a.pos.x < b.pos.x
-	-- end)
+	local header = {
+		"@name\n@inputs\n@outputs\n@persist\n@trigger\n\n\n#--- CREATE CONTROLLERS\nBase = entity()\n",
+		string.format("TScale = %d\nMScale = %d\n\n", tscale, mscale)
+	}
 
-	-- local props = {}
-	-- local holos = {}
+	local footer = { "\n\n#--- BUILD CONTROLLERS\n" }
+	local body   = { "\n#--- PUSH MODELS\n" }
 
-	-- for k, model in ipairs(models) do
-	-- 	if model.holo then tbl = holos else tbl = props end
-	-- 	if model.clips then
-	-- 		table.insert(tbl, 1, model)
-	-- 	else
-	-- 		table.insert(tbl, model)
-	-- 	end
-	-- end
+	for k, model in ipairs(models) do
+		if mcount == 0 then
+			header[#header + 1] = string.format("P2M%d = p2mCreate(Base:pos(), Base:angles(), TScale, MScale)\nP2M%d:p2mSetParent(Base)\n\n", pcount, pcount)
+			footer[#footer + 1] = string.format("P2M%d:p2mBuild()\n", pcount)
+		end
 
-	-- local models = {}
-	-- for k, v in ipairs(holos) do
-	-- 	table.insert(models, v)
-	-- end
-	-- for k, v in ipairs(props) do
-	-- 	table.insert(models, v)
-	-- end
-
-	for k, model in SortedPairsByMemberValue(models, "mdl") do
 		if not model.scale and not model.clips then
-			export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f))\n",
-				model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r)
+			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r)
 
 		elseif model.scale and not model.clips then
 			local x, y, z = model.scale.x, model.scale.y, model.scale.z
-			if p2mlib.isFunky(model.mdl) then
-				local t = y
-				y = z
-				z = t
-			end
-			export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f))\n",
-				model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z)
+			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z)
 
 		elseif model.scale and model.clips then
 			local sclips = {}
@@ -475,13 +529,8 @@ function p2mlib.exportToE2(models, tscale, mscale)
 				end
 			end
 			local x, y, z = model.scale.x, model.scale.y, model.scale.z
-			if p2mlib.isFunky(model.mdl) then
-				local t = y
-				y = z
-				z = t
-			end
-			export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, array(%s))\n",
-				model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, table.concat(sclips))
+			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, array(%s))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, table.concat(sclips))
 
 		elseif not model.scale and model.clips then
 			local sclips = {}
@@ -493,25 +542,25 @@ function p2mlib.exportToE2(models, tscale, mscale)
 					sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 				end
 			end
-			export[#export + 1] = string.format("P2M:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, array(%s))\n",
-				model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, table.concat(sclips))
+			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, array(%s))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, table.concat(sclips))
 
 		end
 
 		mcount = mcount + 1
-		if mcount == 250 then
-			export[#export + 1] = footer
-			export[#export + 1] = header
+		if mcount == mlimit then
+			body[#body + 1] = "\n\n"
+			pcount = pcount + 1
 			mcount = 0
 		end
 	end
 
-	export[#export + 1] = footer
-
 	openE2Editor()
 	if wire_expression2_editor then
+		local code = table.concat( { table.concat(header), table.concat(body), table.concat(footer) })
+
 		wire_expression2_editor:NewTab()
-		wire_expression2_editor:SetCode(table.concat(export))
+		wire_expression2_editor:SetCode(code)
 		spawnmenu.ActivateTool("wire_expression2")
 	end
 end

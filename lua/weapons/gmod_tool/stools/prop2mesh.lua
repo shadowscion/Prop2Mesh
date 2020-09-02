@@ -17,12 +17,12 @@ if SERVER then
 	TOOL.Selection  = {}
 
 	local controller_col = Color(50, 50, 255, 200)
-	local controller_mat = "debug/debugdrawflat"
+	local controller_mat = "models/debug/debugwhite"
 
 	local class_whitelist = {
-		prop_physics       = { col = Color(255, 50, 50, 75),   mat = "debug/debugdrawflat" },
-		starfall_hologram  = { col = Color(255, 50, 255, 75), mat = "debug/debugdrawflat" },
-		gmod_wire_hologram = { col = Color(50, 255, 50, 75),   mat = "debug/debugdrawflat", IsOwner = function(ply, ent) return ent:GetPlayer() == ply end },
+		prop_physics       = { col = Color(255, 50, 50, 75),   mat = "models/debug/debugwhite" },
+		starfall_hologram  = { col = Color(255, 50, 255, 75), mat = "models/debug/debugwhite" },
+		gmod_wire_hologram = { col = Color(50, 255, 50, 75),   mat = "models/debug/debugwhite", IsOwner = function(ply, ent) return ent:GetPlayer() == ply end },
 	}
 
 

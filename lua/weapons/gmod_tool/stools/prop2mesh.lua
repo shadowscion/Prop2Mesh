@@ -360,7 +360,11 @@ if SERVER then
 
 
 	-- -----------------------------------------------------------------------------
-	function TOOL:DeselectEntity(ent)
+	local delete_whitelist = {
+		prop_physics = true
+	}
+
+	function TOOL:DeselectEntity(ent, del)
 
 		if not self.Selection[ent] then
 			return
@@ -372,6 +376,9 @@ if SERVER then
 		ent:RemoveCallOnRemove("p2mtoolsel")
 		self.Selection[ent] = nil
 
+		if del and delete_whitelist[ent:GetClass()] then
+			ent:Remove()
+		end
 	end
 
 
@@ -580,9 +587,10 @@ if SERVER then
 			self:SendModelsToPlayer(self:GetOwner(), data)
 		end
 
+		local del = self:GetClientNumber("t_del_selection") == 1
 		self:SetController()
 		for ent, _ in pairs(self.Selection) do
-			self:DeselectEntity(ent)
+			self:DeselectEntity(ent, del)
 		end
 		self.Selection = {}
 		self:SetStage(0)
@@ -673,6 +681,7 @@ local ConVars = {
 	["o_autocenter"]         = 0,
 	["t_hud_enabled"]        = 1,
 	["t_mode"]               = 0,
+	["t_del_selection"]      = 0,
 }
 TOOL.ClientConVar = ConVars
 
@@ -697,6 +706,20 @@ local function DForm_ToolBehavior(self)
 
 	local panel = vgui.Create("DForm")
 	panel:SetName("Tool Behavior")
+
+
+	local help = panel:Help("Danger zone")
+	help:DockMargin(0, 0, 0, 0)
+	help:SetFont(help_font)
+		help.Paint = function(_, w, h)
+		surface.SetDrawColor(0, 0, 0, 255)
+		surface.DrawLine(0, h - 1, w, h - 1)
+	end
+
+	local cbox = panel:CheckBox("Remove selected props when done", "prop2mesh_t_del_selection")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
 
 	local help = panel:Help("General filters")
 	help:DockMargin(0, 0, 0, 0)
@@ -731,12 +754,13 @@ local function DForm_ToolBehavior(self)
 		surface.DrawLine(0, h - 1, w, h - 1)
 	end
 
-	panel:NumSlider("Selection radius", "prop2mesh_s_radius", 0, 2048, 0)
+	local slider = panel:NumSlider("Selection radius", "prop2mesh_s_radius", 0, 2048, 0)
+	slider.Scratch:SetDisabled(true)
 	panel:ControlHelp("Hold SPRINT while right clicking to select all unfiltered entities within this radius")
 
-	panel:CheckBox("Enable tool HUD", "prop2mesh_t_hud_enabled")
 	panel:CheckBox("E2 mode", "prop2mesh_t_mode")
 	panel:ControlHelp("Select entities as normal, but left click to finalize")
+	panel:CheckBox("Enable tool HUD", "prop2mesh_t_hud_enabled")
 
 	return panel
 
@@ -749,12 +773,19 @@ local function DForm_EntityOptions(self)
 	local panel = vgui.Create("DForm")
 	panel:SetName("Entity Options")
 
-	local slider = panel:NumSlider("Texture scale", "prop2mesh_o_texture_scale", 0, 128, 0)
+	local slider = panel:NumSlider("Texture scale", "prop2mesh_o_texture_scale", 0, 512, 0)
 	slider.Label:SetTooltip("Hold USE and left click a selected controller to update this")
+	slider.Scratch:SetDisabled(true)
 	panel:ControlHelp("Uniformly rescale texture coordinates")
+
+	slider.OnValueChanged = function(_, value)
+		local mo8 = math.Round(math.Clamp(value, slider:GetMin(), slider:GetMax()) / 8) * 8
+		slider:SetValue(mo8)
+	end
 
 	local slider = panel:NumSlider("Mesh scale", "prop2mesh_o_mesh_scale", 0.01, 1, 2)
 	slider.Label:SetTooltip("Note: scaled meshes always auto center")
+	slider.Scratch:SetDisabled(true)
 	panel:ControlHelp("Rescale the entire mesh")
 
 	local cbox = panel:CheckBox("Autocenter", "prop2mesh_o_autocenter")
@@ -784,10 +815,12 @@ local function DForm_ClientOptions(self)
 	panel:SetName("Client Options")
 
 	local slider = panel:NumSlider("Mesh build speed", "prop2mesh_build_time", 0.001, 0.1, 3)
+	slider.Scratch:SetDisabled(true)
 	panel:ControlHelp("Maximum time between frames while building a mesh")
 
 	local cvar = GetConVar("prop2mesh_max_tris_softcap")
 	local slider = panel:NumSlider("Triangle limit", "prop2mesh_max_tris_softcap", cvar:GetMin(), cvar:GetMax(), 0)
+	slider.Scratch:SetDisabled(true)
 	slider:GetTextArea():SetWide(54)
 
 	panel:ControlHelp("Limit drawing of triangles belonging to other players")

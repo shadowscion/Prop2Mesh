@@ -7,7 +7,7 @@ include("p2m/funkymodels.lua")
 
 -- -----------------------------------------------------------------------------
 local _MESH_VERTEX_LIMIT  = 65000
-local _HIGHPOLY_THRESHOLD = 15000
+local _HIGHPOLY_THRESHOLD = 30000
 
 
 -- -----------------------------------------------------------------------------
@@ -370,6 +370,13 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 				modelverts[i + 1].u, modelverts[i + 1].v = getBoxUV(modelverts[i + 1].pos, boxDir, texmul)
 				modelverts[i + 2].u, modelverts[i + 2].v = getBoxUV(modelverts[i + 2].pos, boxDir, texmul)
 
+				-- not implemented
+				-- if model.sharp then
+				-- 	modelverts[i + 0].normal = Vector(normal)
+				-- 	modelverts[i + 1].normal = Vector(normal)
+				-- 	modelverts[i + 2].normal = Vector(normal)
+				-- end
+
 				if highpoly then
 					coroutine_yield(false, mCountFrac, true)
 				end
@@ -504,6 +511,10 @@ function p2mlib.exportToE2(models, tscale, mscale)
 	local body   = { "\n#--- PUSH MODELS\n" }
 
 	for k, model in ipairs(models) do
+		if p2mlib.isFunky(model.mdl) and model.scale and model.holo then
+			model.scale = Vector(model.scale.y, model.scale.z, model.scale.x)
+		end
+
 		if mcount == 0 then
 			header[#header + 1] = string.format("P2M%d = p2mCreate(Base:pos(), Base:angles(), TScale, MScale)\nP2M%d:p2mSetParent(Base)\n\n", pcount, pcount)
 			footer[#footer + 1] = string.format("P2M%d:p2mBuild()\n", pcount)

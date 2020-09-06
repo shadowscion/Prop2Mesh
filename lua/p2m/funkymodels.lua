@@ -61,6 +61,10 @@ push("models/sprops/trans/wheel_big_g/")
 -- -----------------------------------------------------------------------------
 -- MODELS
 pushTo = funkyModel
+push("models/nova/jeep_seat.mdl")
+push("models/nova/jalopy_seat.mdl")
+push("models/nova/airboat_seat.mdl")
+push("models/props_c17/tv_monitor01.mdl")
 push("models/sprops/trans/fender_a/a_fender30.mdl")
 push("models/sprops/trans/fender_a/a_fender35.mdl")
 push("models/sprops/trans/fender_a/a_fender40.mdl")

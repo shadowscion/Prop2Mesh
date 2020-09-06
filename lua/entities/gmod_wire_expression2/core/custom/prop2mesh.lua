@@ -101,7 +101,7 @@ local function P2M_Create(self, pos, ang, uvscale, meshscale)
 
 	controller:SetPlayer(self.player)
 	if uvscale then
-		controller:SetNWInt("P2M_TSCALE", math.Clamp(uvscale, 0, 128))
+		controller:SetNWInt("P2M_TSCALE", math.Clamp(uvscale, 0, 512))
 	end
 	if meshscale then
 		controller:SetNWFloat("P2M_MSCALE", math.Clamp(meshscale, 0.1, 1))

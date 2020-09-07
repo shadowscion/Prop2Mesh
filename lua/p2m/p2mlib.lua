@@ -479,54 +479,68 @@ end
 
 
 -- -----------------------------------------------------------------------------
+
 function p2mlib.exportToE2(models, tscale, mscale)
 	if not models then
 		return
 	end
 
-	table.sort(models, function(a, b)
-		return a.pos.x < b.pos.x
-	end)
-
-	local sortByClipped = {}
-	for k, v in ipairs(models) do
-		if not v.clips then
-			sortByClipped[#sortByClipped + 1] = v
-		else
-			table.insert(sortByClipped, 1, v)
+	local matnum
+	if models.mid then
+		matnum = {}
+		for k, v in pairs(models.mid) do
+			if k == "_1_" then k = "" end
+			matnum[v] = k
 		end
+		models.mid = nil
 	end
-	models = sortByClipped
 
-	local pcount = 1
+	local pswap
+	local pcount = 0
 	local mcount = 0
 	local mlimit = 250
 
+	local format = string.format
+	local concat = table.concat
+
 	local header = {
 		"@name\n@inputs\n@outputs\n@persist\n@trigger\n\n\n#--- CREATE CONTROLLERS\nBase = entity()\n",
-		string.format("TScale = %d\nMScale = %d\n\n", tscale, mscale)
+		format("TScale = %d\nMScale = %d\n\n", tscale, mscale)
 	}
 
 	local footer = { "\n\n#--- BUILD CONTROLLERS\n" }
 	local body   = { "\n#--- PUSH MODELS\n" }
 
-	for k, model in ipairs(models) do
+	for k, model in SortedPairsByMemberValue(models, "mid") do
+		if model.mid and model.mid ~= pswap then
+			if pcount ~= 0 then
+				body[#body + 1] = "\n\n"
+			end
+			pswap = model.mid
+			pcount = pcount + 1
+			mcount = 0
+		end
+
 		if p2mlib.isFunky(model.mdl) and model.scale and model.holo then
 			model.scale = Vector(model.scale.y, model.scale.z, model.scale.x)
 		end
 
 		if mcount == 0 then
-			header[#header + 1] = string.format("P2M%d = p2mCreate(Base:pos(), Base:angles(), TScale, MScale)\nP2M%d:p2mSetParent(Base)\n\n", pcount, pcount)
-			footer[#footer + 1] = string.format("P2M%d:p2mBuild()\n", pcount)
+			if pswap and matnum then
+				header[#header + 1] = format("P2M%d = p2mCreate(Base:pos(), Base:angles(), TScale, MScale)\nP2M%d:p2mSetParent(Base)\nP2M%d:p2mSetMaterial(\"%s\")\n\n", pcount, pcount, pcount, matnum[pswap])
+			else
+				header[#header + 1] = format("P2M%d = p2mCreate(Base:pos(), Base:angles(), TScale, MScale)\nP2M%d:p2mSetParent(Base)\n\n", pcount, pcount)
+			end
+			footer[#footer + 1] = format("P2M%d:p2mBuild()\n", pcount)
 		end
 
 		if not model.scale and not model.clips then
-			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f))\n",
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f))\n",
 				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r)
 
 		elseif model.scale and not model.clips then
 			local x, y, z = model.scale.x, model.scale.y, model.scale.z
-			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f))\n",
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f))\n",
 				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z)
 
 		elseif model.scale and model.clips then
@@ -534,27 +548,27 @@ function p2mlib.exportToE2(models, tscale, mscale)
 			for i, clip in ipairs(model.clips) do
 				local pos = clip.n * clip.d
 				if i ~= #model.clips then
-					sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+					sclips[#sclips + 1] = format("vec(%f, %f, %f), vec(%f, %f, %f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 				else
-					sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+					sclips[#sclips + 1] = format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 				end
 			end
 			local x, y, z = model.scale.x, model.scale.y, model.scale.z
-			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, array(%s))\n",
-				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, table.concat(sclips))
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, array(%s))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, concat(sclips))
 
 		elseif not model.scale and model.clips then
 			local sclips = {}
 			for i, clip in ipairs(model.clips) do
 				local pos = clip.n * clip.d
 				if i ~= #model.clips then
-					sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+					sclips[#sclips + 1] = format("vec(%f, %f, %f), vec(%f, %f, %f), ", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 				else
-					sclips[#sclips + 1] = string.format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+					sclips[#sclips + 1] = format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 				end
 			end
-			body[#body + 1] = string.format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, array(%s))\n",
-				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, table.concat(sclips))
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, array(%s))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, concat(sclips))
 
 		end
 
@@ -568,7 +582,7 @@ function p2mlib.exportToE2(models, tscale, mscale)
 
 	openE2Editor()
 	if wire_expression2_editor then
-		local code = table.concat( { table.concat(header), table.concat(body), table.concat(footer) })
+		local code = concat( { concat(header), concat(body), concat(footer) })
 
 		wire_expression2_editor:NewTab()
 		wire_expression2_editor:SetCode(code)

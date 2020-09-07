@@ -10,8 +10,9 @@ local ent_class = "gmod_ent_p2m"
 if SERVER then
 
 	util.AddNetworkString("P2M.ToolE2Mode")
+	--util.AddNetworkString("P2M.SendSelection")
 
-	list.Add( "OverrideMaterials", "p2m/grid")
+	list.Add("OverrideMaterials", "p2m/grid")
 
 	TOOL.Controller = nil
 	TOOL.Selection  = {}
@@ -20,9 +21,9 @@ if SERVER then
 	local controller_mat = "models/debug/debugwhite"
 
 	local class_whitelist = {
-		prop_physics       = { col = Color(255, 50, 50, 75),   mat = "models/debug/debugwhite" },
+		prop_physics       = { col = Color(255, 50, 50, 75),  mat = "models/debug/debugwhite" },
 		starfall_hologram  = { col = Color(255, 50, 255, 75), mat = "models/debug/debugwhite" },
-		gmod_wire_hologram = { col = Color(50, 255, 50, 75),   mat = "models/debug/debugwhite", IsOwner = function(ply, ent) return ent:GetPlayer() == ply end },
+		gmod_wire_hologram = { col = Color(50, 255, 50, 75),  mat = "models/debug/debugwhite", IsOwner = function(ply, ent) return ent:GetPlayer() == ply end },
 	}
 
 
@@ -326,6 +327,15 @@ if SERVER then
 			::skip::
 		end
 
+		local entids = {}
+		for ent, _ in pairs(self.Selection) do
+			entids[ent:EntIndex()] = true
+		end
+
+		-- net.Start("P2M.SendSelection")
+		-- net.WriteTable(entids)
+		-- net.Send(self:GetOwner())
+
 	end
 
 
@@ -379,6 +389,7 @@ if SERVER then
 		if del and delete_whitelist[ent:GetClass()] then
 			ent:Remove()
 		end
+
 	end
 
 
@@ -561,8 +572,10 @@ if SERVER then
 			pos = pos * (1 / num)
 		end
 
+		local mid  = {}
 		local data = {}
-		for ent, _ in pairs(self.Selection) do
+
+		for ent, sel in pairs(self.Selection) do
 			local entry = {
 				mdl = string.lower(ent:GetModel())
 			}
@@ -578,12 +591,20 @@ if SERVER then
 				hasSpecial(entry, ent)
 			end
 
+			if mode == 1 then
+				if not mid[sel.old_mat] then
+					mid[sel.old_mat] = table.Count(mid) + 1
+				end
+				entry.mid = mid[sel.old_mat]
+			end
+
 			data[#data + 1] = entry
 		end
 
 		if not mode or mode == 0 then
 			self.Controller:SetModelsFromTable(data)
 		elseif mode == 1 then
+			data.mid = mid
 			self:SendModelsToPlayer(self:GetOwner(), data)
 		end
 
@@ -603,9 +624,11 @@ if SERVER then
 
 		local json = util.Compress(util.TableToJSON(data))
 		local size = string.len(json)
+
 		if size > 63000 then
 			return
 		end
+
 		net.Start("P2M.ToolE2Mode")
 			net.WriteUInt(size, 32)
 			net.WriteData(json, size)
@@ -616,6 +639,22 @@ if SERVER then
 	return
 
 end
+
+
+-- -----------------------------------------------------------------------------
+-- local tree_tbl = {}
+-- local tree_upds
+-- net.Receive("P2M.SendSelection", function(len)
+-- 	for id, bool in pairs(net.ReadTable()) do
+-- 		local ent = Entity(id)
+-- 		if IsValid(ent) then
+-- 			tree_tbl[ent] = bool or nil
+-- 		else
+-- 			tree_tbl[ent] = nil
+-- 		end
+-- 	end
+-- 	tree_upd = true
+-- end)
 
 
 -- -----------------------------------------------------------------------------
@@ -702,11 +741,41 @@ end
 
 
 -- -----------------------------------------------------------------------------
+-- local function DForm_Selector(self)
+
+-- 	local panel = vgui.Create("DForm")
+-- 	panel:SetName("Refine Selection")
+
+-- 	local dtree = vgui.Create("DTree", panel)
+-- 	dtree:SetTall(128)
+-- 	dtree:Dock(FILL)
+-- 	panel:AddItem(dtree)
+
+-- 	local function updateTree()
+-- 		dtree:Clear()
+-- 		for ent, _ in pairs(tree_tbl) do
+-- 			local mdl_short = string.GetFileFromFilename(ent:GetModel())
+-- 			local node = dtree:AddNode(mdl_short, "icon16/bullet_black.png")
+-- 		end
+-- 	end
+
+-- 	panel.Think = function()
+-- 		if tree_upd and panel:GetExpanded() then
+-- 			updateTree()
+-- 			tree_upd = nil
+-- 		end
+-- 	end
+
+-- 	return panel
+
+-- end
+
 local function DForm_ToolBehavior(self)
 
 	local panel = vgui.Create("DForm")
 	panel:SetName("Tool Behavior")
 
+	--panel:AddItem(DForm_Selector(panel))
 
 	local help = panel:Help("Danger zone")
 	help:DockMargin(0, 0, 0, 0)

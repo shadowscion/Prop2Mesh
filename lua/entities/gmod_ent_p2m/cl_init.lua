@@ -395,6 +395,7 @@ function ENT:GetTriangleCount()
 end
 
 
+
 -- -----------------------------------------------------------------------------
 local class = "gmod_ent_p2m"
 
@@ -757,26 +758,43 @@ function p2m.debugmsg(msg, crc)
 
 end
 
-function p2m.dump()
+local function dumpCRC(dat, crc, nick)
 
-	print("\ngetmodels")
-	PrintTable(p2m.getmodels)
+	local dat = dat or p2m.models[crc]
+	if not dat then
+		return
+	end
 
-	print("\ngetmeshes")
-	PrintTable(p2m.getmeshes)
+	local mins = dat.mins or Vector()
+	local maxs = dat.maxs or Vector()
+	local marked = p2m.marks[crc]
 
-	print("\nmodels")
-	PrintTable(p2m.models)
+	if nick then
+		MsgC("\n", Color(255, 255, 255), crc, Color(255, 125, 0), "\n\tplayer", Color(255, 255, 255), " = ", Color(0, 255, 255), nick)
+	else
+		MsgC("\n", Color(255, 255, 255), crc)
+	end
 
-	print("\nmeshes")
-	PrintTable(p2m.meshes)
+	MsgC(
+		Color(255, 0, 0), "\n\tmarked", Color(255, 255, 255), " = ", Color(marked and 0 or 255, 255, 0) , marked and "TRUE" or "false",
+		Color(255, 0, 0), "\n\tmodels", Color(255, 255, 255), " = ", Color(255, 255, 0), dat.mcount,
+		Color(255, 0, 0), "\n\tverts", Color(255, 255, 255), "  = ", Color(255, 255, 0), dat.vcount,
+		Color(255, 0, 0), "\n\ttris", Color(255, 255, 255), "   = ", Color(255, 255, 0), dat.tcount,
+		Color(255, 0, 0), "\n\tmins", Color(255, 255, 255), "   = ", Color(255, 255, 0), string.format("%d, %d, %d", mins.x, mins.y, mins.z),
+		Color(255, 0, 0), "\n\tmaxs", Color(255, 255, 255), "   = ", Color(255, 255, 0), string.format("%d, %d, %d", maxs.x, maxs.y, maxs.z)
+	)
 
-	print("\nusers")
-	PrintTable(p2m.users)
+end
 
-	print("\nmarks")
-	PrintTable(p2m.marks)
+function p2m.dump(crc, nick)
 
-	print("\nhardcap", p2m.hardcap_current)
+	if crc then
+		dumpCRC(nil, crc, nick)
+		return
+	end
+
+	for crc, dat in pairs(p2m.models) do
+		dumpCRC(dat, crc)
+	end
 
 end

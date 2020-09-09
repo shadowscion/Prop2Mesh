@@ -894,7 +894,16 @@ local function DForm_ClientOptions(self)
 
 	panel:ControlHelp("Limit drawing of triangles belonging to other players")
 
-	panel:CheckBox("Disable rendering", "prop2mesh_disable_rendering")
+	local cbox = panel:CheckBox("Disable rendering", "prop2mesh_disable_rendering")
+	cbox.Label.DoRightClick = function()
+		local menu = DermaMenu()
+		menu:AddOption("Disable and clear cache", function()
+			RunConsoleCommand("prop2mesh_flush")
+			cbox:SetValue(true)
+		end):SetIcon("icon16/shield.png")
+		menu:AddOption("Cancel"):SetIcon("icon16/cancel.png")
+		menu:Open()
+	end
 
 	return panel
 
@@ -929,16 +938,37 @@ local function DForm_Statistics(self)
 						num_ctrl = 0,
 						num_mdls = 0,
 						num_tris = 0,
+						controllers = {},
 					}
 					struct[owner].node_ctrl = struct[owner].root:AddNode("", "icon16/bullet_black.png")
 					struct[owner].node_mdls = struct[owner].root:AddNode("", "icon16/bullet_black.png")
 					struct[owner].node_tris = struct[owner].root:AddNode("", "icon16/bullet_black.png")
 					struct[owner].root:SetExpanded(true, true)
+
+					struct[owner].root.DoRightClick = function(_, node)
+						local menu = DermaMenu()
+						menu:AddOption("Refresh", function()
+							for _, ent in pairs(struct[owner].controllers) do
+								hook.Run("OnEntityCreated", ent)
+							end
+						end):SetIcon("icon16/wrench.png")
+						menu:AddOption("To console", function()
+							for _, ent in pairs(struct[owner].controllers) do
+								if IsValid(ent) then
+									p2mlib.dump(ent:GetCRC(), owner:Nick())
+								end
+							end
+						end):SetIcon("icon16/layout.png")
+						menu:AddOption("Cancel"):SetIcon("icon16/cancel.png")
+						menu:Open()
+					end
 				end
 
 				struct[owner].num_ctrl = struct[owner].num_ctrl + 1
 				struct[owner].num_mdls = struct[owner].num_mdls + controller:GetModelCount()
 				struct[owner].num_tris = struct[owner].num_tris + controller:GetTriangleCount()
+
+				table.insert(struct[owner].controllers, controller)
 
 				struct[owner].node_ctrl:SetText(string.format("%d controllers", struct[owner].num_ctrl))
 				struct[owner].node_mdls:SetText(string.format("%d models", struct[owner].num_mdls))
@@ -948,7 +978,7 @@ local function DForm_Statistics(self)
 	end
 
 	local button = panel:Button("Output info to console")
-	button.DoClick = p2mlib.dump
+	button.DoClick = function() p2mlib.dump() end
 
 	return panel
 

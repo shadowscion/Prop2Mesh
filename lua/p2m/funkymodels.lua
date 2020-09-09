@@ -15,6 +15,10 @@ function p2mlib.isBlocked(model)
 	return blockModel[model]
 end
 
+function p2mlib.blockModel(model, bool)
+	blockModel[model] = bool
+end
+
 function p2mlib.isFunky(model)
 	if funkyModel[model] then
 		return funkyModel[model]

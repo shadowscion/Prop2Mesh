@@ -459,25 +459,33 @@ function p2m.DeleteMark(crc)
 
 end
 
-function p2m.FlushMarks()
+function p2m.FlushMarks(gc)
 
 	for crc, time in pairs(p2m.marks) do
 		p2m.DeleteMark(crc)
 	end
 
+	if gc then
+		timer.Simple(1, function() collectgarbage() end)
+	end
+
 end
 
-function p2m.FlushMeshes()
+function p2m.FlushMeshes(gc)
 
 	for crc, time in pairs(p2m.meshes) do
 		p2m.DeleteMark(crc)
 	end
 
+	if gc then
+		timer.Simple(1, function() collectgarbage() end)
+	end
+
 end
 
-concommand.Add("prop2mesh_flush", function()
-	p2m.FlushMeshes()
-end)
+-- concommand.Add("prop2mesh_flush", function()
+-- 	p2m.FlushMeshes()
+-- end)
 
 timer.Create("P2M.DeleteMarks", 30, 0, function()
 	local ct = CurTime()
@@ -560,7 +568,7 @@ function p2m.BuildMeshes(crc, tscale)
 	p2m.models[crc].tcount = vcount / 3
 
 	if p2m.hardcap_current + (vcount / 3) > hardcap_maximum then -- if over cap, delete marks and check again
-		p2m.FlushMarks()
+		p2m.FlushMarks(true)
 	end
 	if p2m.hardcap_current + (vcount / 3) > hardcap_maximum then -- if still over, oh well
 		chat.AddText(Color(255, 0, 0), string.format("Hardcap of %d triangles in RAM reached. This shouldn't ever happen!", hardcap_maximum))

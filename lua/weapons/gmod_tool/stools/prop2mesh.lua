@@ -898,7 +898,7 @@ local function DForm_ClientOptions(self)
 	cbox.Label.DoRightClick = function()
 		local menu = DermaMenu()
 		menu:AddOption("Disable and clear cache", function()
-			RunConsoleCommand("prop2mesh_flush")
+			p2mlib.FlushMeshes(true)
 			cbox:SetValue(true)
 		end):SetIcon("icon16/shield.png")
 		menu:AddOption("Cancel"):SetIcon("icon16/cancel.png")
@@ -911,6 +911,8 @@ end
 
 
 -- -----------------------------------------------------------------------------
+local refresh_wait = SysTime()
+
 local function DForm_Statistics(self)
 
 	local panel = vgui.Create("DForm")
@@ -918,7 +920,7 @@ local function DForm_Statistics(self)
 	panel:DockPadding(0, 0, 0, 10)
 
 	local dtree = vgui.Create("DTree", panel)
-	dtree:SetTall(128)
+	dtree:SetTall(256)
 	dtree:Dock(FILL)
 	panel:AddItem(dtree)
 
@@ -935,50 +937,78 @@ local function DForm_Statistics(self)
 				if not struct[owner] then
 					struct[owner] = {
 						root = dtree:AddNode(owner:Nick(), "icon16/user.png"),
+						ctrl = {},
 						num_ctrl = 0,
 						num_mdls = 0,
 						num_tris = 0,
-						controllers = {},
 					}
-					struct[owner].node_ctrl = struct[owner].root:AddNode("", "icon16/bullet_black.png")
 					struct[owner].node_mdls = struct[owner].root:AddNode("", "icon16/bullet_black.png")
 					struct[owner].node_tris = struct[owner].root:AddNode("", "icon16/bullet_black.png")
+					struct[owner].node_ctrl = struct[owner].root:AddNode("", "icon16/bullet_black.png")
 					struct[owner].root:SetExpanded(true, true)
 
 					struct[owner].root.DoRightClick = function(_, node)
 						local menu = DermaMenu()
 						menu:AddOption("Refresh", function()
-							for _, ent in pairs(struct[owner].controllers) do
-								hook.Run("OnEntityCreated", ent)
+							if SysTime() - refresh_wait > 15 then
+								refresh_wait = SysTime()
+								for _, ent in pairs(struct[owner].ctrl) do
+									if IsValid(ent) then
+										p2mlib.DeleteMark(ent:GetCRC())
+										hook.Run("OnEntityCreated", ent)
+									end
+								end
+							else
+								chat.AddText("Don't spam")
 							end
-						end):SetIcon("icon16/wrench.png")
+						end):SetIcon("icon16/page_white_wrench.png")
 						menu:AddOption("To console", function()
-							for _, ent in pairs(struct[owner].controllers) do
+							for _, ent in pairs(struct[owner].ctrl) do
 								if IsValid(ent) then
 									p2mlib.dump(ent:GetCRC(), owner:Nick())
 								end
 							end
-						end):SetIcon("icon16/layout.png")
+						end):SetIcon("icon16/application_xp_terminal.png")
 						menu:AddOption("Cancel"):SetIcon("icon16/cancel.png")
 						menu:Open()
 					end
 				end
 
+				local mcount = controller:GetModelCount()
+				local tcount = controller:GetTriangleCount()
+
 				struct[owner].num_ctrl = struct[owner].num_ctrl + 1
-				struct[owner].num_mdls = struct[owner].num_mdls + controller:GetModelCount()
-				struct[owner].num_tris = struct[owner].num_tris + controller:GetTriangleCount()
+				struct[owner].num_mdls = struct[owner].num_mdls + mcount
+				struct[owner].num_tris = struct[owner].num_tris + tcount
 
-				table.insert(struct[owner].controllers, controller)
+				table.insert(struct[owner].ctrl, controller)
 
+				struct[owner].node_mdls:SetText(string.format("%d total models", struct[owner].num_mdls))
+				struct[owner].node_tris:SetText(string.format("%d total triangles", struct[owner].num_tris))
 				struct[owner].node_ctrl:SetText(string.format("%d controllers", struct[owner].num_ctrl))
-				struct[owner].node_mdls:SetText(string.format("%d models", struct[owner].num_mdls))
-				struct[owner].node_tris:SetText(string.format("%d triangles", struct[owner].num_tris))
+
+				local node = struct[owner].node_ctrl:AddNode(tostring(controller), tcount < 21666 and "icon16/bullet_wrench.png" or "icon16/bullet_error.png")
+				node:AddNode(string.format("%d models", mcount), "icon16/bullet_blue.png")
+				node:AddNode(string.format("%d triangles", tcount), tcount < 21666 and "icon16/bullet_blue.png" or "icon16/bullet_red.png")
 			end
 		end
 	end
 
 	local button = panel:Button("Output info to console")
 	button.DoClick = function() p2mlib.dump() end
+
+	local button = panel:Button("Refresh all")
+	button.DoClick = function()
+		if SysTime() - refresh_wait > 15 then
+			refresh_wait = SysTime()
+			p2mlib.FlushMeshes(true)
+			for _, controller in ipairs(ents.FindByClass(ent_class)) do
+				hook.Run("OnEntityCreated", controller)
+			end
+		else
+			chat.AddText("Don't spam")
+		end
+	end
 
 	return panel
 

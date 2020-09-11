@@ -35,6 +35,17 @@ local function push(str, func)
 	end
 end
 
+concommand.Add("prop2mesh_tempfixmodel", function(ply, cmd, args)
+	if not args or not args[1] then
+		return
+	end
+	local mdl = tostring(args[1])
+	if IsUselessModel(mdl) then
+		return
+	end
+	funkyModel[mdl] = true
+end)
+
 
 -- -----------------------------------------------------------------------------
 -- FOLDERS
@@ -65,6 +76,14 @@ push("models/sprops/trans/wheel_big_g/")
 -- -----------------------------------------------------------------------------
 -- MODELS
 pushTo = funkyModel
+push("models/shells/shell_9mm.mdl")
+push("models/shells/shell_762nato.mdl")
+push("models/shells/shell_556.mdl")
+push("models/shells/shell_338mag.mdl")
+push("models/shells/shell_12gauge.mdl")
+push("models/shells/shell_57.mdl")
+push("models/items/ammopack_small.mdl")
+push("models/items/ammopack_medium.mdl")
 push("models/nova/jeep_seat.mdl")
 push("models/nova/jalopy_seat.mdl")
 push("models/nova/airboat_seat.mdl")
@@ -338,7 +357,6 @@ push("models/radar/radar_sp_mid.mdl")
 push("models/radar/radar_sp_sml.mdl")
 push("models/radar/radar_sp_big.mdl")
 push("models/props/coop_kashbah/coop_stealth_boat/coop_stealth_boat_animated.mdl")
-push("models/items/ammopack_small.mdl")
 
 
 -- -----------------------------------------------------------------------------

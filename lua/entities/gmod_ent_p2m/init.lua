@@ -1,6 +1,7 @@
 -- -----------------------------------------------------------------------------
 AddCSLuaFile("p2m/p2mlib.lua")
 AddCSLuaFile("p2m/funkymodels.lua")
+AddCSLuaFile("p2m/editor.lua")
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 
@@ -10,6 +11,7 @@ include("shared.lua")
 -- -----------------------------------------------------------------------------
 util.AddNetworkString("NetP2M.GetModels")
 util.AddNetworkString("NetP2M.UpdateAll")
+util.AddNetworkString("NetP2M.MakeChanges")
 
 
 -- -----------------------------------------------------------------------------
@@ -70,11 +72,14 @@ end
 
 
 -- -----------------------------------------------------------------------------
-function ENT:Invalidate(ply)
+function ENT:Invalidate(ply, notify_old)
 
 	timer.Simple(0.1, function()
 		net.Start("NetP2M.UpdateAll")
 		net.WriteEntity(self)
+		if notify_old then
+			net.WriteString(notify_old)
+		end
 		if ply then net.Send(ply) else net.Broadcast() end
 	end)
 
@@ -82,7 +87,7 @@ end
 
 
 -- -----------------------------------------------------------------------------
-function ENT:SetModelsFromTable(data)
+function ENT:SetModelsFromTable(data, notify_old)
 
 	duplicator.ClearEntityModifier(self, "p2m_packets")
 
@@ -97,7 +102,7 @@ function ENT:SetModelsFromTable(data)
 
 	self:SetNWString("P2M_CRC", packets.crc)
 
-	self:Invalidate()
+	self:Invalidate(nil, notify_old)
 
 	duplicator.StoreEntityModifier(self, "p2m_packets", packets)
 
@@ -106,7 +111,24 @@ end
 
 -- -----------------------------------------------------------------------------
 function ENT:GetPackets()
+
 	return self.EntityMods and self.EntityMods.p2m_packets
+
+end
+
+function ENT:GetPacketsAsTable()
+
+	local packets = self:GetPackets()
+	if packets and packets.crc == self:GetCRC() then
+		local data = {}
+		for i, packet in ipairs(packets) do
+			data[#data + 1] = packet[1]
+		end
+		return util.JSONToTable(util.Decompress(table.concat(data)))
+	else
+		return nil
+	end
+
 end
 
 
@@ -129,6 +151,51 @@ net.Receive("NetP2M.GetModels", function(len, ply)
 				net.WriteBool(i == #packets)
 			net.Send(ply)
 		end
+	end
+
+end)
+
+
+-- -----------------------------------------------------------------------------
+net.Receive("NetP2M.MakeChanges", function(len, ply)
+
+	local controller = net.ReadEntity()
+	if not IsValid(controller) or controller:GetClass() ~= "gmod_ent_p2m" then
+		return
+	end
+
+	if controller:GetPlayer() ~= ply then
+		return
+	end
+
+	local models = controller:GetPacketsAsTable()
+	if models then
+		local changes = net.ReadTable()
+		if next(changes) == nil then
+			return
+		end
+
+		local data = {}
+		for k, v in ipairs(models) do
+			if changes[k] then
+				if changes[k].delete then
+					goto skip
+				else
+					for change, newvalue in pairs(changes[k]) do
+						if type(newvalue) == "boolean" then -- temporary
+							v[change] = newvalue or nil
+						end
+					end
+				end
+			end
+
+			data[#data + 1] = v
+
+			::skip::
+		end
+
+		controller:SetModelsFromTable(data, controller:GetCRC())
+
 	end
 
 end)

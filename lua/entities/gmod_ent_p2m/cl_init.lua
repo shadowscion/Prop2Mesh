@@ -1,6 +1,7 @@
 -- -----------------------------------------------------------------------------
 include("shared.lua")
 include("p2m/p2mlib.lua")
+include("p2m/editor.lua")
 
 local notification = notification
 local coroutine = coroutine
@@ -413,7 +414,12 @@ end
 hook.Add("OnEntityCreated", "P2M.Init", Snapshot)
 
 net.Receive("NetP2M.UpdateAll", function()
-	hook.Run("OnEntityCreated", net.ReadEntity())
+	local controller = net.ReadEntity()
+	local old_crc = net.ReadString()
+
+	p2m.ClearUser(old_crc, controller)
+
+	hook.Run("OnEntityCreated", controller)
 end)
 
 

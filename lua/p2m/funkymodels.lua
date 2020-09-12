@@ -77,6 +77,7 @@ push("models/sprops/trans/wheel_big_g/")
 -- -----------------------------------------------------------------------------
 -- MODELS
 pushTo = funkyModel
+push("models/props_survival/repulsor/repulsor.mdl")
 push("models/shells/shell_9mm.mdl")
 push("models/shells/shell_762nato.mdl")
 push("models/shells/shell_556.mdl")

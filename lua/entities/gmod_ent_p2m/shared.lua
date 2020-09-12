@@ -67,6 +67,8 @@ properties.Add("p2m_options", {
 
 	end,
 
+	Action = function() end,
+
 	MenuOpen = function(self, dmenu, ent, tr)
 		local crc = ent:GetCRC()
 		if not p2mlib or not crc or not p2mlib.models[crc] or not p2mlib.models[crc].data then
@@ -79,6 +81,16 @@ properties.Add("p2m_options", {
 		local sub = dmenu:AddSubMenu()
 
 		sub:AddOption("Edit models", function()
+
+			local window = g_ContextMenu:Add("p2m_editor")
+
+			local h = math.floor(ScrH() - 90)
+			local w = math.floor(354)
+
+			window:SetPos(ScrW() - w - 30, ScrH() - h - 30)
+			window:SetSize(w, h)
+			window:SetController(ent, util.JSONToTable(util.Decompress(p2mlib.models[crc].data)))
+
 		end):SetIcon("icon16/bricks.png")
 
 		sub:AddOption("Export to E2", function()

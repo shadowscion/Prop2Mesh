@@ -360,22 +360,23 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 		end
 
 		-- texture coordinates
-		if texmul then
+		if texmul or model.flat then
 			for i = 1, #modelverts, 3 do
 				local normal = cross(modelverts[i + 2].pos - modelverts[i].pos, modelverts[i + 1].pos - modelverts[i].pos)
 				normalize(normal)
 
-				local boxDir = getBoxDir(normal)
-				modelverts[i + 0].u, modelverts[i + 0].v = getBoxUV(modelverts[i + 0].pos, boxDir, texmul)
-				modelverts[i + 1].u, modelverts[i + 1].v = getBoxUV(modelverts[i + 1].pos, boxDir, texmul)
-				modelverts[i + 2].u, modelverts[i + 2].v = getBoxUV(modelverts[i + 2].pos, boxDir, texmul)
+				if texmul then
+					local boxDir = getBoxDir(normal)
+					modelverts[i + 0].u, modelverts[i + 0].v = getBoxUV(modelverts[i + 0].pos, boxDir, texmul)
+					modelverts[i + 1].u, modelverts[i + 1].v = getBoxUV(modelverts[i + 1].pos, boxDir, texmul)
+					modelverts[i + 2].u, modelverts[i + 2].v = getBoxUV(modelverts[i + 2].pos, boxDir, texmul)
+				end
 
-				-- not implemented
-				-- if model.sharp then
-				-- 	modelverts[i + 0].normal = Vector(normal)
-				-- 	modelverts[i + 1].normal = Vector(normal)
-				-- 	modelverts[i + 2].normal = Vector(normal)
-				-- end
+				if model.flat then
+					modelverts[i + 0].normal = Vector(normal)
+					modelverts[i + 1].normal = Vector(normal)
+					modelverts[i + 2].normal = Vector(normal)
+				end
 
 				if highpoly then
 					coroutine_yield(false, mCountFrac, true)

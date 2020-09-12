@@ -9,8 +9,7 @@ local ent_class = "gmod_ent_p2m"
 -- -----------------------------------------------------------------------------
 if SERVER then
 
-	util.AddNetworkString("P2M.ToolE2Mode")
-	--util.AddNetworkString("P2M.SendSelection")
+	util.AddNetworkString("NetP2M.ToolE2Mode")
 
 	list.Add("OverrideMaterials", "p2m/grid")
 
@@ -327,15 +326,6 @@ if SERVER then
 			::skip::
 		end
 
-		local entids = {}
-		for ent, _ in pairs(self.Selection) do
-			entids[ent:EntIndex()] = true
-		end
-
-		-- net.Start("P2M.SendSelection")
-		-- net.WriteTable(entids)
-		-- net.Send(self:GetOwner())
-
 	end
 
 
@@ -629,7 +619,7 @@ if SERVER then
 			return
 		end
 
-		net.Start("P2M.ToolE2Mode")
+		net.Start("NetP2M.ToolE2Mode")
 			net.WriteUInt(size, 32)
 			net.WriteData(json, size)
 		net.Send(ply)
@@ -642,23 +632,7 @@ end
 
 
 -- -----------------------------------------------------------------------------
--- local tree_tbl = {}
--- local tree_upds
--- net.Receive("P2M.SendSelection", function(len)
--- 	for id, bool in pairs(net.ReadTable()) do
--- 		local ent = Entity(id)
--- 		if IsValid(ent) then
--- 			tree_tbl[ent] = bool or nil
--- 		else
--- 			tree_tbl[ent] = nil
--- 		end
--- 	end
--- 	tree_upd = true
--- end)
-
-
--- -----------------------------------------------------------------------------
-net.Receive("P2M.ToolE2Mode", function(len)
+net.Receive("NetP2M.ToolE2Mode", function(len)
 	if not p2mlib then
 		return
 	end
@@ -741,41 +715,10 @@ end
 
 
 -- -----------------------------------------------------------------------------
--- local function DForm_Selector(self)
-
--- 	local panel = vgui.Create("DForm")
--- 	panel:SetName("Refine Selection")
-
--- 	local dtree = vgui.Create("DTree", panel)
--- 	dtree:SetTall(128)
--- 	dtree:Dock(FILL)
--- 	panel:AddItem(dtree)
-
--- 	local function updateTree()
--- 		dtree:Clear()
--- 		for ent, _ in pairs(tree_tbl) do
--- 			local mdl_short = string.GetFileFromFilename(ent:GetModel())
--- 			local node = dtree:AddNode(mdl_short, "icon16/bullet_black.png")
--- 		end
--- 	end
-
--- 	panel.Think = function()
--- 		if tree_upd and panel:GetExpanded() then
--- 			updateTree()
--- 			tree_upd = nil
--- 		end
--- 	end
-
--- 	return panel
-
--- end
-
 local function DForm_ToolBehavior(self)
 
 	local panel = vgui.Create("DForm")
 	panel:SetName("Tool Behavior")
-
-	--panel:AddItem(DForm_Selector(panel))
 
 	local help = panel:Help("Danger zone")
 	help:DockMargin(0, 0, 0, 0)

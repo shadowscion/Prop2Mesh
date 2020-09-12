@@ -50,6 +50,7 @@ end)
 -- -----------------------------------------------------------------------------
 -- FOLDERS
 pushTo = funkyFolder
+push("models/cheeze/pcb/")
 push("models/props_phx/construct/glass/")
 push("models/props_phx/construct/plastic/")
 push("models/props_phx/construct/windows/")
@@ -347,7 +348,6 @@ push("models/props_mining/switch_updown01.mdl")
 push("models/props_mining/diesel_generator.mdl")
 push("models/props_mining/ceiling_winch01.mdl")
 push("models/props_mining/elevator_winch_cog.mdl")
---push("models/props_mining/diesel_generator_crank.mdl") -- special
 push("models/nova/chair_plastic01.mdl")
 push("models/nova/chair_wood01.mdl")
 push("models/nova/chair_office02.mdl")
@@ -357,6 +357,10 @@ push("models/radar/radar_sp_mid.mdl")
 push("models/radar/radar_sp_sml.mdl")
 push("models/radar/radar_sp_big.mdl")
 push("models/props/coop_kashbah/coop_stealth_boat/coop_stealth_boat_animated.mdl")
+push("models/cheeze/wires/gyroscope.mdl")
+push("models/cheeze/wires/ram.mdl")
+push("models/cheeze/wires/router.mdl")
+push("models/cheeze/wires/wireless_card.mdl")
 
 
 -- -----------------------------------------------------------------------------
@@ -394,3 +398,9 @@ push("models/sprops/trans/miscwheels/tank15.mdl", fix)
 push("models/sprops/trans/miscwheels/tank20.mdl", fix)
 push("models/sprops/trans/miscwheels/tank25.mdl", fix)
 push("models/sprops/trans/miscwheels/tank30.mdl", fix)
+
+push("models/props_mining/diesel_generator_crank.mdl", function(partnum, numparts, rotated, normal)
+	local angle = Angle(rotated)
+	angle:RotateAroundAxis(angle:Forward(), 90)
+	return angle
+end)

@@ -40,7 +40,10 @@ function PANEL:Init()
 		if IsValid(self.controller) and next(self.changes) ~= nil then
 			net.Start("NetP2M.MakeChanges")
 			net.WriteEntity(self.controller)
-			net.WriteTable(self.changes)
+			local data = util.Compress(util.TableToJSON(self.changes))
+			local size = string.len(data)
+			net.WriteUInt(size, 32)
+			net.WriteData(data, size)
 			net.SendToServer()
 			self:Close()
 		end

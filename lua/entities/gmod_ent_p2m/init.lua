@@ -170,7 +170,8 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 
 	local models = controller:GetPacketsAsTable()
 	if models then
-		local changes = net.ReadTable()
+		local size = net.ReadUInt(32)
+		local changes = util.JSONToTable(util.Decompress(net.ReadData(size)))
 		if next(changes) == nil then
 			return
 		end

@@ -141,6 +141,11 @@ function PANEL:RebuildTree()
 
 			end):SetIcon(change_delete and "icon16/brick_add.png" or "icon16/brick_delete.png")
 
+			if change_delete then
+				menu:Open()
+				return
+			end
+
 			menu:AddSpacer()
 
 			menu:AddOption(change_rinside and "Undo render inside" or "Render inside", function()

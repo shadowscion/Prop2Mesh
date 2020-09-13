@@ -319,6 +319,26 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang)
 	}
 end
 
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, number rinside, number fshading)
+	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+		return
+	end
+	local mdl, msg = P2M_CheckModel(model)
+	if not mdl then
+		if msg then
+			self.player:ChatPrint(msg)
+		end
+		return
+	end
+	this.E2P2MResevoir[#this.E2P2MResevoir + 1] = {
+		mdl  = string.lower(string.Trim(model)),
+		pos  = Vector(pos[1], pos[2], pos[3]),
+		ang  = Angle(ang[1], ang[2], ang[3]),
+		inv  = tobool(rinside) or nil,
+		flat = tobool(fshading) or nil,
+	}
+end
+
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale)
 	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
 		return
@@ -335,6 +355,27 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector 
 		pos   = Vector(pos[1], pos[2], pos[3]),
 		ang   = Angle(ang[1], ang[2], ang[3]),
 		scale = Vector(scale[1], scale[2], scale[3]),
+	}
+end
+
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number rinside, number fshading)
+	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+		return
+	end
+	local mdl, msg = P2M_CheckModel(model)
+	if not mdl then
+		if msg then
+			self.player:ChatPrint(msg)
+		end
+		return
+	end
+	this.E2P2MResevoir[#this.E2P2MResevoir + 1] = {
+		mdl   = mdl,
+		pos   = Vector(pos[1], pos[2], pos[3]),
+		ang   = Angle(ang[1], ang[2], ang[3]),
+		scale = Vector(scale[1], scale[2], scale[3]),
+		inv   = tobool(rinside) or nil,
+		flat  = tobool(fshading) or nil,
 	}
 end
 
@@ -393,5 +434,63 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector 
 		scale = Vector(scale[1], scale[2], scale[3]),
 		clips = mclips,
 		inv   = tobool(rinside) or nil,
+	}
+end
+
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, number rinside, number fshading, array clips)
+	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+		return
+	end
+	local mdl, msg = P2M_CheckModel(model)
+	if not mdl then
+		if msg then
+			self.player:ChatPrint(msg)
+		end
+		return
+	end
+	local mclips, msg = P2M_CheckClips(clips)
+	if not mclips then
+		if msg then
+			self.player:ChatPrint(msg)
+		end
+		return
+	end
+	this.E2P2MResevoir[#this.E2P2MResevoir + 1] = {
+		mdl   = mdl,
+		mdl   = string.lower(string.Trim(model)),
+		pos   = Vector(pos[1], pos[2], pos[3]),
+		ang   = Angle(ang[1], ang[2], ang[3]),
+		clips = mclips,
+		inv   = tobool(rinside) or nil,
+		flat  = tobool(fshading) or nil,
+	}
+end
+
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number rinside, number fshading, array clips)
+	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+		return
+	end
+	local mdl, msg = P2M_CheckModel(model)
+	if not mdl then
+		if msg then
+			self.player:ChatPrint(msg)
+		end
+		return
+	end
+	local mclips, msg = P2M_CheckClips(clips)
+	if not mclips then
+		if msg then
+			self.player:ChatPrint(msg)
+		end
+		return
+	end
+	this.E2P2MResevoir[#this.E2P2MResevoir + 1] = {
+		mdl   = mdl,
+		pos   = Vector(pos[1], pos[2], pos[3]),
+		ang   = Angle(ang[1], ang[2], ang[3]),
+		scale = Vector(scale[1], scale[2], scale[3]),
+		clips = mclips,
+		inv   = tobool(rinside) or nil,
+		flat  = tobool(fshading) or nil,
 	}
 end

@@ -480,7 +480,6 @@ end
 
 
 -- -----------------------------------------------------------------------------
-
 function p2mlib.exportToE2(models, tscale, mscale)
 	if not models then
 		return
@@ -488,10 +487,15 @@ function p2mlib.exportToE2(models, tscale, mscale)
 
 	local matnum
 	if models.mid then
+		local fix = { -- why does this happen?
+			["_1_"] = "",
+			["1"]   = "",
+		}
 		matnum = {}
 		for k, v in pairs(models.mid) do
-			if k == "_1_" then k = "" end
-			matnum[v] = k
+			local str = tostring(k)
+			if fix[str] then str = fix[str] end
+			matnum[v] = str
 		end
 		models.mid = nil
 	end
@@ -536,13 +540,13 @@ function p2mlib.exportToE2(models, tscale, mscale)
 		end
 
 		if not model.scale and not model.clips then
-			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f))\n",
-				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r)
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, %d)\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, model.flat and 1 or 0)
 
 		elseif model.scale and not model.clips then
 			local x, y, z = model.scale.x, model.scale.y, model.scale.z
-			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f))\n",
-				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z)
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, %d)\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, model.flat and 1 or 0)
 
 		elseif model.scale and model.clips then
 			local sclips = {}
@@ -555,8 +559,8 @@ function p2mlib.exportToE2(models, tscale, mscale)
 				end
 			end
 			local x, y, z = model.scale.x, model.scale.y, model.scale.z
-			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, array(%s))\n",
-				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, concat(sclips))
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), vec(%f, %f, %f), %d, %d, array(%s))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, x, y, z, model.inv and 1 or 0, model.flat and 1 or 0, concat(sclips))
 
 		elseif not model.scale and model.clips then
 			local sclips = {}
@@ -568,8 +572,8 @@ function p2mlib.exportToE2(models, tscale, mscale)
 					sclips[#sclips + 1] = format("vec(%f, %f, %f), vec(%f, %f, %f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 				end
 			end
-			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, array(%s))\n",
-				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, concat(sclips))
+			body[#body + 1] = format("P2M%d:p2mPushModel(\"%s\", vec(%f, %f, %f), ang(%f, %f, %f), %d, %d, array(%s))\n",
+				pcount, model.mdl, model.pos.x, model.pos.y, model.pos.z, model.ang.p, model.ang.y, model.ang.r, model.inv and 1 or 0, model.flat and 1 or 0, concat(sclips))
 
 		end
 

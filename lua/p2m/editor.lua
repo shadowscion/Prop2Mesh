@@ -223,7 +223,7 @@ function PANEL:OpenChangesMenu(id, model)
 			self.changes[id] = {}
 		end):SetIcon(node_icon_changed)
 	else
-		BooleanSubmenu(self, id, model, "inv", menu, "Render inside", "icon16/camera.png", "icon16/camera_add.png", "icon16/camera_delete.png")
+		BooleanSubmenu(self, id, model, "inv", menu, "Render inside", "icon16/camera.png", "icon16/camera_add.png", "icon16/camera_delete.png", true)
 		BooleanSubmenu(self, id, model, "flat", menu, "Flat shading", "icon16/contrast.png", "icon16/contrast_high.png", "icon16/contrast_low.png", true)
 
 		menu:AddSpacer()

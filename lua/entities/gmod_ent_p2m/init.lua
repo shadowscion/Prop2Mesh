@@ -110,6 +110,24 @@ end
 
 
 -- -----------------------------------------------------------------------------
+function ENT:AddModelsToTable(data)
+
+	local packets = self:GetPacketsAsTable()
+
+	if not packets then
+		return
+	end
+
+	for i = 1, #data do
+		packets[#packets + 1] = data[i]
+	end
+
+	self:SetModelsFromTable(packets, self:GetCRC())
+
+end
+
+
+-- -----------------------------------------------------------------------------
 function ENT:GetPackets()
 
 	return self.EntityMods and self.EntityMods.p2m_packets

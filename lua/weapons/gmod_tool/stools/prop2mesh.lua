@@ -17,7 +17,7 @@ if SERVER then
 	TOOL.Selection  = {}
 
 	local controller_col = Color(50, 50, 255, 200)
-	local controller_mat = "models/debug/debugwhite"
+	--local controller_mat = "models/debug/debugwhite"
 
 	local class_whitelist = {
 		prop_physics       = { col = Color(255, 50, 50, 75),  mat = "models/debug/debugwhite" },
@@ -165,8 +165,10 @@ if SERVER then
 					end
 				end
 
-				if trace.Entity == self.Controller and next(self.Selection) ~= nil then
-					self:Finalize(0)
+				if trace.Entity == self.Controller then
+					if next(self.Selection) ~= nil then
+						self:Finalize(0)
+					end
 				else
 					self:SelectByTrace(trace)
 				end
@@ -388,10 +390,10 @@ if SERVER then
 
 		if self.Controller then
 			self.Controller:SetColor(self.Controller.old_col)
-			self.Controller:SetMaterial(self.Controller.old_mat)
+			--self.Controller:SetMaterial(self.Controller.old_mat)
 			self.Controller:SetRenderMode(self.Controller.old_mod)
 			self.Controller.old_col = nil
-			self.Controller.old_mat = nil
+			--self.Controller.old_mat = nil
 			self.Controller.old_mod = nil
 			self.Controller:RemoveCallOnRemove("p2mtoolctrl")
 			self.Controller = nil
@@ -401,10 +403,10 @@ if SERVER then
 		elseif ent then
 			self.Controller = ent
 			self.Controller.old_col = self.Controller:GetColor()
-			self.Controller.old_mat = self.Controller:GetMaterial()
+			--self.Controller.old_mat = self.Controller:GetMaterial()
 			self.Controller.old_mod = self.Controller:GetRenderMode()
 			self.Controller:SetColor(controller_col)
-			self.Controller:SetMaterial(controller_mat)
+			--self.Controller:SetMaterial(controller_mat)
 			self.Controller:SetRenderMode(RENDERMODE_TRANSALPHA)
 			self.Controller:CallOnRemove("p2mtoolctrl", function()
 				self.Controller = nil
@@ -592,7 +594,11 @@ if SERVER then
 		end
 
 		if not mode or mode == 0 then
-			self.Controller:SetModelsFromTable(data)
+			if self:GetOwner():KeyDown(IN_SPEED) then
+				self.Controller:AddModelsToTable(data)
+			else
+				self.Controller:SetModelsFromTable(data)
+			end
 		elseif mode == 1 then
 			data.mid = mid
 			self:SendModelsToPlayer(self:GetOwner(), data)
@@ -674,11 +680,11 @@ TOOL.Information = {
 
 language.Add("tool.prop2mesh.left_spawn", "Left click to spawn a controller")
 language.Add("tool.prop2mesh.right_select", "Right click to select a controller")
-language.Add("tool.prop2mesh.right_select_rents", "Hold SPRINT key and right click to filter and select multiple entities")
-language.Add("tool.prop2mesh.right_select_pents", "Hold WALK key and right click to filter and select entities parented to target")
-language.Add("tool.prop2mesh.left_select_upd", "Hold USE and left click a selected controller to update texture scale")
+language.Add("tool.prop2mesh.right_select_rents", "Hold sprint [lshift] key and right click to filter and select multiple entities")
+language.Add("tool.prop2mesh.right_select_pents", "Hold walk [lalt] key and right click to filter and select entities parented to target")
+language.Add("tool.prop2mesh.left_select_upd", "Hold use [e] key and left click a selected controller to update texture scale")
 language.Add("tool.prop2mesh.reload_deselect1", "Deselect all entities, again to deselect the controller")
-language.Add("tool.prop2mesh.right_select_ctrl", "Right click the selected controller again to finalize")
+language.Add("tool.prop2mesh.right_select_ctrl", "Right click the selected controller again to finalize. Hold sprint [lshift] key to add selection to existing mesh")
 
 local ConVars = {
 	["s_radius"]             = 512,

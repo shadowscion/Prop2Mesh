@@ -256,12 +256,12 @@ e2function void entity:p2mSetMaterial(string material)
 	E2Lib.setMaterial(this, material)
 end
 
-e2function void entity:p2mSetModel(string model)
-	if not P2M_CanManipulate(self, this, "mdl") then
-		return
-	end
-	this:SetModel(model)
-end
+-- e2function void entity:p2mSetModel(string model)
+-- 	if not P2M_CanManipulate(self, this, "mdl") then
+-- 		return
+-- 	end
+-- 	this:SetModel(model)
+-- end
 
 
 -- -----------------------------------------------------------------------------

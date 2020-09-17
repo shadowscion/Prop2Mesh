@@ -184,6 +184,243 @@ end
 
 
 -- -----------------------------------------------------------------------------
+local function meshFromMDL(part, cache, useModelUV)
+	if p2mlib.isBlocked(part.mdl) then
+		return
+	end
+
+	local submeshes
+	if cache[part.mdl] then
+		submeshes = cache[part.mdl][part.bgrp or 0]
+	else
+		cache[part.mdl] = {}
+	end
+	if not submeshes then
+		submeshes = util.GetModelMeshes(part.mdl, 0, part.bgrp or 0)
+		if submeshes then
+			submeshes.isFunky = p2mlib.isFunky(part.mdl)
+			cache[part.mdl][part.bgrp or 0] = submeshes
+		else
+			return
+		end
+	end
+
+	local partScale = part.scale
+	local partClips = part.clips
+	local fixAngles
+
+	if submeshes.isFunky then
+		local rotated = Angle(part.ang)
+		rotated:RotateAroundAxis(rotated:Up(), 90)
+
+		fixAngles = {}
+		for submeshID = 1, #submeshes do
+			local valid, special = pcall(submeshes.isFunky, submeshID, #submeshes, rotated, part.ang)
+			if valid then
+				local ang = special or rotated
+				fixAngles[submeshID] = { ang = ang, diff = ang ~= rotated }
+			else
+				fixAngles[submeshID] = { ang = rotated }
+			end
+		end
+
+		if partScale then
+			if part.holo then
+				partScale = Vector(partScale.y, partScale.x, partScale.z)
+			else
+				partScale = Vector(partScale.x, partScale.z, partScale.y)
+			end
+		end
+
+		if partClips then
+			local clips = {}
+			for clipID = 1, #partClips do
+				local normal = Vector(partClips[clipID].n)
+				rotate(normal, a90)
+				clips[#clips + 1] = {
+					d  = partClips[clipID].d,
+					no = partClips[clipID].n,
+					n  = normal,
+				}
+			end
+			partClips = clips
+		end
+	end
+
+	local partverts = {}
+
+	for submeshID = 1, #submeshes do
+		local submeshData   = submeshes[submeshID].triangles
+		local submeshRotate = fixAngles and fixAngles[submeshID]
+		local submeshVerts  = {}
+
+		for vertID = 1, #submeshData do
+			local vert   = submeshData[vertID]
+			local pos    = Vector(vert.pos)
+			local normal = Vector(vert.normal)
+
+			if partScale then
+				if submeshRotate and submeshRotate.diff then
+					pos.x = pos.x * part.scale.x
+					pos.y = pos.y * part.scale.y
+					pos.z = pos.z * part.scale.z
+				else
+					pos.x = pos.x * partScale.x
+					pos.y = pos.y * partScale.y
+					pos.z = pos.z * partScale.z
+				end
+			end
+
+			local vcopy = {
+				pos    = pos,
+				normal = normal,
+				rotate = submeshRotate,
+			}
+
+			if useModelUV then
+				vcopy.u = vert.u
+				vcopy.v = vert.v
+			end
+
+			submeshVerts[#submeshVerts + 1] = vcopy
+		end
+
+		if partClips then
+			if submeshRotate then
+				for clipID = 1, #partClips do
+					submeshVerts = applyClippingPlane(submeshVerts, submeshRotate.diff and partClips[clipID].no or partClips[clipID].n, partClips[clipID].d, useModelUV)
+				end
+			else
+				for clipID = 1, #partClips do
+					submeshVerts = applyClippingPlane(submeshVerts, partClips[clipID].n, partClips[clipID].d, useModelUV)
+				end
+			end
+		end
+
+		for vertID = 1, #submeshVerts do
+			local vert = submeshVerts[vertID]
+			if vert.rotate then
+				rotate(vert.normal, vert.rotate.ang or part.ang)
+				rotate(vert.pos, vert.rotate.ang or part.ang)
+				vert.rotate = nil
+			else
+				rotate(vert.normal, part.ang)
+				rotate(vert.pos, part.ang)
+			end
+			add(vert.pos, part.pos)
+			partverts[#partverts + 1] = vert
+		end
+	end
+
+	if #partverts == 0 then
+		return
+	end
+
+	return partverts
+end
+
+
+-- -----------------------------------------------------------------------------
+local function meshFromOBJ(part)
+	local partverts = {}
+
+	if #partverts == 0 then
+		return
+	end
+
+	return partverts
+end
+
+
+-- -----------------------------------------------------------------------------
+function p2mlib.partsToMeshes(threaded, parts, textureScale, getBounds, splitByPart)
+	local meshparts = { {} }
+	local nextpart  = meshparts[1]
+
+	local bmin, bmax
+	if getBounds then
+		bmin = Vector()
+		bmax = Vector()
+	end
+
+	if textureScale then
+		if textureScale == 0 then textureScale = nil else textureScale = 1 / textureScale end
+	end
+
+	local cache  = {}
+	local pCount = #parts
+
+	for partID = 1, pCount do
+		local partverts
+		if parts[partID].mdl then
+			partverts = meshFromMDL(parts[partID], cache, not textureScale)
+
+		elseif parts[partID].obj then
+			partverts = meshFromOBJ(parts[partID])
+
+		end
+
+		if not partverts then
+			continue
+		end
+
+		local getNormal = parts[partID].obj or parts[partID].flat
+		local getUV     = parts[partID].obj or textureScale
+
+		if getNormal or getUV then
+			for vertID = 1, #partverts, 3 do
+				local normal = cross(partverts[vertID + 2].pos - partverts[vertID].pos, partverts[vertID + 1].pos - partverts[vertID].pos)
+				normalize(normal)
+
+				if getNormal then
+					partverts[vertID    ].normal = Vector(normal)
+					partverts[vertID + 1].normal = Vector(normal)
+					partverts[vertID + 2].normal = Vector(normal)
+				end
+
+				if getUV then
+					local boxDir = getBoxDir(normal)
+					partverts[vertID    ].u, partverts[vertID    ].v = getBoxUV(partverts[vertID    ].pos, boxDir, textureScale)
+					partverts[vertID + 1].u, partverts[vertID + 1].v = getBoxUV(partverts[vertID + 1].pos, boxDir, textureScale)
+					partverts[vertID + 2].u, partverts[vertID + 2].v = getBoxUV(partverts[vertID + 2].pos, boxDir, textureScale)
+				end
+			end
+		end
+
+		if parts[partID].inv then
+			for vertID = #partverts, 1, -1 do
+				partverts[#partverts + 1] = copy(partverts[vertID])
+				partverts[#partverts].normal = -partverts[#partverts].normal
+			end
+		end
+
+		if #nextpart + #partverts > _MESH_VERTEX_LIMIT or splitByPart then
+			meshparts[#meshparts + 1] = {}
+			nextpart = meshparts[#meshparts]
+		end
+
+		if getBounds then
+			for pv = 1, #partverts do
+				nextpart[#nextpart + 1] = partverts[pv]
+				calcbounds(bmin, bmax, partverts[pv].pos)
+			end
+		else
+			for pv = 1, #partverts do
+				nextpart[#nextpart + 1] = partverts[pv]
+			end
+		end
+
+		if threaded then
+			coroutine_yield(false, partID * (1 / pCount), false)
+		end
+	end
+
+	return meshparts, bmin, bmax
+end
+
+
+-- -----------------------------------------------------------------------------
+--[[
 function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel)
 	if texmul then
 		if texmul == 0 then texmul = nil else texmul = 1 / texmul end
@@ -415,7 +652,7 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 
 	return meshparts, mins, maxs
 end
-
+]]
 
 -- -----------------------------------------------------------------------------
 function p2mlib.exportToOBJ(models, tscale)

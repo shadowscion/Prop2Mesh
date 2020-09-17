@@ -44,7 +44,7 @@ local softcap_maximum = CreateClientConVar("prop2mesh_max_tris_softcap", 1000000
 
 
 -- -----------------------------------------------------------------------------
-local inMenu, globalSuppress
+local inMenu, globalSuppress, fakeModel
 hook.Add("OnSpawnMenuOpen", "p2m.suppress", function()
 	inMenu = true
 end)
@@ -52,6 +52,11 @@ hook.Add("OnSpawnMenuClose", "p2m.suppress", function()
 	inMenu = false
 end)
 hook.Add("PreRender", "P2M.PreRender", function()
+	if not IsValid(fakeModel) then
+		fakeModel = ClientsideModel("models/hunter/plates/plate.mdl")
+		fakeModel:SetNoDraw(true)
+	end
+
 	globalSuppress = inMenu or gui.IsGameUIVisible() or FrameTime() == 0
 	softcap_current = 0
 end)
@@ -133,8 +138,8 @@ function ENT:Draw()
 		self:DrawSplitView()
 	else
 		if self.Mesh then
-			self:DrawFakeController()
 			render.ModelMaterialOverride(self.MaterialMeshes)
+			self:DrawFakeController()
 			self:DrawModel()
 			render.ModelMaterialOverride(nil)
 		elseif self.MeshGroup then
@@ -213,17 +218,14 @@ end
 
 -- -----------------------------------------------------------------------------
 function ENT:DrawFakeController()
-
-	local mins, maxs = self:GetHitBoxBounds(0, 0)
-	if not mins or not maxs then
-		mins, maxs = self:GetModelBounds()
+	if not fakeModel then
+		return
 	end
 
-	render.SuppressEngineLighting(true)
-	render.SetMaterial(self.MaterialMeshes)
-	render.DrawBox(self:GetPos(), self:GetAngles(), mins, maxs, self:GetColor(), true)
-	render.SuppressEngineLighting(false)
-
+	fakeModel:SetPos(self:GetPos())
+	fakeModel:SetAngles(self:GetAngles())
+	fakeModel:SetupBones()
+	fakeModel:DrawModel()
 end
 
 
@@ -555,7 +557,7 @@ function p2m.BuildMeshes(crc, tscale)
 		return
 	end
 
-	local parts, mins, maxs = p2m.modelsToMeshes(true, util.JSONToTable(util.Decompress(p2m.models[crc].data)), tscale, true)
+	local parts, mins, maxs = p2m.partsToMeshes(true, util.JSONToTable(util.Decompress(p2m.models[crc].data)), tscale, true)
 	if not parts then
 		return
 	end

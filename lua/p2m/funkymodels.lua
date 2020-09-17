@@ -48,6 +48,12 @@ end)
 
 
 -- -----------------------------------------------------------------------------
+-- BADDIES
+p2mlib.blockModel("models/lubprops/seat/raceseat2.mdl", true)
+p2mlib.blockModel("models/lubprops/seat/raceseat.mdl", true)
+
+
+-- -----------------------------------------------------------------------------
 -- FOLDERS
 pushTo = funkyFolder
 push("models/cheeze/pcb/")

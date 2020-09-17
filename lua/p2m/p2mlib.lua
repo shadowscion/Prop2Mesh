@@ -270,14 +270,14 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 		end
 
 		-- attempt to prevent lag spikes
-		local highpoly
-		if threaded then
-			local vertcount = 0
-			for p = 1, #meshes do
-				vertcount = vertcount + #meshes[p].triangles
-			end
-			highpoly = vertcount > _HIGHPOLY_THRESHOLD
-		end
+		--local highpoly
+		-- if threaded then
+		-- 	local vertcount = 0
+		-- 	for p = 1, #meshes do
+		-- 		vertcount = vertcount + #meshes[p].triangles
+		-- 	end
+		-- 	highpoly = vertcount > _HIGHPOLY_THRESHOLD
+		-- end
 
 		-- model vertex manipulations
 		local modelverts = {}
@@ -316,25 +316,25 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 
 				partverts[#partverts + 1] = vcopy
 
-				if highpoly then
-					coroutine_yield(false, mCountFrac, true)
-				end
+				-- if highpoly then
+				-- 	coroutine_yield(false, mCountFrac, true)
+				-- end
 			end
 
 			if mClips then
 				if partrotate then
 					for c = 1, #mClips do
 						partverts = applyClippingPlane(partverts, partrotate.diff and mClips[c].no or mClips[c].n, mClips[c].d, not texmul)
-						if highpoly then
-							coroutine_yield(false, mCountFrac, true)
-						end
+						-- if highpoly then
+						-- 	coroutine_yield(false, mCountFrac, true)
+						-- end
 					end
 				else
 					for c = 1, #mClips do
 						partverts = applyClippingPlane(partverts, mClips[c].n, mClips[c].d, not texmul)
-						if highpoly then
-							coroutine_yield(false, mCountFrac, true)
-						end
+						-- if highpoly then
+						-- 	coroutine_yield(false, mCountFrac, true)
+						-- end
 					end
 				end
 			end
@@ -353,9 +353,9 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 
 				modelverts[#modelverts + 1] = vert
 
-				if highpoly then
-					coroutine_yield(false, mCountFrac, true)
-				end
+				-- if highpoly then
+				-- 	coroutine_yield(false, mCountFrac, true)
+				-- end
 			end
 		end
 
@@ -378,9 +378,9 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 					modelverts[i + 2].normal = Vector(normal)
 				end
 
-				if highpoly then
-					coroutine_yield(false, mCountFrac, true)
-				end
+				-- if highpoly then
+				-- 	coroutine_yield(false, mCountFrac, true)
+				-- end
 			end
 		end
 
@@ -389,9 +389,9 @@ function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel
 			for i = #modelverts, 1, -1 do
 				modelverts[#modelverts + 1] = copy(modelverts[i])
 				modelverts[#modelverts].normal = -modelverts[#modelverts].normal
-				if highpoly then
-					coroutine_yield(false, mCountFrac, true)
-				end
+				-- if highpoly then
+				-- 	coroutine_yield(false, mCountFrac, true)
+				-- end
 			end
 		end
 

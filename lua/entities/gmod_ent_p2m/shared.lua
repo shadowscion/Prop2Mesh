@@ -51,9 +51,9 @@ end
 -- -----------------------------------------------------------------------------
 properties.Add("p2m_options", {
 	PrependSpacer = true,
-	Order     = 3001,
-	MenuLabel = "P2M",
-	MenuIcon  = "icon16/disk.png",
+	Order         = 3001,
+	MenuLabel     = "P2M",
+	MenuIcon      = "icon16/disk.png",
 
 	Filter = function(self, ent, ply)
 
@@ -70,31 +70,29 @@ properties.Add("p2m_options", {
 	Action = function() end,
 
 	MenuOpen = function(self, dmenu, ent, tr)
-		local crc = ent:GetCRC()
-		if not p2mlib or not crc or not p2mlib.models[crc] or not p2mlib.models[crc].data then
-			return
-		end
-		if crc ~= util.CRC(p2mlib.models[crc].data) then
+
+		if not p2mlib then
 			return
 		end
 
 		local sub = dmenu:AddSubMenu()
-
-		sub:AddOption("Edit models", function()
-
+		sub:AddOption("Open editor", function()
 			local window = g_ContextMenu:Add("p2m_editor")
-
 			local h = math.floor(ScrH() - 90)
 			local w = math.floor(354)
 
 			window:SetPos(ScrW() - w - 30, ScrH() - h - 30)
 			window:SetSize(w, h)
-			window:SetController(ent, util.JSONToTable(util.Decompress(p2mlib.models[crc].data)))
-
+			window:SetEntity(ent)
 		end):SetIcon("icon16/bricks.png")
 
 		sub:AddOption("Export to E2", function()
+			local crc = ent:GetCRC()
+			if not crc or not p2mlib.models[crc] then
+				return
+			end
 			p2mlib.exportToE2(util.JSONToTable(util.Decompress(p2mlib.models[crc].data)), ent:GetTextureScale(), ent:GetMeshScale())
 		end):SetIcon("icon16/cog.png")
+
 	end,
 })

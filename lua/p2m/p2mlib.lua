@@ -754,6 +754,10 @@ function p2mlib.exportToE2(models, tscale, mscale)
 	local body   = { "\n#--- PUSH MODELS\n" }
 
 	for k, model in SortedPairsByMemberValue(models, "mid") do
+		if not model.mdl then
+			continue
+		end
+
 		if model.mid and model.mid ~= pswap then
 			if pcount ~= 0 then
 				body[#body + 1] = "\n\n"

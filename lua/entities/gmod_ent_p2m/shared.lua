@@ -49,6 +49,10 @@ end
 
 
 -- -----------------------------------------------------------------------------
+if CLIENT then
+	file.CreateDir("p2m")
+end
+
 properties.Add("p2m_options", {
 	PrependSpacer = true,
 	Order         = 3001,
@@ -93,6 +97,28 @@ properties.Add("p2m_options", {
 			end
 			p2mlib.exportToE2(util.JSONToTable(util.Decompress(p2mlib.models[crc].data)), ent:GetTextureScale(), ent:GetMeshScale())
 		end):SetIcon("icon16/cog.png")
+
+		sub:AddOption("Export as .obj", function()
+			local crc = ent:GetCRC()
+			if not crc or not p2mlib.models[crc] then
+				return
+			end
+
+			local pnl = Derma_StringRequest("", "Set .obj export filename", "default.txt", function(text)
+				local filedata = p2mlib.exportToOBJ(util.JSONToTable(util.Decompress(p2mlib.models[crc].data)), ent:GetTextureScale())
+				if filedata then
+					local filename = string.lower(string.StripExtension(string.GetFileFromFilename(text)))
+					file.Write(string.format("p2m/%s.txt", filename), filedata)
+				end
+			end)
+
+			pnl.Paint = function(_, w, h)
+				surface.SetDrawColor(55, 55, 60)
+				surface.DrawRect(0, 24, w, h - 24)
+				surface.SetDrawColor(0, 0, 0)
+				surface.DrawOutlinedRect(0, 24, w, h - 24)
+			end
+		end):SetIcon("icon16/car.png")
 
 	end,
 })

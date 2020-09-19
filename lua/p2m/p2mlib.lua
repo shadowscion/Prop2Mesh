@@ -13,11 +13,13 @@ local _HIGHPOLY_THRESHOLD = 30000
 -- -----------------------------------------------------------------------------
 local math = math
 local string = string
+local table = table
 
 local coroutine_yield = coroutine.yield
 
 local Vector = Vector
 local vec = Vector()
+local mul = vec.Mul
 local add = vec.Add
 local dot = vec.Dot
 local cross = vec.Cross
@@ -27,6 +29,12 @@ local rotate = vec.Rotate
 local math_abs = math.abs
 local math_min = math.min
 local math_max = math.max
+
+local string_format = string.format
+local string_explode = string.Explode
+local table_concat = table.concat
+local table_remove = table.remove
+local tonumber = tonumber
 
 local a90 = Angle(0, -90, 0)
 
@@ -184,7 +192,7 @@ end
 
 
 -- -----------------------------------------------------------------------------
-local function meshFromMDL(part, cache, useModelUV)
+local function meshFromMDL(part, cache, textureScale)
 	if p2mlib.isBlocked(part.mdl) then
 		return
 	end
@@ -205,6 +213,7 @@ local function meshFromMDL(part, cache, useModelUV)
 		end
 	end
 
+	local useModelUV = not textureScale
 	local partScale = part.scale
 	local partClips = part.clips
 	local fixAngles
@@ -247,7 +256,7 @@ local function meshFromMDL(part, cache, useModelUV)
 		end
 	end
 
-	local partverts = {}
+	local partVerts = {}
 
 	for submeshID = 1, #submeshes do
 		local submeshData   = submeshes[submeshID].triangles
@@ -308,27 +317,123 @@ local function meshFromMDL(part, cache, useModelUV)
 				rotate(vert.pos, part.ang)
 			end
 			add(vert.pos, part.pos)
-			partverts[#partverts + 1] = vert
+			partVerts[#partVerts + 1] = vert
 		end
 	end
 
-	if #partverts == 0 then
+	if #partVerts == 0 then
 		return
 	end
 
-	return partverts
+	if part.flat or textureScale then
+		for vertID = 1, #partVerts, 3 do
+			local normal = cross(partVerts[vertID + 2].pos - partVerts[vertID].pos, partVerts[vertID + 1].pos - partVerts[vertID].pos)
+			normalize(normal)
+
+			if part.flat then
+				partVerts[vertID    ].normal = Vector(normal)
+				partVerts[vertID + 1].normal = Vector(normal)
+				partVerts[vertID + 2].normal = Vector(normal)
+			end
+
+			if textureScale then
+				local boxDir = getBoxDir(normal)
+				partVerts[vertID    ].u, partVerts[vertID    ].v = getBoxUV(partVerts[vertID    ].pos, boxDir, textureScale)
+				partVerts[vertID + 1].u, partVerts[vertID + 1].v = getBoxUV(partVerts[vertID + 1].pos, boxDir, textureScale)
+				partVerts[vertID + 2].u, partVerts[vertID + 2].v = getBoxUV(partVerts[vertID + 2].pos, boxDir, textureScale)
+			end
+		end
+	end
+
+	return partVerts
 end
 
 
 -- -----------------------------------------------------------------------------
-local function meshFromOBJ(part)
-	local partverts = {}
+local function meshFromOBJ(part, textureScale)
+	local valid, partVerts = pcall(function()
+		local textureScale = textureScale or 1 / 48
 
-	if #partverts == 0 then
+		local pos = part.pos
+		local ang = part.ang
+		local scale = part.scale
+
+		if pos.x == 0 and pos.y == 0 and pos.z == 0 then pos = nil end
+		if ang.p == 0 and ang.y == 0 and ang.r == 0 then ang = nil end
+		if scale then
+			if scale.x == 1 and scale.y == 1 and scale.z == 1 then scale = nil end
+		end
+
+		local vlook = {}
+		local vmesh = {}
+
+		for line in string.gmatch(part.obj, "(.-)\n") do
+			local temp = string_explode(" ", line)
+			local head = table_remove(temp, 1)
+
+			if head == "f" then
+				local f1 = string_explode("/", temp[1])
+				local f2 = string_explode("/", temp[2])
+
+				for i = 3, #temp do
+					local f3 = string_explode("/", temp[i])
+
+					local v1, v2, v3
+
+					if part.flip then
+						v1 = { pos = Vector(vlook[tonumber(f3[1])]) }
+						v2 = { pos = Vector(vlook[tonumber(f2[1])]) }
+						v3 = { pos = Vector(vlook[tonumber(f1[1])]) }
+					else
+						v1 = { pos = Vector(vlook[tonumber(f1[1])]) }
+						v2 = { pos = Vector(vlook[tonumber(f2[1])]) }
+						v3 = { pos = Vector(vlook[tonumber(f3[1])]) }
+					end
+
+					local normal = cross(v3.pos - v1.pos, v2.pos - v1.pos)
+					normalize(normal)
+
+					v1.normal = Vector(normal)
+					v2.normal = Vector(normal)
+					v3.normal = Vector(normal)
+
+					local boxDir = getBoxDir(normal)
+					v1.u, v1.v = getBoxUV(v1.pos, boxDir, textureScale)
+					v2.u, v2.v = getBoxUV(v2.pos, boxDir, textureScale)
+					v3.u, v3.v = getBoxUV(v3.pos, boxDir, textureScale)
+
+					vmesh[#vmesh + 1] = v1
+					vmesh[#vmesh + 1] = v2
+					vmesh[#vmesh + 1] = v3
+
+					f2 = f3
+				end
+			end
+			if head == "v" then
+				local vert = Vector(tonumber(temp[1]), tonumber(temp[2]), tonumber(temp[3]))
+				if scale then
+					vert.x = vert.x * part.scale.x
+					vert.y = vert.y * part.scale.y
+					vert.z = vert.z * part.scale.z
+				end
+				if ang then
+					rotate(vert, ang)
+				end
+				if pos then
+					add(vert, pos)
+				end
+				vlook[#vlook + 1] = vert
+			end
+		end
+
+		return vmesh
+	end)
+
+	if not valid or not partVerts or #partVerts == 0 then
 		return
 	end
 
-	return partverts
+	return partVerts
 end
 
 
@@ -351,62 +456,39 @@ function p2mlib.partsToMeshes(threaded, parts, textureScale, getBounds, splitByP
 	local pCount = #parts
 
 	for partID = 1, pCount do
-		local partverts
-		if parts[partID].mdl then
-			partverts = meshFromMDL(parts[partID], cache, not textureScale)
+		local partData = parts[partID]
 
-		elseif parts[partID].obj then
-			partverts = meshFromOBJ(parts[partID])
-
+		local partVerts
+		if partData.mdl then
+			partVerts = meshFromMDL(partData, cache, textureScale)
+		elseif partData.obj then
+			partVerts = meshFromOBJ(partData, textureScale)
 		end
 
-		if not partverts then
+		if not partVerts then
 			continue
 		end
 
-		local getNormal = parts[partID].obj or parts[partID].flat
-		local getUV     = parts[partID].obj or textureScale
-
-		if getNormal or getUV then
-			for vertID = 1, #partverts, 3 do
-				local normal = cross(partverts[vertID + 2].pos - partverts[vertID].pos, partverts[vertID + 1].pos - partverts[vertID].pos)
-				normalize(normal)
-
-				if getNormal then
-					partverts[vertID    ].normal = Vector(normal)
-					partverts[vertID + 1].normal = Vector(normal)
-					partverts[vertID + 2].normal = Vector(normal)
-				end
-
-				if getUV then
-					local boxDir = getBoxDir(normal)
-					partverts[vertID    ].u, partverts[vertID    ].v = getBoxUV(partverts[vertID    ].pos, boxDir, textureScale)
-					partverts[vertID + 1].u, partverts[vertID + 1].v = getBoxUV(partverts[vertID + 1].pos, boxDir, textureScale)
-					partverts[vertID + 2].u, partverts[vertID + 2].v = getBoxUV(partverts[vertID + 2].pos, boxDir, textureScale)
-				end
+		if partData.inv then
+			for vertID = #partVerts, 1, -1 do
+				partVerts[#partVerts + 1] = copy(partVerts[vertID])
+				partVerts[#partVerts].normal = -partVerts[#partVerts].normal
 			end
 		end
 
-		if parts[partID].inv then
-			for vertID = #partverts, 1, -1 do
-				partverts[#partverts + 1] = copy(partverts[vertID])
-				partverts[#partverts].normal = -partverts[#partverts].normal
-			end
-		end
-
-		if #nextpart + #partverts > _MESH_VERTEX_LIMIT or splitByPart then
+		if #nextpart + #partVerts > _MESH_VERTEX_LIMIT or splitByPart then
 			meshparts[#meshparts + 1] = {}
 			nextpart = meshparts[#meshparts]
 		end
 
 		if getBounds then
-			for pv = 1, #partverts do
-				nextpart[#nextpart + 1] = partverts[pv]
-				calcbounds(bmin, bmax, partverts[pv].pos)
+			for pv = 1, #partVerts do
+				nextpart[#nextpart + 1] = partVerts[pv]
+				calcbounds(bmin, bmax, partVerts[pv].pos)
 			end
 		else
-			for pv = 1, #partverts do
-				nextpart[#nextpart + 1] = partverts[pv]
+			for pv = 1, #partVerts do
+				nextpart[#nextpart + 1] = partVerts[pv]
 			end
 		end
 
@@ -420,243 +502,12 @@ end
 
 
 -- -----------------------------------------------------------------------------
---[[
-function p2mlib.modelsToMeshes(threaded, models, texmul, getbounds, splitByModel)
-	if texmul then
-		if texmul == 0 then texmul = nil else texmul = 1 / texmul end
+function p2mlib.exportToOBJ(parts, textureScale)
+	if textureScale then
+		if textureScale == 0 then textureScale = nil else textureScale = 1 / textureScale end
 	end
 
-	local meshcache = {}
-	local meshparts = { {} }
-	local nextpart  = meshparts[1]
-
-	local mins, maxs
-	if getbounds then
-		mins = Vector(-1, -1, -1)
-		maxs = Vector(1, 1, 1)
-	end
-
-	local mCount = #models
-
-	for m = 1, mCount do
-		local model = models[m]
-		if not model or not model.mdl or p2mlib.isBlocked(model.mdl) then
-			continue
-		end
-
-		-- temporarily cache model meshes
-		local meshes
-		if meshcache[model.mdl] then
-			meshes = meshcache[model.mdl][model.bgrp or 0]
-		else
-			meshcache[model.mdl] = {}
-		end
-		if not meshes then
-			meshes = util.GetModelMeshes(model.mdl, 0, model.bgrp or 0)
-			if meshes then
-				meshes.isFunky = p2mlib.isFunky(model.mdl)
-				meshcache[model.mdl][model.bgrp or 0] = meshes
-			else
-				continue
-			end
-		end
-
-		-- setup
-		local mCountFrac = m * (1 / mCount)
-		local mScale = model.scale
-		local mClips = model.clips
-		local mFunky
-
-		-- some model are weird
-		if meshes.isFunky then
-			local rotated = Angle(model.ang)
-			rotated:RotateAroundAxis(rotated:Up(), 90)
-
-			mFunky = {}
-			for p = 1, #meshes do
-				local valid, special = pcall(meshes.isFunky, p, #meshes, rotated, model.ang)
-				if valid then
-					local ang = special or rotated
-					mFunky[p] = { ang = ang, diff = ang ~= rotated }
-				else
-					mFunky[p] = { ang = rotated }
-				end
-			end
-
-			if mScale then
-				if model.holo then
-					mScale = Vector(mScale.y, mScale.x, mScale.z)
-				else
-					mScale = Vector(mScale.x, mScale.z, mScale.y)
-				end
-			end
-
-			if mClips then
-				local clips = {}
-				for c = 1, #mClips do
-					local normal = Vector(mClips[c].n)
-					rotate(normal, a90)
-					clips[#clips + 1] = {
-						no = mClips[c].n,
-						n = normal,
-						d = mClips[c].d,
-					}
-				end
-				mClips = clips
-			end
-		end
-
-		-- attempt to prevent lag spikes
-		--local highpoly
-		-- if threaded then
-		-- 	local vertcount = 0
-		-- 	for p = 1, #meshes do
-		-- 		vertcount = vertcount + #meshes[p].triangles
-		-- 	end
-		-- 	highpoly = vertcount > _HIGHPOLY_THRESHOLD
-		-- end
-
-		-- model vertex manipulations
-		local modelverts = {}
-		for p = 1, #meshes do
-			local partmesh   = meshes[p].triangles
-			local partrotate = mFunky and mFunky[p]
-			local partverts  = {}
-
-			for v = 1, #partmesh do
-				local vert   = partmesh[v]
-				local pos    = Vector(vert.pos)
-				local normal = Vector(vert.normal)
-
-				if mScale then
-					if partrotate and partrotate.diff then
-						pos.x = pos.x * model.scale.x
-						pos.y = pos.y * model.scale.y
-						pos.z = pos.z * model.scale.z
-					else
-						pos.x = pos.x * mScale.x
-						pos.y = pos.y * mScale.y
-						pos.z = pos.z * mScale.z
-					end
-				end
-
-				local vcopy = {
-					pos    = pos,
-					normal = normal,
-					rotate = partrotate,
-				}
-
-				if not texmul then
-					vcopy.u = vert.u
-					vcopy.v = vert.v
-				end
-
-				partverts[#partverts + 1] = vcopy
-
-				-- if highpoly then
-				-- 	coroutine_yield(false, mCountFrac, true)
-				-- end
-			end
-
-			if mClips then
-				if partrotate then
-					for c = 1, #mClips do
-						partverts = applyClippingPlane(partverts, partrotate.diff and mClips[c].no or mClips[c].n, mClips[c].d, not texmul)
-						-- if highpoly then
-						-- 	coroutine_yield(false, mCountFrac, true)
-						-- end
-					end
-				else
-					for c = 1, #mClips do
-						partverts = applyClippingPlane(partverts, mClips[c].n, mClips[c].d, not texmul)
-						-- if highpoly then
-						-- 	coroutine_yield(false, mCountFrac, true)
-						-- end
-					end
-				end
-			end
-
-			for v = 1, #partverts do
-				local vert = partverts[v]
-				if vert.rotate then
-					rotate(vert.normal, vert.rotate.ang or model.ang)
-					rotate(vert.pos, vert.rotate.ang or model.ang)
-					vert.rotate = nil
-				else
-					rotate(vert.normal, model.ang)
-					rotate(vert.pos, model.ang)
-				end
-				add(vert.pos, model.pos)
-
-				modelverts[#modelverts + 1] = vert
-
-				-- if highpoly then
-				-- 	coroutine_yield(false, mCountFrac, true)
-				-- end
-			end
-		end
-
-		-- texture coordinates
-		if texmul or model.flat then
-			for i = 1, #modelverts, 3 do
-				local normal = cross(modelverts[i + 2].pos - modelverts[i].pos, modelverts[i + 1].pos - modelverts[i].pos)
-				normalize(normal)
-
-				if texmul then
-					local boxDir = getBoxDir(normal)
-					modelverts[i + 0].u, modelverts[i + 0].v = getBoxUV(modelverts[i + 0].pos, boxDir, texmul)
-					modelverts[i + 1].u, modelverts[i + 1].v = getBoxUV(modelverts[i + 1].pos, boxDir, texmul)
-					modelverts[i + 2].u, modelverts[i + 2].v = getBoxUV(modelverts[i + 2].pos, boxDir, texmul)
-				end
-
-				if model.flat then
-					modelverts[i + 0].normal = Vector(normal)
-					modelverts[i + 1].normal = Vector(normal)
-					modelverts[i + 2].normal = Vector(normal)
-				end
-
-				-- if highpoly then
-				-- 	coroutine_yield(false, mCountFrac, true)
-				-- end
-			end
-		end
-
-		-- duplicate verts in reverse if renderinside flag
-		if model.inv then
-			for i = #modelverts, 1, -1 do
-				modelverts[#modelverts + 1] = copy(modelverts[i])
-				modelverts[#modelverts].normal = -modelverts[#modelverts].normal
-				-- if highpoly then
-				-- 	coroutine_yield(false, mCountFrac, true)
-				-- end
-			end
-		end
-
-		-- vertex groups
-		if #nextpart + #modelverts > _MESH_VERTEX_LIMIT or splitByModel then
-			meshparts[#meshparts + 1] = {}
-			nextpart = meshparts[#meshparts]
-		end
-
-		for v = 1, #modelverts do
-			nextpart[#nextpart + 1] = modelverts[v]
-			if getbounds then
-				calcbounds(mins, maxs, modelverts[v].pos)
-			end
-		end
-
-		if threaded then
-			coroutine_yield(false, mCountFrac, false)
-		end
-	end
-
-	return meshparts, mins, maxs
-end
-]]
-
--- -----------------------------------------------------------------------------
-function p2mlib.exportToOBJ(models, tscale)
-	local meshparts = p2mlib.modelsToMeshes(false, models, tscale, false, true)
+	local meshparts = p2mlib.partsToMeshes(false, parts, textureScale, false, true)
 
 	local concat  = table.concat
 	local format  = string.format

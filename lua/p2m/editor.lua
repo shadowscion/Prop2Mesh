@@ -23,6 +23,9 @@ local scalev = Vector(1, 1, 1)
 
 local surface = surface
 local render = render
+local string = string
+local table  = table
+local math = math
 local cam = cam
 
 local enable_clipping = CreateClientConVar("prop2mesh_editor_enableclipping", "1", true, false)
@@ -144,14 +147,23 @@ function PANEL:Init()
 			end
 		end
 
+		if next(self.additions) ~= nil then
+			changes.additions = self.additions
+		end
+
 		if next(changes) == nil then
+			return
+		end
+
+		local data = util.Compress(util.TableToJSON(changes))
+		local size = string.len(data)
+
+		if size > 63000 then
 			return
 		end
 
 		net.Start("NetP2M.MakeChanges")
 		net.WriteEntity(self.Entity)
-		local data = util.Compress(util.TableToJSON(changes))
-		local size = string.len(data)
 		net.WriteUInt(size, 32)
 		net.WriteData(data, size)
 		net.SendToServer()
@@ -199,12 +211,15 @@ function PANEL:SetEntity(ent)
 	end)
 
 	self.changes = {}
+	self.additions = {}
 
 	local crc = self.Entity:GetCRC()
 	local tbl = p2mlib.models[crc]
 
 	if tbl then
 		self.Data = util.JSONToTable(util.Decompress(tbl.data))
+	else
+		self.Data = {}
 	end
 
 	self:RebuildTree()
@@ -236,8 +251,6 @@ function PANEL:RebuildTree()
 		end
 	end
 
-	self.obj_data:AddNode("not yet implemented", "icon16/bullet_error.png")
-
 	root:SetExpanded(true)
 end
 
@@ -249,21 +262,18 @@ function PANEL:PopulateData()
 
 	for partID, partData in ipairs(self.Data) do
 		if partData.obj then
-			self.changes[partID] = {}
 			self:PopulateOBJ(partID, partData)
 		elseif partData.mdl then
-			self.changes[partID] = {}
 			self:PopulateMDL(partID, partData)
 		end
 	end
 
+	self.obj_data:SetText(string.format(".obj [%d]", table.Count(self.obj_data.subnodes)))
 	self.mdl_data:SetText(string.format(".mdl [%d]", table.Count(self.mdl_data.subnodes)))
 end
 
 
 -- -----------------------------------------------------------------------------
-file.CreateDir("p2m")
-
 function PANEL:PopulateFiles()
 	local files, folders = file.Find("p2m/*.txt", "DATA")
 	for i = 1, #files do
@@ -272,66 +282,8 @@ function PANEL:PopulateFiles()
 	end
 end
 
-menuFunctions.file = function(self, node)
-	local dmenu = DermaMenu()
-
-	dmenu:AddSpacer()
-	dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
-
-	dmenu:Open()
-end
-
 
 -- -----------------------------------------------------------------------------
-function PANEL:PopulateOBJ(partID, partData)
-
-end
-
-menuFunctions.obj = function(self, node)
-	local dmenu = DermaMenu()
-
-	if self.changes[node.partID].delete then
-		dmenu:AddSpacer()
-		dmenu:AddOption("Undo remove .obj", function()
-			node:SetIcon(icon_part_default)
-			node.Label:SetTextColor()
-			self.changes[node.partID] = {}
-		end):SetIcon(icon_part_changed)
-	else
-		dmenu:AddSpacer()
-		dmenu:AddOption("Remove .obj", function()
-			node:SetIcon(icon_part_deleted)
-			node.Label:SetTextColor(color_deleted)
-			self.changes[node.partID] = { delete = true }
-		end):SetIcon(icon_part_deleted)
-	end
-
-	dmenu:AddSpacer()
-	dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
-
-	dmenu:Open()
-end
-
-
--- -----------------------------------------------------------------------------
-function PANEL:PopulateMDL(partID, partData)
-	local node = self.mdl_data:AddNode(string.format("[%d] %s", partID, string.GetFileFromFilename(partData.mdl)), icon_part_default)
-	node.menu_type = "mdl"
-	node.partID = partID
-
-	node.flags = {
-		node:AddNode(string.format("render_inside = %s", partData.inv and "true" or "false"), "icon16/bullet_black.png"),
-		node:AddNode(string.format("flat_shading = %s", partData.flat and "true" or "false"), "icon16/bullet_black.png"),
-	}
-
-	self.mdl_data.subnodes[partID] = node
-
-	node.Label.OnCursorEntered = function()
-		editors[self] = partData
-		node.Label:InvalidateLayout(true)
-	end
-end
-
 local flags = {
 	{
 		text  = "Render inside",
@@ -368,6 +320,344 @@ local flags = {
 	}
 }
 
+
+-- -----------------------------------------------------------------------------
+local function BuildOBJNode(self, rootnode, partData)
+	--
+	local pos = rootnode:AddNode("local origin offset", "icon16/bullet_black.png")
+	local temp = pos:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	for i = 1, 3 do
+		local component = vgui.Create("DTextEntry", temp)
+		component:Dock(LEFT)
+		component:DockMargin(i == 1 and 24 or 1, 1, 4, 0)
+		component:SetWide(58)
+		component:SetNumeric(true)
+		component.OnValueChange = function(_, value)
+			if partData.pos[i] == value then
+				return
+			end
+			if rootnode.partID and self.changes[rootnode.partID] then
+				if not self.changes[rootnode.partID].pos then
+					self.changes[rootnode.partID].pos = Vector(partData.pos)
+				end
+				self.changes[rootnode.partID].pos[i] = value
+
+				if partData.pos[1] == self.changes[rootnode.partID].pos[1] and
+				   partData.pos[2] == self.changes[rootnode.partID].pos[2] and
+				   partData.pos[3] == self.changes[rootnode.partID].pos[3] then
+					pos.Label:SetTextColor(nil)
+					self.changes[rootnode.partID].pos = nil
+				else
+					pos.Label:SetTextColor(color_changed)
+				end
+			else
+				partData.pos[i] = value
+			end
+		end
+		component:SetValue(partData.pos[i])
+	end
+
+	--
+	local ang = rootnode:AddNode("local angle offset", "icon16/bullet_black.png")
+	local temp = ang:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	for i = 1, 3 do
+		local component = vgui.Create("DTextEntry", temp)
+		component:Dock(LEFT)
+		component:DockMargin(i == 1 and 24 or 1, 1, 4, 0)
+		component:SetWide(58)
+		component:SetNumeric(true)
+		component.OnValueChange = function(_, value)
+			if partData.ang[i] == value then
+				return
+			end
+			if rootnode.partID and self.changes[rootnode.partID] then
+				if not self.changes[rootnode.partID].ang then
+					self.changes[rootnode.partID].ang = Angle(partData.ang)
+				end
+				self.changes[rootnode.partID].ang[i] = value
+
+				if partData.ang[1] == self.changes[rootnode.partID].ang[1] and
+				   partData.ang[2] == self.changes[rootnode.partID].ang[2] and
+				   partData.ang[3] == self.changes[rootnode.partID].ang[3] then
+					ang.Label:SetTextColor(nil)
+					self.changes[rootnode.partID].ang = nil
+				else
+					ang.Label:SetTextColor(color_changed)
+				end
+			else
+				partData.ang[i] = value
+			end
+		end
+		component:SetValue(partData.ang[i])
+	end
+
+	--
+	local scale = rootnode:AddNode("scale", "icon16/bullet_black.png")
+	local temp = scale:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	for i = 1, 3 do
+		local component = vgui.Create("DTextEntry", temp)
+		component:Dock(LEFT)
+		component:DockMargin(i == 1 and 24 or 1, 1, 4, 0)
+		component:SetWide(58)
+		component:SetNumeric(true)
+		component.OnValueChange = function(_, value)
+			if partData.scale[i] == value then
+				return
+			end
+			if rootnode.partID and self.changes[rootnode.partID] then
+				if not self.changes[rootnode.partID].scale then
+					self.changes[rootnode.partID].scale = Vector(partData.scale)
+				end
+				self.changes[rootnode.partID].scale[i] = value
+
+				if partData.scale[1] == self.changes[rootnode.partID].scale[1] and
+				   partData.scale[2] == self.changes[rootnode.partID].scale[2] and
+				   partData.scale[3] == self.changes[rootnode.partID].scale[3] then
+					scale.Label:SetTextColor(nil)
+					self.changes[rootnode.partID].scale = nil
+				else
+					scale.Label:SetTextColor(color_changed)
+				end
+			else
+				partData.scale[i] = value
+			end
+		end
+		component:SetValue(partData.scale[i])
+	end
+
+	--
+	local temp = rootnode:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	local component = vgui.Create("DCheckBoxLabel", temp)
+	component:SetText("render_inside")
+	component:Dock(LEFT)
+	component:DockMargin(22, 2, 0, 0)
+	component.Label:SetTextColor(Color(100, 100, 100))
+
+	component.OnChange = function(_, value)
+		if rootnode.partID and self.changes[rootnode.partID] then
+			if self.changes[rootnode.partID].inv ~= nil then
+				if partData.inv == value then
+					component.Label:SetTextColor(Color(100, 100, 100))
+					self.changes[rootnode.partID].inv = nil
+				else
+					component.Label:SetTextColor(color_changed)
+					self.changes[rootnode.partID].inv = value
+				end
+			else
+				if partData.inv == nil and value == true then
+					component.Label:SetTextColor(color_changed)
+					self.changes[rootnode.partID].inv = value
+				end
+				if partData.inv == true and value == false then
+					component.Label:SetTextColor(color_changed)
+					self.changes[rootnode.partID].inv = value
+				end
+			end
+		else
+			partData.inv = value
+		end
+	end
+	component:SetValue(partData.inv)
+
+	--
+	local temp = rootnode:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	local component = vgui.Create("DCheckBoxLabel", temp)
+	component:SetText("invert_normals")
+	component:Dock(LEFT)
+	component:DockMargin(22, 2, 0, 0)
+	component.Label:SetTextColor(Color(100, 100, 100))
+
+	component.OnChange = function(_, value)
+		if rootnode.partID and self.changes[rootnode.partID] then
+			if self.changes[rootnode.partID].flip ~= nil then
+				if partData.flip == value then
+					component.Label:SetTextColor(Color(100, 100, 100))
+					self.changes[rootnode.partID].flip = nil
+				else
+					component.Label:SetTextColor(color_changed)
+					self.changes[rootnode.partID].flip = value
+				end
+			else
+				if partData.flip == nil and value == true then
+					component.Label:SetTextColor(color_changed)
+					self.changes[rootnode.partID].flip = value
+				end
+				if partData.flip == true and value == false then
+					component.Label:SetTextColor(color_changed)
+					self.changes[rootnode.partID].flip = value
+				end
+			end
+		else
+			partData.flip = value
+		end
+	end
+	component:SetValue(partData.flip)
+end
+
+
+function PANEL:AddOBJ(partData)
+	self.additions[#self.additions + 1] = partData
+
+	local node = self.obj_data:AddNode(string.format("[new] %s", partData.name), icon_part_changed)
+	node.menu_type = "obj_new"
+
+	node.Label:SetTextColor(color_changed)
+
+	BuildOBJNode(self, node, partData)
+end
+
+
+-- -----------------------------------------------------------------------------
+function PANEL:PopulateOBJ(partID, partData, add)
+	local node = self.obj_data:AddNode(string.format("[%d] %s", partID, partData.name), icon_part_default)
+	node.menu_type = "obj"
+	node.partID = partID
+
+	self.obj_data.subnodes[partID] = node
+	self.changes[partID] = {}
+
+	BuildOBJNode(self, node, partData)
+end
+
+
+-- -----------------------------------------------------------------------------
+function PANEL:PopulateMDL(partID, partData)
+	local node = self.mdl_data:AddNode(string.format("[%d] %s", partID, string.GetFileFromFilename(partData.mdl)), icon_part_default)
+	node.menu_type = "mdl"
+	node.partID = partID
+
+	node.flags = {
+		node:AddNode(string.format("render_inside = %s", partData.inv and "true" or "false"), "icon16/bullet_black.png"),
+		node:AddNode(string.format("flat_shading = %s", partData.flat and "true" or "false"), "icon16/bullet_black.png"),
+	}
+
+	self.mdl_data.subnodes[partID] = node
+	self.changes[partID] = {}
+
+	node.Label.OnCursorEntered = function()
+		editors[self] = partData
+		node.Label:InvalidateLayout(true)
+	end
+end
+
+
+-- -----------------------------------------------------------------------------
+menuFunctions.file = function(self, node)
+	local dmenu = DermaMenu()
+
+	dmenu:AddOption("Add .obj", function()
+		local name = node:GetText()
+		local data = file.Read(name, "DATA")
+
+		if not data then
+			return
+		end
+
+		local valid, obj = pcall(function()
+			local condensed = {}
+
+			for line in string.gmatch(data, "(.-)\n") do
+				local temp = string.Explode(" ", line)
+				local head = table.remove(temp, 1)
+
+				if head == "f" then
+					local v1 = string.Explode("/", temp[1])
+					local v2 = string.Explode("/", temp[2])
+					for i  = 3, #temp do
+						local v3 = string.Explode("/", temp[i])
+						condensed[#condensed + 1] = string.format("f %d %d %d\n", v1[1], v2[1], v3[1])
+						v2 = v3
+					end
+				else
+					if head == "v" then
+						local x = tonumber(temp[1])
+						local y = tonumber(temp[2])
+						local z = tonumber(temp[3])
+
+						x = math.abs(x) < 1e-4 and 0 or x
+						y = math.abs(y) < 1e-4 and 0 or y
+						z = math.abs(z) < 1e-4 and 0 or z
+
+						condensed[#condensed + 1] = string.format("v %s %s %s\n", x, y, z)
+					end
+				end
+			end
+
+			return table.concat(condensed)
+		end)
+
+		if valid and obj then
+			self:AddOBJ({
+				obj   = obj,
+				name  = name,
+				pos   = Vector(),
+				ang   = Angle(),
+				scale = Vector(1,1,1),
+			})
+		end
+	end):SetIcon(icon_part_changed)
+
+	dmenu:AddSpacer()
+	dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
+
+	dmenu:Open()
+end
+
+
+-- -----------------------------------------------------------------------------
+menuFunctions.obj_new = function(self, node)
+	local dmenu = DermaMenu()
+
+	dmenu:AddOption("Remove .obj", function()
+		table.remove(self.additions, node.partID)
+		node:Remove()
+	end):SetIcon(icon_part_deleted)
+
+	dmenu:AddSpacer()
+	dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
+
+	dmenu:Open()
+end
+
+
+-- -----------------------------------------------------------------------------
+menuFunctions.obj = function(self, node)
+	local dmenu = DermaMenu()
+
+	if self.changes[node.partID].delete then
+		dmenu:AddSpacer()
+		dmenu:AddOption("Undo remove .obj", function()
+			node:SetIcon(icon_part_default)
+			node.Label:SetTextColor()
+			self.changes[node.partID] = {}
+		end):SetIcon(icon_part_changed)
+	else
+		dmenu:AddSpacer()
+		dmenu:AddOption("Remove .obj", function()
+			node:SetIcon(icon_part_deleted)
+			node.Label:SetTextColor(color_deleted)
+			self.changes[node.partID] = { delete = true }
+		end):SetIcon(icon_part_deleted)
+	end
+
+	dmenu:AddSpacer()
+	dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
+
+	dmenu:Open()
+end
+
+
+-- -----------------------------------------------------------------------------
 menuFunctions.mdl = function(self, node)
 	local dmenu = DermaMenu()
 
@@ -416,8 +706,8 @@ menuFunctions.mdl = function(self, node)
 
 			sub:AddSpacer()
 			sub:AddOption("Set true all", function()
-				for partID, partData in ipairs(self.Data) do
-					if self.changes[partID].delete or self.changes[partID][flag.data] == true then
+				for partID, partData in pairs(self.Data) do
+					if not partData.mdl or self.changes[partID].delete or self.changes[partID][flag.data] == true then
 						continue
 					end
 					if partData[flag.data] then
@@ -437,8 +727,8 @@ menuFunctions.mdl = function(self, node)
 			end):SetIcon(flag.icons[2])
 
 			sub:AddOption("Set false all", function()
-				for partID, partData in ipairs(self.Data) do
-					if self.changes[partID].delete or self.changes[partID][flag.data] == false then
+				for partID, partData in pairs(self.Data) do
+					if not partData.mdl or self.changes[partID].delete or self.changes[partID][flag.data] == false then
 						continue
 					end
 					if partData[flag.data] then

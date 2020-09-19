@@ -175,47 +175,106 @@ end)
 
 
 -- -----------------------------------------------------------------------------
+local changes_sanitize = {}
+
+changes_sanitize.inv = function(value, data)
+	data.inv = tobool(value) or nil
+end
+
+changes_sanitize.flat = function(value, data)
+	data.flat = tobool(value) or nil
+end
+
+changes_sanitize.flip = function(value, data)
+	data.flip = tobool(value) or nil
+end
+
+changes_sanitize.pos = function(value, data, unsetZero)
+	if type(value) ~= "Vector" then
+		data.pos = Vector()
+		return
+	end
+	data.pos = Vector(math.Clamp(value.x, -16384, 16834), math.Clamp(value.y, -16384, 16834), math.Clamp(value.z, -16384, 16834))
+end
+
+changes_sanitize.ang = function(value, data, unsetZero)
+	if type(value) ~= "Angle" then
+		data.ang = Angle()
+		return
+	end
+	data.ang = Angle(math.Clamp(value.p, -16384, 16834), math.Clamp(value.y, -16384, 16834), math.Clamp(value.r, -16384, 16834))
+	data.ang:Normalize()
+end
+
+changes_sanitize.scale = function(value, data)
+	if type(value) ~= "Vector" then
+		data.scale = Vector(1,1,1)
+		return
+	end
+	data.scale = Vector(math.Clamp(value.x, -16384, 16834), math.Clamp(value.y, -16384, 16834), math.Clamp(value.z, -16384, 16834))
+end
+
+
+-- -----------------------------------------------------------------------------
 net.Receive("NetP2M.MakeChanges", function(len, ply)
 
 	local controller = net.ReadEntity()
-	if not IsValid(controller) or controller:GetClass() ~= "gmod_ent_p2m" then
+	if not IsValid(controller) or controller:GetClass() ~= "gmod_ent_p2m" or controller:GetPlayer() ~= ply then
 		return
 	end
 
-	if controller:GetPlayer() ~= ply then
+	local changes_size = net.ReadUInt(32)
+	local changes_data = util.JSONToTable(util.Decompress(net.ReadData(changes_size)))
+
+	if next(changes_data) == nil then
 		return
 	end
 
-	local models = controller:GetPacketsAsTable()
-	if models then
-		local size = net.ReadUInt(32)
-		local changes = util.JSONToTable(util.Decompress(net.ReadData(size)))
-		if next(changes) == nil then
-			return
-		end
+	local data_new = {}
+	local data_old = controller:GetPacketsAsTable()
 
-		local data = {}
-		for k, v in ipairs(models) do
-			if changes[k] then
-				if changes[k].delete then
+	if data_old then
+		for partID, partData in ipairs(data_old) do
+			if changes_data[partID] then
+				if changes_data[partID].delete then
 					goto skip
 				else
-					for change, newvalue in pairs(changes[k]) do
-						if type(newvalue) == "boolean" then -- temporary
-							v[change] = newvalue or nil
+					for changeKey, changeValue in pairs(changes_data[partID]) do
+						if changes_sanitize[changeKey] then
+							changes_sanitize[changeKey](changeValue, partData)
 						end
 					end
 				end
 			end
 
-			data[#data + 1] = v
+			data_new[#data_new + 1] = partData
 
 			::skip::
 		end
-
-		controller:SetModelsFromTable(data, controller:GetCRC())
-
 	end
+
+	if changes_data.additions then
+		for k, partData in pairs(changes_data.additions) do
+			if not partData.obj or type(partData.obj) ~= "string" then
+				continue
+			end
+
+			local data = {}
+
+			data.name = string.lower(string.Trim(partData.name or "no_name"))
+			data.obj  = partData.obj
+
+			changes_sanitize.flip(partData.flip, data)
+			changes_sanitize.inv(partData.inv, data)
+			changes_sanitize.pos(partData.pos, data)
+			changes_sanitize.ang(partData.ang, data)
+			changes_sanitize.scale(partData.scale, data)
+
+			data_new[#data_new + 1] = data
+		end
+	end
+
+	controller:SetModelsFromTable(data_new, controller:GetCRC())
 
 end)
 

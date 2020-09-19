@@ -272,6 +272,11 @@ if SERVER then
 			end
 		end
 
+		local by_mass
+		if self:GetClientNumber("s_mask_by_mass") ~= 0 then
+			by_mass = self:GetClientNumber("s_mask_by_mass")
+		end
+
 		for k, ent in ipairs(group) do
 			if self.Selection[ent] then
 				goto skip
@@ -286,6 +291,20 @@ if SERVER then
 			-- filters
 			if class_blacklist[ent:GetClass()] then
 				goto skip
+			end
+			if by_mass then
+				local phys = ent:GetPhysicsObject()
+				if phys:IsValid() then
+					if ent.EntityMods and ent.EntityMods.mass and ent.EntityMods.mass.Mass then
+						if ent.EntityMods.mass.Mass > by_mass then
+							goto skip
+						end
+					else
+						if phys:GetMass() > by_mass then
+							goto skip
+						end
+					end
+				end
 			end
 			if ign_parented and ent:GetParent():IsValid() then
 				goto skip
@@ -695,6 +714,7 @@ local ConVars = {
 	["s_ignore_props"]       = 0,
 	["s_mask_by_color"]      = 0,
 	["s_mask_by_material"]   = 0,
+	["s_mask_by_mass"]       = 0,
 	["o_texture_scale"]      = 0,
 	["o_mesh_scale"]         = 1,
 	["o_autocenter"]         = 0,
@@ -752,6 +772,9 @@ local function DForm_ToolBehavior(self)
 	panel:CheckBox("Ignore invisible entities", "prop2mesh_s_ignore_invisible")
 	panel:CheckBox("Ignore parented entities", "prop2mesh_s_ignore_parented")
 	panel:CheckBox("Ignore constrained entities", "prop2mesh_s_ignore_constrained")
+
+	local slider = panel:NumSlider("Ignore by mass", "prop2mesh_s_mask_by_mass", 0, 50000, 0)
+	panel:ControlHelp("Ignore entities with mass above this value")
 
 	local help = panel:Help("Class filters")
 	help:DockMargin(0, 0, 0, 0)

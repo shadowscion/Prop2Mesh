@@ -583,8 +583,6 @@ menuFunctions.file = function(self, node)
 		local name = node:GetText()
 		local data = file.Read(name, "DATA")
 
-		print("wtf")
-
 		if not data then
 			return
 		end
@@ -621,9 +619,6 @@ menuFunctions.file = function(self, node)
 
 			return table.concat(condensed)
 		end)
-
-		print(obj)
-
 
 		if valid and obj then
 			local size = string.len(util.Compress(obj))

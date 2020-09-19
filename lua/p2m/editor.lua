@@ -159,6 +159,7 @@ function PANEL:Init()
 		local size = string.len(data)
 
 		if size > 63000 then
+			self:SetEntity(self.Entity)
 			return
 		end
 
@@ -322,6 +323,19 @@ local flags = {
 
 
 -- -----------------------------------------------------------------------------
+local function ToggleNodeColors(self, rootnode)
+	if not rootnode.partID then
+		return
+	end
+	if next(self.changes[rootnode.partID]) == nil then
+		rootnode.Label:SetTextColor()
+		rootnode:SetIcon(icon_part_default)
+	else
+		rootnode.Label:SetTextColor(color_changed)
+		rootnode:SetIcon(icon_part_changed)
+	end
+end
+
 local function BuildOBJNode(self, rootnode, partData)
 	--
 	local pos = rootnode:AddNode("local origin offset", "icon16/bullet_black.png")
@@ -355,6 +369,7 @@ local function BuildOBJNode(self, rootnode, partData)
 			else
 				partData.pos[i] = value
 			end
+			ToggleNodeColors(self, rootnode)
 		end
 		component:SetValue(partData.pos[i])
 	end
@@ -391,6 +406,7 @@ local function BuildOBJNode(self, rootnode, partData)
 			else
 				partData.ang[i] = value
 			end
+			ToggleNodeColors(self, rootnode)
 		end
 		component:SetValue(partData.ang[i])
 	end
@@ -427,6 +443,7 @@ local function BuildOBJNode(self, rootnode, partData)
 			else
 				partData.scale[i] = value
 			end
+			ToggleNodeColors(self, rootnode)
 		end
 		component:SetValue(partData.scale[i])
 	end
@@ -443,24 +460,24 @@ local function BuildOBJNode(self, rootnode, partData)
 
 	component.OnChange = function(_, value)
 		if rootnode.partID and self.changes[rootnode.partID] then
-			if self.changes[rootnode.partID].inv ~= nil then
-				if partData.inv == value then
+			if value == true then
+				if partData.inv == true then
 					component.Label:SetTextColor(Color(100, 100, 100))
 					self.changes[rootnode.partID].inv = nil
 				else
 					component.Label:SetTextColor(color_changed)
-					self.changes[rootnode.partID].inv = value
+					self.changes[rootnode.partID].inv = true
 				end
-			else
-				if partData.inv == nil and value == true then
+			elseif value == false then
+				if partData.inv == nil then
+					component.Label:SetTextColor(Color(100, 100, 100))
+					self.changes[rootnode.partID].inv = nil
+				else
 					component.Label:SetTextColor(color_changed)
-					self.changes[rootnode.partID].inv = value
-				end
-				if partData.inv == true and value == false then
-					component.Label:SetTextColor(color_changed)
-					self.changes[rootnode.partID].inv = value
+					self.changes[rootnode.partID].inv = false
 				end
 			end
+			ToggleNodeColors(self, rootnode)
 		else
 			partData.inv = value
 		end
@@ -479,24 +496,24 @@ local function BuildOBJNode(self, rootnode, partData)
 
 	component.OnChange = function(_, value)
 		if rootnode.partID and self.changes[rootnode.partID] then
-			if self.changes[rootnode.partID].flip ~= nil then
-				if partData.flip == value then
+			if value == true then
+				if partData.flip == true then
 					component.Label:SetTextColor(Color(100, 100, 100))
 					self.changes[rootnode.partID].flip = nil
 				else
 					component.Label:SetTextColor(color_changed)
-					self.changes[rootnode.partID].flip = value
+					self.changes[rootnode.partID].flip = true
 				end
-			else
-				if partData.flip == nil and value == true then
+			elseif value == false then
+				if partData.flip == nil then
+					component.Label:SetTextColor(Color(100, 100, 100))
+					self.changes[rootnode.partID].flip = nil
+				else
 					component.Label:SetTextColor(color_changed)
-					self.changes[rootnode.partID].flip = value
-				end
-				if partData.flip == true and value == false then
-					component.Label:SetTextColor(color_changed)
-					self.changes[rootnode.partID].flip = value
+					self.changes[rootnode.partID].flip = false
 				end
 			end
+			ToggleNodeColors(self, rootnode)
 		else
 			partData.flip = value
 		end
@@ -597,6 +614,14 @@ menuFunctions.file = function(self, node)
 		end)
 
 		if valid and obj then
+			local size = string.len(util.Compress(obj))
+			if size > 63000 then
+				node:SetText(string.format("[%s] [%dkb file size too large]", node:GetText(), size*0.001))
+				node:SetEnabled(false)
+				node.Label:SetTextColor(color_deleted)
+				return
+			end
+
 			self:AddOBJ({
 				obj   = obj,
 				name  = name,

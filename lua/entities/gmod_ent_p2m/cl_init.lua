@@ -17,18 +17,18 @@ local net = net
 
 
 -- -----------------------------------------------------------------------------
-local p2m = p2mlib
+local p2mlib = p2mlib
 
-p2m.getmodels = p2m.getmodels or {}
-p2m.getmeshes = p2m.getmeshes or {}
-p2m.models    = p2m.models or {}
-p2m.meshes    = p2m.meshes or {}
-p2m.users     = p2m.users or {}
-p2m.marks     = p2m.marks or {}
+p2mlib.getmodels = p2mlib.getmodels or {}
+p2mlib.getmeshes = p2mlib.getmeshes or {}
+p2mlib.models    = p2mlib.models or {}
+p2mlib.meshes    = p2mlib.meshes or {}
+p2mlib.users     = p2mlib.users or {}
+p2mlib.marks     = p2mlib.marks or {}
 
-p2m.debug = false
+p2mlib.debug = false
 concommand.Add("prop2mesh_debug", function()
-	p2m.debug = not p2m.debug
+	p2mlib.debug = not p2mlib.debug
 end)
 
 local meshBuildTime = CreateClientConVar("prop2mesh_build_time", 0.001, true, false, "Lower to reduce stuttering", 0.001, 0.1)
@@ -36,7 +36,7 @@ local globalDisable = CreateClientConVar("prop2mesh_disable_rendering", "0", tru
 
 
 -- -----------------------------------------------------------------------------
-p2m.hardcap_current = p2m.hardcap_current or 0
+p2mlib.hardcap_current = p2mlib.hardcap_current or 0
 local hardcap_maximum = 10000000
 
 local softcap_current = 0
@@ -45,10 +45,10 @@ local softcap_maximum = CreateClientConVar("prop2mesh_max_tris_softcap", 1000000
 
 -- -----------------------------------------------------------------------------
 local inMenu, globalSuppress, fakeModel
-hook.Add("OnSpawnMenuOpen", "p2m.suppress", function()
+hook.Add("OnSpawnMenuOpen", "p2mlib.suppress", function()
 	inMenu = true
 end)
-hook.Add("OnSpawnMenuClose", "p2m.suppress", function()
+hook.Add("OnSpawnMenuClose", "p2mlib.suppress", function()
 	inMenu = false
 end)
 hook.Add("PreRender", "P2M.PreRender", function()
@@ -289,7 +289,7 @@ end
 -- -----------------------------------------------------------------------------
 function ENT:GetRenderMeshes()
 
-	local parts = p2m.GetMeshes(self:GetCRC(), self:GetTextureScale())
+	local parts = p2mlib.GetMeshes(self:GetCRC(), self:GetTextureScale())
 	if parts and #parts > 0 then
 		if #parts == 1 then
 			self.Mesh = { Mesh = parts[1], Material = self.MaterialDefault, Matrix = self.ScaleM }
@@ -313,18 +313,18 @@ function ENT:Think()
 	end
 
 	if self.checkmodels then
-		self.checkmodels = p2m.RequestModels(self)
+		self.checkmodels = p2mlib.RequestModels(self)
 		self.checkmeshes = not self.checkmodels
 		self.checksoftcap = self:GetPlayer() ~= LocalPlayer()
 	end
 
 	if self.checkmeshes then
-		self.checkmeshes = p2m.RequestMeshes(self)
+		self.checkmeshes = p2mlib.RequestMeshes(self)
 		self.checkbounds = not self.checkmeshes
 	end
 
 	if self.checkbounds then
-		local mins, maxs = p2m.GetBounds(self)
+		local mins, maxs = p2mlib.GetBounds(self)
 		if mins and maxs then
 			self:SetRenderBounds(mins, maxs)
 			self.checkbounds = nil
@@ -377,7 +377,7 @@ function ENT:OnRemove()
 
 	timer.Simple(0, function()
 		if not self:IsValid() then
-			p2m.ClearUser(crc, ent)
+			p2mlib.ClearUser(crc, ent)
 		end
 	end)
 
@@ -387,13 +387,13 @@ end
 -- -----------------------------------------------------------------------------
 function ENT:GetModelCount()
 
-	return p2m.models[self:GetCRC()] and p2m.models[self:GetCRC()].mcount or 0
+	return p2mlib.models[self:GetCRC()] and p2mlib.models[self:GetCRC()].mcount or 0
 
 end
 
 function ENT:GetTriangleCount()
 
-	return p2m.models[self:GetCRC()] and p2m.models[self:GetCRC()].tcount or 0
+	return p2mlib.models[self:GetCRC()] and p2mlib.models[self:GetCRC()].tcount or 0
 
 end
 
@@ -419,58 +419,58 @@ net.Receive("NetP2M.UpdateAll", function()
 	local controller = net.ReadEntity()
 	local old_crc = net.ReadString()
 
-	p2m.ClearUser(old_crc, controller)
+	p2mlib.ClearUser(old_crc, controller)
 
 	hook.Run("OnEntityCreated", controller)
 end)
 
 
 -- -----------------------------------------------------------------------------
-function p2m.ClearUser(crc, ent)
+function p2mlib.ClearUser(crc, ent)
 
-	if not p2m.users[crc] then
+	if not p2mlib.users[crc] then
 		return
 	end
 
-	p2m.users[crc][ent] = nil
+	p2mlib.users[crc][ent] = nil
 
-	if next(p2m.users[crc]) == nil then
-		p2m.users[crc] = nil
-		p2m.marks[crc] = CurTime()
+	if next(p2mlib.users[crc]) == nil then
+		p2mlib.users[crc] = nil
+		p2mlib.marks[crc] = CurTime()
 	end
 
 end
 
 
 -- -----------------------------------------------------------------------------
-function p2m.DeleteMark(crc)
+function p2mlib.DeleteMark(crc)
 
-	if p2m.meshes[crc] then
-		for tscale, parts in pairs(p2m.meshes[crc]) do
+	if p2mlib.meshes[crc] then
+		for tscale, parts in pairs(p2mlib.meshes[crc]) do
 			for _, part in pairs(parts) do
 				if IsValid(part) then
 					part:Destroy()
 				end
 				part = nil
 			end
-			if p2m.models[crc] then
-				p2m.hardcap_current = p2m.hardcap_current - p2m.models[crc].tcount
+			if p2mlib.models[crc] then
+				p2mlib.hardcap_current = p2mlib.hardcap_current - p2mlib.models[crc].tcount
 			end
 		end
 	end
 
 	for _, field in pairs({ "getmodels", "getmeshes", "models", "meshes", "users", "marks" }) do
-		if p2m[field] then
-			p2m[field][crc] = nil
+		if p2mlib[field] then
+			p2mlib[field][crc] = nil
 		end
 	end
 
 end
 
-function p2m.FlushMarks(gc)
+function p2mlib.FlushMarks(gc)
 
-	for crc, time in pairs(p2m.marks) do
-		p2m.DeleteMark(crc)
+	for crc, time in pairs(p2mlib.marks) do
+		p2mlib.DeleteMark(crc)
 	end
 
 	if gc then
@@ -479,10 +479,10 @@ function p2m.FlushMarks(gc)
 
 end
 
-function p2m.FlushMeshes(gc)
+function p2mlib.FlushMeshes(gc)
 
-	for crc, time in pairs(p2m.meshes) do
-		p2m.DeleteMark(crc)
+	for crc, time in pairs(p2mlib.meshes) do
+		p2mlib.DeleteMark(crc)
 	end
 
 	if gc then
@@ -492,16 +492,16 @@ function p2m.FlushMeshes(gc)
 end
 
 -- concommand.Add("prop2mesh_flush", function()
--- 	p2m.FlushMeshes()
+-- 	p2mlib.FlushMeshes()
 -- end)
 
 timer.Create("P2M.DeleteMarks", 30, 0, function()
 	local ct = CurTime()
-	for crc, time in pairs(p2m.marks) do
+	for crc, time in pairs(p2mlib.marks) do
 		if ct - time > 300 then -- 5 minutes
-			p2m.DeleteMark(crc)
-			if p2m.debug then
-				p2m.debugmsg("Deleted ", crc)
+			p2mlib.DeleteMark(crc)
+			if p2mlib.debug then
+				p2mlib.debugmsg("Deleted ", crc)
 			end
 		end
 	end
@@ -509,7 +509,7 @@ end)
 
 
 -- -----------------------------------------------------------------------------
-function p2m.RequestModels(controller)
+function p2mlib.RequestModels(controller)
 
 	if not IsValid(controller) or controller:GetClass() ~= class then
 		return true
@@ -520,28 +520,28 @@ function p2m.RequestModels(controller)
 		return true
 	end
 
-	if not p2m.models[crc] then
-		if not p2m.getmodels[crc] then
-			p2m.getmodels[crc] = { status = "init", time = CurTime(), from = controller }
-			if p2m.debug then
-				p2m.debugmsg("Model Request Started ", crc)
+	if not p2mlib.models[crc] then
+		if not p2mlib.getmodels[crc] then
+			p2mlib.getmodels[crc] = { status = "init", time = CurTime(), from = controller }
+			if p2mlib.debug then
+				p2mlib.debugmsg("Model Request Started ", crc)
 			end
-		elseif p2m.getmodels[crc].status == "init" then
-			p2m.getmodels[crc].time = CurTime()
-			if p2m.debug then
-				p2m.debugmsg("Model Request Halted ", crc)
+		elseif p2mlib.getmodels[crc].status == "init" then
+			p2mlib.getmodels[crc].time = CurTime()
+			if p2mlib.debug then
+				p2mlib.debugmsg("Model Request Halted ", crc)
 			end
 		end
 	else
-		if p2m.debug then
-			p2m.debugmsg("Model Request Ignored ", crc)
+		if p2mlib.debug then
+			p2mlib.debugmsg("Model Request Ignored ", crc)
 		end
 	end
 
-	if not p2m.users[crc] then
-		p2m.users[crc] = {}
+	if not p2mlib.users[crc] then
+		p2mlib.users[crc] = {}
 	end
-	p2m.users[crc][controller] = CurTime()
+	p2mlib.users[crc][controller] = CurTime()
 
 	return false
 
@@ -551,20 +551,20 @@ end
 -- -----------------------------------------------------------------------------
 local vCountWarn = true
 
-function p2m.BuildMeshes(crc, tscale)
+function p2mlib.BuildMeshes(crc, tscale)
 
-	if not p2m.models[crc] or p2m.meshes[crc] and p2m.meshes[crc][tscale] then
+	if not p2mlib.models[crc] or p2mlib.meshes[crc] and p2mlib.meshes[crc][tscale] then
 		return
 	end
 
-	local parts, mins, maxs = p2m.partsToMeshes(true, util.JSONToTable(util.Decompress(p2m.models[crc].data)), tscale, true)
+	local parts, mins, maxs = p2mlib.partsToMeshes(true, util.JSONToTable(util.Decompress(p2mlib.models[crc].data)), tscale, true)
 	if not parts then
 		return
 	end
 
 	if mins and maxs then
-		p2m.models[crc].mins = mins
-		p2m.models[crc].maxs = maxs
+		p2mlib.models[crc].mins = mins
+		p2mlib.models[crc].maxs = maxs
 	end
 
 	local vcount = 0
@@ -572,18 +572,18 @@ function p2m.BuildMeshes(crc, tscale)
 		vcount = vcount + #parts[i]
 	end
 
-	p2m.models[crc].vcount = vcount
-	p2m.models[crc].tcount = vcount / 3
+	p2mlib.models[crc].vcount = vcount
+	p2mlib.models[crc].tcount = vcount / 3
 
-	if p2m.hardcap_current + (vcount / 3) > hardcap_maximum then -- if over cap, delete marks and check again
-		p2m.FlushMarks(true)
+	if p2mlib.hardcap_current + (vcount / 3) > hardcap_maximum then -- if over cap, delete marks and check again
+		p2mlib.FlushMarks(true)
 	end
-	if p2m.hardcap_current + (vcount / 3) > hardcap_maximum then -- if still over, oh well
+	if p2mlib.hardcap_current + (vcount / 3) > hardcap_maximum then -- if still over, oh well
 		chat.AddText(Color(255, 0, 0), string.format("Hardcap of %d triangles in RAM reached. This shouldn't ever happen!", hardcap_maximum))
-		p2m.marks[crc] = CurTime()
+		p2mlib.marks[crc] = CurTime()
 		return
 	end
-	p2m.hardcap_current = p2m.hardcap_current + (vcount / 3)
+	p2mlib.hardcap_current = p2mlib.hardcap_current + (vcount / 3)
 
 	local meshes = {}
 	for i = 1, #parts do
@@ -602,55 +602,55 @@ end
 
 
 -- -----------------------------------------------------------------------------
-function p2m.RequestMeshes(controller)
+function p2mlib.RequestMeshes(controller)
 
 	if not IsValid(controller) or controller:GetClass() ~= class then
 		return true
 	end
 
 	local crc = controller:GetCRC()
-	if not crc or not p2m.models[crc] then
+	if not crc or not p2mlib.models[crc] then
 		return true
 	end
 
-	if p2m.marks[crc] then
-		p2m.marks[crc] = nil
+	if p2mlib.marks[crc] then
+		p2mlib.marks[crc] = nil
 	end
 
 	local tscale = controller:GetTextureScale()
-	if p2m.meshes[crc] and p2m.meshes[crc][tscale] or p2m.getmeshes[crc] and p2m.getmeshes[crc][tscale] then
-		if p2m.debug then
-			p2m.debugmsg("Mesh Request Ignored ", crc)
+	if p2mlib.meshes[crc] and p2mlib.meshes[crc][tscale] or p2mlib.getmeshes[crc] and p2mlib.getmeshes[crc][tscale] then
+		if p2mlib.debug then
+			p2mlib.debugmsg("Mesh Request Ignored ", crc)
 		end
 		return false
 	end
 
-	if not p2m.getmeshes[crc] then
-		p2m.getmeshes[crc] = {}
+	if not p2mlib.getmeshes[crc] then
+		p2mlib.getmeshes[crc] = {}
 	end
 
-	p2m.getmeshes[crc][tscale] = coroutine.create(function()
-		local ret = p2m.BuildMeshes(crc, tscale)
+	p2mlib.getmeshes[crc][tscale] = coroutine.create(function()
+		local ret = p2mlib.BuildMeshes(crc, tscale)
 		if ret then
-			if not p2m.meshes[crc] then
-				p2m.meshes[crc] = {}
+			if not p2mlib.meshes[crc] then
+				p2mlib.meshes[crc] = {}
 			end
-			p2m.meshes[crc][tscale] = ret
+			p2mlib.meshes[crc][tscale] = ret
 
-			if p2m.debug then
-				p2m.debugmsg("Mesh Request Success ", crc)
+			if p2mlib.debug then
+				p2mlib.debugmsg("Mesh Request Success ", crc)
 			end
 		else
-			if p2m.debug then
-				p2m.debugmsg("Mesh Request Failure ", crc)
+			if p2mlib.debug then
+				p2mlib.debugmsg("Mesh Request Failure ", crc)
 			end
 		end
 
 		coroutine.yield(true)
 	end)
 
-	if p2m.debug then
-		p2m.debugmsg("Mesh Request Started ", crc)
+	if p2mlib.debug then
+		p2mlib.debugmsg("Mesh Request Started ", crc)
 	end
 
 	return false
@@ -659,26 +659,26 @@ end
 
 
 -- -----------------------------------------------------------------------------
-function p2m.GetBounds(controller)
+function p2mlib.GetBounds(controller)
 
 	if not IsValid(controller) or controller:GetClass() ~= class then
 		return
 	end
 
 	local crc = controller:GetCRC()
-	if not crc or not p2m.models[crc] then
+	if not crc or not p2mlib.models[crc] then
 		return
 	end
 
-	return p2m.models[crc].mins, p2m.models[crc].maxs
+	return p2mlib.models[crc].mins, p2mlib.models[crc].maxs
 
 end
 
 
 -- -----------------------------------------------------------------------------
-function p2m.GetMeshes(crc, tscale)
+function p2mlib.GetMeshes(crc, tscale)
 
-	return p2m.meshes[crc] and p2m.meshes[crc][tscale]
+	return p2mlib.meshes[crc] and p2mlib.meshes[crc][tscale]
 
 end
 
@@ -689,7 +689,7 @@ local progress_fast = "P2M: Building mesh"
 
 hook.Add("Think", "P2M.Think", function()
 
-	local crc, request = next(p2m.getmodels)
+	local crc, request = next(p2mlib.getmodels)
 	if crc and request then
 		if request.status == "init" and CurTime() - request.time > 0.5 then
 			if IsValid(request.from) then
@@ -702,11 +702,11 @@ hook.Add("Think", "P2M.Think", function()
 			end
 		end
 		if request.status == "kill" then
-			p2m.getmodels[crc] = nil
+			p2mlib.getmodels[crc] = nil
 		end
 	end
 
-	local crc, request = next(p2m.getmeshes)
+	local crc, request = next(p2mlib.getmeshes)
 	if crc and request then
 		local tscale, thread = next(request)
 		if tscale and thread then
@@ -721,7 +721,7 @@ hook.Add("Think", "P2M.Think", function()
 			end
 		else
 			notification.Kill("P2M.Progress")
-			p2m.getmeshes[crc] = nil
+			p2mlib.getmeshes[crc] = nil
 		end
 	end
 
@@ -732,7 +732,7 @@ end)
 net.Receive("NetP2M.GetModels", function()
 
 	local crc     = net.ReadString()
-	local request = p2m.getmodels[crc]
+	local request = p2mlib.getmodels[crc]
 
 	if not request then
 		return
@@ -752,13 +752,13 @@ net.Receive("NetP2M.GetModels", function()
 		local data = table.concat(request.data)
 		if crc == util.CRC(data) then
 			local temp = util.JSONToTable(util.Decompress(data))
-			p2m.models[crc] = { data = data, mcount = #temp }
-			if p2m.debug then
-				p2m.debugmsg("Model Request Success ", crc)
+			p2mlib.models[crc] = { data = data, mcount = #temp }
+			if p2mlib.debug then
+				p2mlib.debugmsg("Model Request Success ", crc)
 			end
 		else
-			if p2m.debug then
-				p2m.debugmsg("Model Request Failed ", crc)
+			if p2mlib.debug then
+				p2mlib.debugmsg("Model Request Failed ", crc)
 			end
 		end
 		request.status = "kill"
@@ -768,7 +768,7 @@ end)
 
 
 -- -----------------------------------------------------------------------------
-function p2m.debugmsg(msg, crc)
+function p2mlib.debugmsg(msg, crc)
 
 	MsgC(Color(255, 255, 255), "P2M ", Color(255, 125, 125), msg or "", Color(255, 125, 0), crc or "", "\n")
 
@@ -776,14 +776,14 @@ end
 
 local function dumpCRC(dat, crc, nick)
 
-	local dat = dat or p2m.models[crc]
+	local dat = dat or p2mlib.models[crc]
 	if not dat then
 		return
 	end
 
 	local mins = dat.mins or Vector()
 	local maxs = dat.maxs or Vector()
-	local marked = p2m.marks[crc]
+	local marked = p2mlib.marks[crc]
 
 	if nick then
 		MsgC("\n", Color(255, 255, 255), crc, Color(255, 125, 0), "\n\tplayer", Color(255, 255, 255), " = ", Color(0, 255, 255), nick)
@@ -802,14 +802,14 @@ local function dumpCRC(dat, crc, nick)
 
 end
 
-function p2m.dump(crc, nick)
+function p2mlib.dump(crc, nick)
 
 	if crc then
 		dumpCRC(nil, crc, nick)
 		return
 	end
 
-	for crc, dat in pairs(p2m.models) do
+	for crc, dat in pairs(p2mlib.models) do
 		dumpCRC(dat, crc)
 	end
 

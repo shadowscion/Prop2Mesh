@@ -1,4 +1,18 @@
 -- -----------------------------------------------------------------------------
+local string = string
+local render = render
+
+local string_explode = string.Explode
+local string_format = string.format
+local string_gsub = string.gsub
+local string_trim = string.Trim
+local table_remove = table.remove
+local math_abs = math.abs
+local tonumber = tonumber
+local next = next
+
+
+-- -----------------------------------------------------------------------------
 local color_deleted = Color(200, 85, 85)
 local color_changed = Color(85, 200, 85)
 
@@ -20,13 +34,6 @@ local wireframe = Material("models/wireframe")
 
 local scalem = Matrix()
 local scalev = Vector(1, 1, 1)
-
-local surface = surface
-local render = render
-local string = string
-local table  = table
-local math = math
-local cam = cam
 
 local enable_clipping = CreateClientConVar("prop2mesh_editor_enableclipping", "1", true, false)
 
@@ -269,8 +276,8 @@ function PANEL:PopulateData()
 		end
 	end
 
-	self.obj_data:SetText(string.format(".obj [%d]", table.Count(self.obj_data.subnodes)))
-	self.mdl_data:SetText(string.format(".mdl [%d]", table.Count(self.mdl_data.subnodes)))
+	self.obj_data:SetText(string_format(".obj [%d]", table.Count(self.obj_data.subnodes)))
+	self.mdl_data:SetText(string_format(".mdl [%d]", table.Count(self.mdl_data.subnodes)))
 end
 
 
@@ -278,7 +285,7 @@ end
 function PANEL:PopulateFiles()
 	local files, folders = file.Find("p2m/*.txt", "DATA")
 	for i = 1, #files do
-		local node = self.obj_file:AddNode(string.format("p2m/%s", files[i]), icon_file)
+		local node = self.obj_file:AddNode(string_format("p2m/%s", files[i]), icon_file)
 		node.menu_type = "file"
 	end
 end
@@ -294,11 +301,11 @@ local flags = {
 			if cValue ~= nil then
 				node.Label:SetTextColor(color_changed)
 				node:SetIcon("icon16/bullet_green.png")
-				node:SetText(string.format("render_inside = %s", cValue and "true" or "false"))
+				node:SetText(string_format("render_inside = %s", cValue and "true" or "false"))
 			else
 				node.Label:SetTextColor()
 				node:SetIcon("icon16/bullet_black.png")
-				node:SetText(string.format("render_inside = %s", dValue and "true" or "false"))
+				node:SetText(string_format("render_inside = %s", dValue and "true" or "false"))
 			end
 		end
 	},
@@ -310,11 +317,11 @@ local flags = {
 			if cValue ~= nil then
 				node.Label:SetTextColor(color_changed)
 				node:SetIcon("icon16/bullet_green.png")
-				node:SetText(string.format("flat_shading = %s", cValue and "true" or "false"))
+				node:SetText(string_format("flat_shading = %s", cValue and "true" or "false"))
 			else
 				node.Label:SetTextColor()
 				node:SetIcon("icon16/bullet_black.png")
-				node:SetText(string.format("flat_shading = %s", dValue and "true" or "false"))
+				node:SetText(string_format("flat_shading = %s", dValue and "true" or "false"))
 			end
 
 		end
@@ -525,7 +532,7 @@ end
 function PANEL:AddOBJ(partData)
 	self.additions[#self.additions + 1] = partData
 
-	local node = self.obj_data:AddNode(string.format("[new] %s", partData.name), icon_part_changed)
+	local node = self.obj_data:AddNode(string_format("[new] %s", partData.name), icon_part_changed)
 	node.menu_type = "obj_new"
 
 	node.Label:SetTextColor(color_changed)
@@ -536,7 +543,7 @@ end
 
 -- -----------------------------------------------------------------------------
 function PANEL:PopulateOBJ(partID, partData, add)
-	local node = self.obj_data:AddNode(string.format("[%d] %s", partID, partData.name), icon_part_default)
+	local node = self.obj_data:AddNode(string_format("[%d] %s", partID, partData.name), icon_part_default)
 	node.menu_type = "obj"
 	node.partID = partID
 
@@ -549,13 +556,13 @@ end
 
 -- -----------------------------------------------------------------------------
 function PANEL:PopulateMDL(partID, partData)
-	local node = self.mdl_data:AddNode(string.format("[%d] %s", partID, string.GetFileFromFilename(partData.mdl)), icon_part_default)
+	local node = self.mdl_data:AddNode(string_format("[%d] %s", partID, string.GetFileFromFilename(partData.mdl)), icon_part_default)
 	node.menu_type = "mdl"
 	node.partID = partID
 
 	node.flags = {
-		node:AddNode(string.format("render_inside = %s", partData.inv and "true" or "false"), "icon16/bullet_black.png"),
-		node:AddNode(string.format("flat_shading = %s", partData.flat and "true" or "false"), "icon16/bullet_black.png"),
+		node:AddNode(string_format("render_inside = %s", partData.inv and "true" or "false"), "icon16/bullet_black.png"),
+		node:AddNode(string_format("flat_shading = %s", partData.flat and "true" or "false"), "icon16/bullet_black.png"),
 	}
 
 	self.mdl_data.subnodes[partID] = node
@@ -576,6 +583,8 @@ menuFunctions.file = function(self, node)
 		local name = node:GetText()
 		local data = file.Read(name, "DATA")
 
+		print("wtf")
+
 		if not data then
 			return
 		end
@@ -584,15 +593,15 @@ menuFunctions.file = function(self, node)
 			local condensed = {}
 
 			for line in string.gmatch(data, "(.-)\n") do
-				local temp = string.Explode(" ", line)
-				local head = table.remove(temp, 1)
+				local temp = string_explode(" ", string_gsub(string_trim(line), "%s+", " "))
+				local head = table_remove(temp, 1)
 
 				if head == "f" then
-					local v1 = string.Explode("/", temp[1])
-					local v2 = string.Explode("/", temp[2])
+					local v1 = string_explode("/", temp[1])
+					local v2 = string_explode("/", temp[2])
 					for i  = 3, #temp do
-						local v3 = string.Explode("/", temp[i])
-						condensed[#condensed + 1] = string.format("f %d %d %d\n", v1[1], v2[1], v3[1])
+						local v3 = string_explode("/", temp[i])
+						condensed[#condensed + 1] = string_format("f %d %d %d\n", v1[1], v2[1], v3[1])
 						v2 = v3
 					end
 				else
@@ -601,11 +610,11 @@ menuFunctions.file = function(self, node)
 						local y = tonumber(temp[2])
 						local z = tonumber(temp[3])
 
-						x = math.abs(x) < 1e-4 and 0 or x
-						y = math.abs(y) < 1e-4 and 0 or y
-						z = math.abs(z) < 1e-4 and 0 or z
+						x = math_abs(x) < 1e-4 and 0 or x
+						y = math_abs(y) < 1e-4 and 0 or y
+						z = math_abs(z) < 1e-4 and 0 or z
 
-						condensed[#condensed + 1] = string.format("v %s %s %s\n", x, y, z)
+						condensed[#condensed + 1] = string_format("v %s %s %s\n", x, y, z)
 					end
 				end
 			end
@@ -613,10 +622,13 @@ menuFunctions.file = function(self, node)
 			return table.concat(condensed)
 		end)
 
+		print(obj)
+
+
 		if valid and obj then
 			local size = string.len(util.Compress(obj))
 			if size > 63000 then
-				node:SetText(string.format("[%s] [%dkb file size too large]", node:GetText(), size*0.001))
+				node:SetText(string_format("[%s] [%dkb file size too large]", node:GetText(), size*0.001))
 				node:SetEnabled(false)
 				node.Label:SetTextColor(color_deleted)
 				return
@@ -644,7 +656,7 @@ menuFunctions.obj_new = function(self, node)
 	local dmenu = DermaMenu()
 
 	dmenu:AddOption("Remove .obj", function()
-		table.remove(self.additions, node.partID)
+		table_remove(self.additions, node.partID)
 		node:Remove()
 	end):SetIcon(icon_part_deleted)
 

@@ -32,6 +32,8 @@ local math_max = math.max
 
 local string_format = string.format
 local string_explode = string.Explode
+local string_gsub = string.gsub
+local string_trim = string.Trim
 local table_concat = table.concat
 local table_remove = table.remove
 local tonumber = tonumber
@@ -192,7 +194,7 @@ end
 
 
 -- -----------------------------------------------------------------------------
-local function meshFromMDL(part, cache, textureScale)
+local function meshFromMDL(threaded, part, cache, textureScale)
 	if p2mlib.isBlocked(part.mdl) then
 		return
 	end
@@ -350,7 +352,7 @@ end
 
 
 -- -----------------------------------------------------------------------------
-local function meshFromOBJ(part, textureScale)
+local function meshFromOBJ(threaded, part, textureScale)
 	local valid, partVerts = pcall(function()
 		local textureScale = textureScale or 1 / 48
 
@@ -368,7 +370,7 @@ local function meshFromOBJ(part, textureScale)
 		local vmesh = {}
 
 		for line in string.gmatch(part.obj, "(.-)\n") do
-			local temp = string_explode(" ", line)
+			local temp = string_explode(" ", string_gsub(string_trim(line), "%s+", " "))
 			local head = table_remove(temp, 1)
 
 			if head == "f" then
@@ -408,13 +410,17 @@ local function meshFromOBJ(part, textureScale)
 
 					f2 = f3
 				end
+
+				if threaded then
+					coroutine_yield(false, threaded, true)
+				end
 			end
 			if head == "v" then
 				local vert = Vector(tonumber(temp[1]), tonumber(temp[2]), tonumber(temp[3]))
 				if scale then
-					vert.x = vert.x * part.scale.x
-					vert.y = vert.y * part.scale.y
-					vert.z = vert.z * part.scale.z
+					vert.x = vert.x * scale.x
+					vert.y = vert.y * scale.y
+					vert.z = vert.z * scale.z
 				end
 				if ang then
 					rotate(vert, ang)
@@ -460,9 +466,9 @@ function p2mlib.partsToMeshes(threaded, parts, textureScale, getBounds, splitByP
 
 		local partVerts
 		if partData.mdl then
-			partVerts = meshFromMDL(partData, cache, textureScale)
+			partVerts = meshFromMDL(threaded and partID * (1 / pCount), partData, cache, textureScale)
 		elseif partData.obj then
-			partVerts = meshFromOBJ(partData, textureScale)
+			partVerts = meshFromOBJ(threaded and partID * (1 / pCount), partData, textureScale)
 		end
 
 		if not partVerts then

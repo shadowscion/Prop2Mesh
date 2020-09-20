@@ -288,6 +288,11 @@ function PANEL:PopulateFiles()
 		local node = self.obj_file:AddNode(string_format("p2m/%s", files[i]), icon_file)
 		node.menu_type = "file"
 	end
+	local files, folders = file.Find("p2m/*.obj", "DATA")
+	for i = 1, #files do
+		local node = self.obj_file:AddNode(string_format("p2m/%s", files[i]), icon_file)
+		node.menu_type = "file"
+	end
 end
 
 

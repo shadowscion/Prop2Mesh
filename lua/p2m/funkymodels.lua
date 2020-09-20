@@ -83,6 +83,7 @@ push("models/sprops/trans/wheel_big_g/")
 -- -----------------------------------------------------------------------------
 -- MODELS
 pushTo = funkyModel
+push("models/props_placeable/witch_hatch_lid.mdl")
 push("models/wingf0x/ethernetplug.mdl")
 push("models/props_survival/repulsor/repulsor.mdl")
 push("models/shells/shell_9mm.mdl")

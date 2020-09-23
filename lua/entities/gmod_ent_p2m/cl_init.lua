@@ -33,6 +33,7 @@ end)
 
 local meshBuildTime = CreateClientConVar("prop2mesh_build_time", 0.001, true, false, "Lower to reduce stuttering", 0.001, 0.1)
 local globalDisable = CreateClientConVar("prop2mesh_disable_rendering", "0", true, false)
+local modelHide = CreateClientConVar("prop2mesh_disable_cubes", "0", true, false)
 
 
 -- -----------------------------------------------------------------------------
@@ -44,7 +45,7 @@ local softcap_maximum = CreateClientConVar("prop2mesh_max_tris_softcap", 1000000
 
 
 -- -----------------------------------------------------------------------------
-local inMenu, globalSuppress, fakeModel
+local inMenu, globalSuppress, fakeModel, fakeModelHide
 hook.Add("OnSpawnMenuOpen", "p2mlib.suppress", function()
 	inMenu = true
 end)
@@ -56,7 +57,7 @@ hook.Add("PreRender", "P2M.PreRender", function()
 		fakeModel = ClientsideModel("models/hunter/plates/plate.mdl")
 		fakeModel:SetNoDraw(true)
 	end
-
+	fakeModelHide = modelHide:GetBool()
 	globalSuppress = inMenu or gui.IsGameUIVisible() or FrameTime() == 0
 	softcap_current = 0
 end)
@@ -107,6 +108,8 @@ end)
 
 
 -- -----------------------------------------------------------------------------
+local drawflat = Material("debug/debugdrawflat")
+
 function ENT:Draw()
 
 	if globalDisable:GetBool() or globalSuppress then
@@ -138,7 +141,11 @@ function ENT:Draw()
 		self:DrawSplitView()
 	else
 		if self.Mesh then
-			render.ModelMaterialOverride(self.MaterialMeshes)
+			if self.doFlash then
+				render.ModelMaterialOverride(drawflat)
+			else
+				render.ModelMaterialOverride(self.MaterialMeshes)
+			end
 			self:DrawFakeController()
 			self:DrawModel()
 			render.ModelMaterialOverride(nil)
@@ -217,8 +224,9 @@ end
 
 
 -- -----------------------------------------------------------------------------
+local str_hidemodel = "P2M_HIDEMODEL"
 function ENT:DrawFakeController()
-	if not fakeModel then
+	if not fakeModel or fakeModelHide or self:GetNWBool(str_hidemodel) then
 		return
 	end
 

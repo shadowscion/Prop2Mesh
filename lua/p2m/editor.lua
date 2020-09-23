@@ -157,7 +157,9 @@ function PANEL:Init()
 		if next(self.additions) ~= nil then
 			changes.additions = self.additions
 		end
-
+		if next(self.settings) ~= nil then
+			changes.settings = self.settings
+		end
 		if next(changes) == nil then
 			return
 		end
@@ -201,6 +203,11 @@ function PANEL:OnClose()
 	editors[self] = nil
 	if IsValid(self.Entity) then
 		self.Entity:RemoveCallOnRemove("RemoveP2MEditor")
+		if self.ResetEntityColor then
+			self.Entity:SetColor(self.ResetEntityColor)
+			self.Entity:SetRenderMode(self.ResetEntityColor.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA)
+		end
+		self.Entity.MaterialName = nil
 	end
 end
 
@@ -220,6 +227,7 @@ function PANEL:SetEntity(ent)
 
 	self.changes = {}
 	self.additions = {}
+	self.settings = {}
 
 	local crc = self.Entity:GetCRC()
 	local tbl = p2mlib.models[crc]
@@ -240,15 +248,19 @@ local menuFunctions = {}
 function PANEL:RebuildTree()
 	self.editor:Clear()
 
-	local root = self.editor:AddNode("parts", "icon16/world.png")
+	local settings = self.editor:AddNode("settings", "icon16/cog.png")
+	self:PopulateSettings(settings)
+	settings:SetExpanded(true)
 
-	self.obj_root = root:AddNode(".obj", "icon16/car.png")
+	local parts = self.editor:AddNode("parts", "icon16/world.png")
+
+	self.obj_root = parts:AddNode(".obj", "icon16/car.png")
 
 	self.obj_file = self.obj_root:AddNode("data/p2m/*.txt", "icon16/bullet_disk.png")
 	self:PopulateFiles()
 
 	self.obj_data = self.obj_root:AddNode("attachments", "icon16/bullet_picture.png")
-	self.mdl_data = root:AddNode(".mdl", "icon16/bricks.png")
+	self.mdl_data = parts:AddNode(".mdl", "icon16/bricks.png")
 	if self.Data then
 		self:PopulateData()
 	end
@@ -259,7 +271,218 @@ function PANEL:RebuildTree()
 		end
 	end
 
-	root:SetExpanded(true)
+	parts:SetExpanded(true)
+end
+
+
+-- -----------------------------------------------------------------------------
+function PANEL:MakeColorPanel(rootnode)
+	self.ResetEntityColor = self.Entity:GetColor()
+	local node_color = rootnode:AddNode(string.format("color [%d, %d, %d, %d]", self.ResetEntityColor.r, self.ResetEntityColor.g, self.ResetEntityColor.b, self.ResetEntityColor.a), "icon16/color_wheel.png")
+
+	node_color.DoRightClick = function()
+		local dmenu = DermaMenu()
+		dmenu:AddSpacer()
+		dmenu:AddOption("Reset", function()
+			node_color:SetText(string.format("color [%d, %d, %d, %d]", self.ResetEntityColor.r, self.ResetEntityColor.g, self.ResetEntityColor.b, self.ResetEntityColor.a))
+			node_color.Label:SetTextColor(nil)
+			self.Entity:SetColor(self.ResetEntityColor)
+			self.Entity:SetRenderMode(self.ResetEntityColor.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA)
+			self.settings.color = nil
+		end):SetIcon(icon_part_deleted)
+		dmenu:AddSpacer()
+		dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
+		dmenu:Open()
+	end
+
+	node_color.DoClick = function()
+		local panel_color = vgui.Create("DColorMixer", self)
+		panel_color:SetSize(256, 256)
+		panel_color.ValueChanged = function(_, value)
+			node_color:SetText(string.format("color [%d, %d, %d, %d]", value.r, value.g, value.b, value.a))
+			self.Entity:SetColor(value)
+			self.Entity:SetRenderMode(value.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA)
+			if value.r == self.ResetEntityColor.r and value.g == self.ResetEntityColor.g and value.b == self.ResetEntityColor.b and value.a == self.ResetEntityColor.a then
+				self.settings.color = nil
+				node_color.Label:SetTextColor(nil)
+			else
+				self.settings.color = value
+				node_color.Label:SetTextColor(color_changed)
+			end
+		end
+		panel_color:SetColor(self.Entity:GetColor())
+		panel_color.Paint = function(_, w, h)
+			surface.SetDrawColor(85, 85, 90)
+			surface.DrawRect(0, 0, w, h)
+			surface.SetDrawColor(0, 0, 0)
+			surface.DrawOutlinedRect(0, 0, w, h)
+		end
+		panel_color.OnClose = function()
+			self.Entity:SetColor(panel_color:GetColor())
+			self.Entity:SetRenderMode(panel_color:GetColor().a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA)
+		end
+
+		local dmenu = DermaMenu()
+		dmenu:AddPanel(panel_color)
+		dmenu:SetPaintBackground(false)
+
+		local px, py = self:GetPos()
+		dmenu:Open(px - 256, py)
+	end
+end
+
+
+-- -----------------------------------------------------------------------------
+function PANEL:MakeMaterialPanel(rootnode)
+	self.ResetEntityMaterial = self.Entity:GetMaterial()
+	local node_matrl = rootnode:AddNode(string.format("material [%s]", self.ResetEntityMaterial), self.ResetEntityMaterial)
+
+	node_matrl.DoRightClick = function()
+		local dmenu = DermaMenu()
+		dmenu:AddSpacer()
+		dmenu:AddOption("Reset", function()
+			node_matrl:SetIcon(self.ResetEntityMaterial)
+			node_matrl:SetText(string.format("material [%s]", self.ResetEntityMaterial))
+			node_matrl.Label:SetTextColor(nil)
+			self.Entity.MaterialName = nil
+			self.settings.material = nil
+		end):SetIcon(icon_part_deleted)
+		dmenu:AddSpacer()
+		dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
+		dmenu:Open()
+	end
+
+	node_matrl.DoClick = function()
+		local panel_matrl = vgui.Create("DPanel", self)
+		panel_matrl:SetSize(256, self:GetTall())
+		panel_matrl.Paint = function(_, w, h)
+			surface.SetDrawColor(85, 85, 90)
+			surface.DrawRect(0, 0, w, h)
+			surface.SetDrawColor(0, 0, 0)
+			surface.DrawOutlinedRect(0, 0, w, h)
+		end
+
+		local dmenu = DermaMenu()
+		dmenu:AddPanel(panel_matrl)
+		dmenu:SetPaintBackground(false)
+
+		local px, py = self:GetPos()
+		dmenu:Open(px - 256, py)
+
+		local scroll = vgui.Create("DScrollPanel", panel_matrl)
+		scroll:Dock(FILL)
+
+		local MatSelect = vgui.Create("MatSelect", scroll)
+		MatSelect:Dock(FILL)
+		MatSelect.Paint = function() end
+
+		MatSelect:SetConVar("material_override")
+		MatSelect:SetAutoHeight(true)
+		MatSelect:SetItemWidth(0.25)
+		MatSelect:SetItemHeight(0.25)
+
+		for id, str in pairs(list.Get("OverrideMaterials")) do
+			local label = id
+			if isnumber(label) then label = str end
+			MatSelect:AddMaterial(label, str)
+		end
+		scroll:AddItem(MatSelect)
+
+		for _, mat in ipairs(MatSelect.Controls) do
+			mat.DoClick = function(button)
+				node_matrl:SetIcon(mat.Value)
+				node_matrl:SetText(string.format("material [%s]", mat.Value))
+				self.Entity.MaterialMeshes = Material(mat.Value)
+				RunConsoleCommand(MatSelect:ConVar(), mat.Value)
+				if mat.Value ~= self.ResetEntityMaterial then
+					node_matrl.Label:SetTextColor(color_changed)
+					self.settings.material = mat.Value
+				else
+					node_matrl.Label:SetTextColor(nil)
+					self.settings.material = nil
+				end
+			end
+			mat.DoRightClick = function() end
+		end
+	end
+end
+
+
+-- -----------------------------------------------------------------------------
+function PANEL:PopulateSettings(rootnode)
+	local tscale = rootnode:AddNode("texture scale", "icon16/bullet_wrench.png")
+	local temp = tscale:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	local component = vgui.Create("DNumSlider", temp)
+	component.Scratch:SetVisible(false)
+	component.Label:SetVisible(false)
+	component:SetWide(256)
+	component:DockMargin(24, 1, 4, 0)
+	component:Dock(LEFT)
+	component:SetMin(0)
+	component:SetMax(512)
+	component:SetDecimals(0)
+	component:SetValue(self.Entity:GetNWInt("P2M_TSCALE"))
+
+	component.OnValueChanged = function(_, value)
+		if self.Entity:GetNWInt("P2M_TSCALE") == value then
+			tscale.Label:SetTextColor()
+			self.settings.P2M_TSCALE = nil
+			return
+		end
+		tscale.Label:SetTextColor(color_changed)
+		self.settings.P2M_TSCALE = value
+	end
+
+	tscale.DoRightClick = function()
+		local dmenu = DermaMenu()
+		dmenu:AddSpacer()
+		dmenu:AddOption("Reset", function()
+			component:SetValue(self.Entity:GetNWInt("P2M_TSCALE"))
+		end):SetIcon(icon_part_deleted)
+		dmenu:AddSpacer()
+		dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
+		dmenu:Open()
+	end
+
+	local mscale = rootnode:AddNode("mesh scale", "icon16/bullet_wrench.png")
+	local temp = mscale:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	local component = vgui.Create("DNumSlider", temp)
+	component.Scratch:SetVisible(false)
+	component.Label:SetVisible(false)
+	component:SetWide(256)
+	component:DockMargin(24, 1, 4, 0)
+	component:Dock(LEFT)
+	component:SetMin(0.1)
+	component:SetMax(1)
+	component:SetValue(self.Entity:GetNWInt("P2M_MSCALE"))
+
+	component.OnValueChanged = function(_, value)
+		if self.Entity:GetNWInt("P2M_MSCALE") == value then
+			mscale.Label:SetTextColor()
+			self.settings.P2M_MSCALE = nil
+			return
+		end
+		mscale.Label:SetTextColor(color_changed)
+		self.settings.P2M_MSCALE = value
+	end
+
+	mscale.DoRightClick = function()
+		local dmenu = DermaMenu()
+		dmenu:AddSpacer()
+		dmenu:AddOption("Reset", function()
+			component:SetValue(self.Entity:GetNWInt("P2M_MSCALE"))
+		end):SetIcon(icon_part_deleted)
+		dmenu:AddSpacer()
+		dmenu:AddOption("Cancel"):SetIcon(icon_cancel)
+		dmenu:Open()
+	end
+
+	self:MakeColorPanel(rootnode)
+	self:MakeMaterialPanel(rootnode)
 end
 
 

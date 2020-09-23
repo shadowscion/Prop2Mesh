@@ -233,6 +233,8 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 	local data_new = {}
 	local data_old = controller:GetPacketsAsTable()
 
+	local update = false
+
 	if data_old then
 		for partID, partData in ipairs(data_old) do
 			if changes_data[partID] then
@@ -248,6 +250,7 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 			end
 
 			data_new[#data_new + 1] = partData
+			update = true
 
 			::skip::
 		end
@@ -271,10 +274,46 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 			changes_sanitize.scale(partData.scale, data)
 
 			data_new[#data_new + 1] = data
+			update = true
 		end
 	end
 
-	controller:SetModelsFromTable(data_new, controller:GetCRC())
+	if changes_data.settings then
+		if changes_data.settings.P2M_TSCALE then
+			controller:SetTextureScale(math.Clamp(math.abs(changes_data.settings.P2M_TSCALE), 0, 512))
+		end
+		if changes_data.settings.P2M_MSCALE then
+			controller:SetMeshScale(changes_data.settings.P2M_MSCALE)
+		end
+		if changes_data.settings.color then
+			local color = changes_data.settings.color
+			color.r = math.Clamp(color.r, 0, 255)
+			color.g = math.Clamp(color.g, 0, 255)
+			color.b = math.Clamp(color.b, 0, 255)
+			color.a = math.Clamp(color.a, 0, 255)
+
+			local rendermode = controller:GetRenderMode()
+			if rendermode == RENDERMODE_NORMAL or rendermode == RENDERMODE_TRANSALPHA then
+				rendermode = color.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA
+				controller:SetRenderMode(rendermode)
+			else
+				rendermode = nil
+			end
+
+			controller:SetColor(color)
+			duplicator.StoreEntityModifier(controller, "colour", { Color = color, RenderMode = rendermode })
+		end
+		if changes_data.settings.material then
+			if list.Contains("OverrideMaterials", changes_data.settings.material) and changes_data.settings.material ~= "" then
+				controller:SetMaterial(changes_data.settings.material)
+				duplicator.StoreEntityModifier(controller, "material",  { MaterialOverride = changes_data.settings.material })
+			end
+		end
+	end
+
+	if update then
+		controller:SetModelsFromTable(data_new, controller:GetCRC())
+	end
 
 end)
 

@@ -61,11 +61,14 @@ local function P2M_AntiSpam(controller, action)
 	return true
 end
 
-local function P2M_CanManipulate(self, controller, action)
+local function P2M_CanManipulate(self, controller, action, e2only)
 	if not IsValid(controller) then
 		return false
 	end
-	if controller:GetClass() ~= ent_class or not controller.E2P2MResevoir then
+	if controller:GetClass() ~= ent_class then
+		return false
+	end
+	if e2only and not controller.isE2P2M then
 		return false
 	end
 	if E2Lib.isOwner(self, controller) or game.SinglePlayer() then
@@ -93,11 +96,13 @@ local function P2M_Create(self, pos, ang, uvscale, meshscale)
 		return NULL
 	end
 
+	controller.isE2P2M = true
 	controller.DoNotDuplicate = true
 	controller:SetSolid(SOLID_NONE)
 	controller:SetMoveType(MOVETYPE_NONE)
 	controller:DrawShadow(false)
 	controller:Activate()
+	controller:SetNWBool("P2M_HIDEMODEL", true)
 
 	controller:SetPlayer(self.player)
 	if uvscale then
@@ -206,7 +211,7 @@ end
 __e2setcost(100)
 
 e2function void entity:p2mBuild()
-	if not P2M_CanManipulate(self, this, "build") then
+	if not P2M_CanManipulate(self, this, "build", true) then
 		this.E2P2MResevoir = {} -- important!!
 		return
 	end
@@ -222,38 +227,45 @@ end
 __e2setcost(15)
 
 e2function void entity:p2mSetPos(vector pos)
-	if not P2M_CanManipulate(self, this, "pos") then
+	if not P2M_CanManipulate(self, this, "pos", true) then
 		return
 	end
 	WireLib.setPos(this, Vector(pos[1], pos[2], pos[3]))
 end
 
 e2function void entity:p2mSetAng(angle ang)
-	if not P2M_CanManipulate(self, this, "ang") then
+	if not P2M_CanManipulate(self, this, "ang", true) then
 		return
 	end
 	WireLib.setAng(this, Angle(ang[1], ang[2], ang[3]))
 end
 
 e2function void entity:p2mSetColor(vector color)
-	if not P2M_CanManipulate(self, this, "col") then
+	if not P2M_CanManipulate(self, this, "col", true) then
 		return
 	end
 	WireLib.SetColor(this, Color(color[1], color[2], color[3]))
 end
 
 e2function void entity:p2mSetColor(vector4 color)
-	if not P2M_CanManipulate(self, this, "col") then
+	if not P2M_CanManipulate(self, this, "col", true) then
 		return
 	end
 	WireLib.SetColor(this, Color(color[1], color[2], color[3], color[4]))
 end
 
 e2function void entity:p2mSetMaterial(string material)
-	if not P2M_CanManipulate(self, this, "mat") then
+	if not P2M_CanManipulate(self, this, "mat", true) then
 		return
 	end
 	E2Lib.setMaterial(this, material)
+end
+
+e2function void entity:p2mHideModel(number bool)
+	if not P2M_CanManipulate(self, this, "hide", false) then
+		return
+	end
+	this:SetNWBool("P2M_HIDEMODEL", tobool(bool))
 end
 
 -- e2function void entity:p2mSetModel(string model)
@@ -279,7 +291,7 @@ local function Check_Parents(child, parent)
 end
 
 e2function void entity:p2mSetParent(entity target)
-	if not P2M_CanManipulate(self, this, "parent") then
+	if not P2M_CanManipulate(self, this, "parent", true) then
 		return
 	end
 	if not IsValid(target) then
@@ -302,7 +314,10 @@ end
 __e2setcost(5)
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)
@@ -320,7 +335,10 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang)
 end
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, number rinside, number fshading)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)
@@ -340,7 +358,10 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang, number 
 end
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)
@@ -359,7 +380,10 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector 
 end
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number rinside, number fshading)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)
@@ -382,7 +406,10 @@ end
 __e2setcost(8)
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, number rinside, array clips)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)
@@ -410,7 +437,10 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang, number 
 end
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number rinside, array clips)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)
@@ -438,7 +468,10 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector 
 end
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, number rinside, number fshading, array clips)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)
@@ -467,7 +500,10 @@ e2function void entity:p2mPushModel(string model, vector pos, angle ang, number 
 end
 
 e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number rinside, number fshading, array clips)
-	if #this.E2P2MResevoir > LIMIT_MODELS or not P2M_CanManipulate(self, this) then
+	if not P2M_CanManipulate(self, this, nil, true) then
+		return
+	end
+	if #this.E2P2MResevoir > LIMIT_MODELS then
 		return
 	end
 	local mdl, msg = P2M_CheckModel(model)

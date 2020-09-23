@@ -877,6 +877,8 @@ local function DForm_ClientOptions(self)
 		menu:Open()
 	end
 
+	local cbox = panel:CheckBox("Disable cubes", "prop2mesh_disable_cubes")
+
 	return panel
 
 end
@@ -962,6 +964,37 @@ local function DForm_Statistics(self)
 				local node = struct[owner].node_ctrl:AddNode(tostring(controller), tcount < 21666 and "icon16/bullet_wrench.png" or "icon16/bullet_error.png")
 				node:AddNode(string.format("%d models", mcount), "icon16/bullet_blue.png")
 				node:AddNode(string.format("%d triangles", tcount), tcount < 21666 and "icon16/bullet_blue.png" or "icon16/bullet_red.png")
+
+				node.Label.OnCursorEntered = function()
+					if IsValid(controller) then
+						controller.doFlash = true
+					end
+					node.Label:InvalidateLayout(true)
+					CloseDermaMenus()
+				end
+				node.Label.OnCursorExited = function()
+					if IsValid(controller) then
+						controller.doFlash = nil
+					end
+					node.Label:InvalidateLayout(true)
+				end
+				node.DoRightClick = function()
+					if not IsValid(controller) or controller:GetPlayer() ~= LocalPlayer() then
+						return
+					end
+					local menu = DermaMenu()
+					menu:AddOption("Open editor", function()
+						local window = vgui.Create("p2m_editor")
+						local h = math.floor(ScrH() - 90)
+						local w = math.floor(354)
+
+						window:SetPos(ScrW() - w - 30, ScrH() - h - 30)
+						window:SetSize(w, h)
+						window:SetEntity(controller)
+						window:MakePopup()
+					end):SetIcon("icon16/bricks.png")
+					menu:Open()
+				end
 			end
 		end
 	end

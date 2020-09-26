@@ -7,6 +7,8 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
+resource.AddFile("materials/p2m/grid.vmt")
+
 
 -- -----------------------------------------------------------------------------
 util.AddNetworkString("NetP2M.GetModels")

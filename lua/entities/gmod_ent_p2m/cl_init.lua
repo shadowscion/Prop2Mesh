@@ -436,7 +436,7 @@ end)
 -- -----------------------------------------------------------------------------
 function p2mlib.ClearUser(crc, ent)
 
-	if not p2mlib.users[crc] then
+	if not crc or not p2mlib.users[crc] then
 		return
 	end
 
@@ -445,6 +445,10 @@ function p2mlib.ClearUser(crc, ent)
 	if next(p2mlib.users[crc]) == nil then
 		p2mlib.users[crc] = nil
 		p2mlib.marks[crc] = CurTime()
+	end
+
+	if p2mlib.debug then
+		p2mlib.debugmsg("Cleared ", crc)
 	end
 
 end
@@ -471,6 +475,10 @@ function p2mlib.DeleteMark(crc)
 		if p2mlib[field] then
 			p2mlib[field][crc] = nil
 		end
+	end
+
+	if p2mlib.debug then
+		p2mlib.debugmsg("Deleted ", crc)
 	end
 
 end
@@ -508,9 +516,6 @@ timer.Create("P2M.DeleteMarks", 30, 0, function()
 	for crc, time in pairs(p2mlib.marks) do
 		if ct - time > 300 then -- 5 minutes
 			p2mlib.DeleteMark(crc)
-			if p2mlib.debug then
-				p2mlib.debugmsg("Deleted ", crc)
-			end
 		end
 	end
 end)

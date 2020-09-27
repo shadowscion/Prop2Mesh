@@ -877,7 +877,7 @@ local function DForm_ClientOptions(self)
 		menu:Open()
 	end
 
-	local cbox = panel:CheckBox("Disable cubes", "prop2mesh_disable_cubes")
+	local cbox = panel:CheckBox("Hide controller cubes", "prop2mesh_disable_cubes")
 
 	return panel
 

@@ -146,14 +146,16 @@ function PANEL:Init()
 			return
 		end
 
-		local changes = {}
+		local changes = { edits = {} }
 
 		for k, v in pairs(self.changes) do
 			if next(v) ~= nil then
-				changes[k] = v
+				changes.edits[k] = v
 			end
 		end
-
+		if next(changes.edits) == nil then
+			changes.edits = nil
+		end
 		if next(self.additions) ~= nil then
 			changes.additions = self.additions
 		end

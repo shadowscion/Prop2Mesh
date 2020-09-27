@@ -177,21 +177,21 @@ end)
 
 
 -- -----------------------------------------------------------------------------
-local changes_sanitize = {}
+local safeData = {}
 
-changes_sanitize.inv = function(value, data)
+safeData.inv = function(value, data)
 	data.inv = tobool(value) or nil
 end
 
-changes_sanitize.flat = function(value, data)
+safeData.flat = function(value, data)
 	data.flat = tobool(value) or nil
 end
 
-changes_sanitize.flip = function(value, data)
+safeData.flip = function(value, data)
 	data.flip = tobool(value) or nil
 end
 
-changes_sanitize.pos = function(value, data, unsetZero)
+safeData.pos = function(value, data, unsetZero)
 	if type(value) ~= "Vector" then
 		data.pos = Vector()
 		return
@@ -199,7 +199,7 @@ changes_sanitize.pos = function(value, data, unsetZero)
 	data.pos = Vector(math.Clamp(value.x, -16384, 16834), math.Clamp(value.y, -16384, 16834), math.Clamp(value.z, -16384, 16834))
 end
 
-changes_sanitize.ang = function(value, data, unsetZero)
+safeData.ang = function(value, data, unsetZero)
 	if type(value) ~= "Angle" then
 		data.ang = Angle()
 		return
@@ -208,7 +208,7 @@ changes_sanitize.ang = function(value, data, unsetZero)
 	data.ang:Normalize()
 end
 
-changes_sanitize.scale = function(value, data)
+safeData.scale = function(value, data)
 	if type(value) ~= "Vector" then
 		data.scale = Vector(1,1,1)
 		return
@@ -216,8 +216,6 @@ changes_sanitize.scale = function(value, data)
 	data.scale = Vector(math.Clamp(value.x, -16384, 16834), math.Clamp(value.y, -16384, 16834), math.Clamp(value.z, -16384, 16834))
 end
 
-
--- -----------------------------------------------------------------------------
 net.Receive("NetP2M.MakeChanges", function(len, ply)
 
 	local controller = net.ReadEntity()
@@ -225,70 +223,66 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 		return
 	end
 
-	local changes_size = net.ReadUInt(32)
-	local changes_data = util.JSONToTable(util.Decompress(net.ReadData(changes_size)))
+	local netSize_changes = net.ReadUInt(32)
+	local netData_changes = util.JSONToTable(util.Decompress(net.ReadData(netSize_changes)))
 
-	if next(changes_data) == nil then
+	if next(netData_changes) == nil then
 		return
 	end
 
-	local data_new = {}
-	local data_old = controller:GetPacketsAsTable()
+	local mesh_update
+	if netData_changes.edits or netData_changes.additions then
+		mesh_update = {}
 
-	local update = false
-
-	if data_old then
-		for partID, partData in ipairs(data_old) do
-			if changes_data[partID] then
-				if changes_data[partID].delete then
+		for partID, partData in ipairs(controller:GetPacketsAsTable()) do
+			if netData_changes.edits and netData_changes.edits[partID] then
+				if netData_changes.edits[partID].delete then
 					goto skip
 				else
-					for changeKey, changeValue in pairs(changes_data[partID]) do
-						if changes_sanitize[changeKey] then
-							changes_sanitize[changeKey](changeValue, partData)
+					for changeKey, changeValue in pairs(netData_changes.edits[partID]) do
+						if safeData[changeKey] then
+							safeData[changeKey](changeValue, partData)
 						end
 					end
 				end
 			end
 
-			data_new[#data_new + 1] = partData
-			update = true
+			mesh_update[#mesh_update + 1] = partData
 
 			::skip::
 		end
-	end
 
-	if changes_data.additions then
-		for k, partData in pairs(changes_data.additions) do
-			if not partData.obj or type(partData.obj) ~= "string" then
-				continue
+		if netData_changes.additions then
+			for k, partData in pairs(netData_changes.additions) do
+				if not partData.obj or type(partData.obj) ~= "string" then
+					continue
+				end
+
+				local data = {}
+
+				data.name = string.lower(string.Trim(partData.name or "no_name"))
+				data.obj  = partData.obj
+
+				safeData.flip(partData.flip, data)
+				safeData.inv(partData.inv, data)
+				safeData.pos(partData.pos, data)
+				safeData.ang(partData.ang, data)
+				safeData.scale(partData.scale, data)
+
+				mesh_update[#mesh_update + 1] = data
 			end
-
-			local data = {}
-
-			data.name = string.lower(string.Trim(partData.name or "no_name"))
-			data.obj  = partData.obj
-
-			changes_sanitize.flip(partData.flip, data)
-			changes_sanitize.inv(partData.inv, data)
-			changes_sanitize.pos(partData.pos, data)
-			changes_sanitize.ang(partData.ang, data)
-			changes_sanitize.scale(partData.scale, data)
-
-			data_new[#data_new + 1] = data
-			update = true
 		end
 	end
 
-	if changes_data.settings then
-		if changes_data.settings.P2M_TSCALE then
-			controller:SetTextureScale(math.Clamp(math.abs(changes_data.settings.P2M_TSCALE), 0, 512))
+	if netData_changes.settings then
+		if netData_changes.settings.P2M_TSCALE then
+			controller:SetTextureScale(math.Clamp(math.abs(netData_changes.settings.P2M_TSCALE), 0, 512))
 		end
-		if changes_data.settings.P2M_MSCALE then
-			controller:SetMeshScale(changes_data.settings.P2M_MSCALE)
+		if netData_changes.settings.P2M_MSCALE then
+			controller:SetMeshScale(netData_changes.settings.P2M_MSCALE)
 		end
-		if changes_data.settings.color then
-			local color = changes_data.settings.color
+		if netData_changes.settings.color then
+			local color = netData_changes.settings.color
 			color.r = math.Clamp(color.r, 0, 255)
 			color.g = math.Clamp(color.g, 0, 255)
 			color.b = math.Clamp(color.b, 0, 255)
@@ -305,16 +299,16 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 			controller:SetColor(color)
 			duplicator.StoreEntityModifier(controller, "colour", { Color = color, RenderMode = rendermode })
 		end
-		if changes_data.settings.material then
-			if list.Contains("OverrideMaterials", changes_data.settings.material) and changes_data.settings.material ~= "" then
-				controller:SetMaterial(changes_data.settings.material)
-				duplicator.StoreEntityModifier(controller, "material",  { MaterialOverride = changes_data.settings.material })
+		if netData_changes.settings.material then
+			if list.Contains("OverrideMaterials", netData_changes.settings.material) and netData_changes.settings.material ~= "" then
+				controller:SetMaterial(netData_changes.settings.material)
+				duplicator.StoreEntityModifier(controller, "material",  { MaterialOverride = netData_changes.settings.material })
 			end
 		end
 	end
 
-	if update then
-		controller:SetModelsFromTable(data_new, controller:GetCRC())
+	if mesh_update then
+		controller:SetModelsFromTable(mesh_update, controller:GetCRC())
 	end
 
 end)

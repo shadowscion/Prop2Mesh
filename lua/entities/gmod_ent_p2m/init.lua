@@ -234,22 +234,25 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 	if netData_changes.edits or netData_changes.additions then
 		mesh_update = {}
 
-		for partID, partData in ipairs(controller:GetPacketsAsTable()) do
-			if netData_changes.edits and netData_changes.edits[partID] then
-				if netData_changes.edits[partID].delete then
-					goto skip
-				else
-					for changeKey, changeValue in pairs(netData_changes.edits[partID]) do
-						if safeData[changeKey] then
-							safeData[changeKey](changeValue, partData)
+		local p2mData_old = controller:GetPacketsAsTable()
+		if p2mData_old then
+			for partID, partData in ipairs(p2mData_old) do
+				if netData_changes.edits and netData_changes.edits[partID] then
+					if netData_changes.edits[partID].delete then
+						goto skip
+					else
+						for changeKey, changeValue in pairs(netData_changes.edits[partID]) do
+							if safeData[changeKey] then
+								safeData[changeKey](changeValue, partData)
+							end
 						end
 					end
 				end
+
+				mesh_update[#mesh_update + 1] = partData
+
+				::skip::
 			end
-
-			mesh_update[#mesh_update + 1] = partData
-
-			::skip::
 		end
 
 		if netData_changes.additions then

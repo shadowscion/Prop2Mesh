@@ -689,28 +689,28 @@ local function BuildOBJNode(self, rootnode, partData)
 	local temp = rootnode:AddNode("")
 	temp.ShowIcons = function() return false end
 
-	local component = vgui.Create("DCheckBoxLabel", temp)
-	component:SetText("render_inside")
-	component:Dock(LEFT)
-	component:DockMargin(22, 2, 0, 0)
-	component.Label:SetTextColor(Color(100, 100, 100))
+	local inside_xbox = vgui.Create("DCheckBoxLabel", temp)
+	inside_xbox:SetText("render_inside")
+	inside_xbox:Dock(LEFT)
+	inside_xbox:DockMargin(22, 2, 0, 0)
+	inside_xbox.Label:SetTextColor(Color(100, 100, 100))
 
-	component.OnChange = function(_, value)
+	inside_xbox.OnChange = function(_, value)
 		if rootnode.partID and self.changes[rootnode.partID] then
 			if value == true then
 				if partData.inv == true then
-					component.Label:SetTextColor(Color(100, 100, 100))
+					inside_xbox.Label:SetTextColor(Color(100, 100, 100))
 					self.changes[rootnode.partID].inv = nil
 				else
-					component.Label:SetTextColor(color_changed)
+					inside_xbox.Label:SetTextColor(color_changed)
 					self.changes[rootnode.partID].inv = true
 				end
 			elseif value == false then
 				if partData.inv == nil then
-					component.Label:SetTextColor(Color(100, 100, 100))
+					inside_xbox.Label:SetTextColor(Color(100, 100, 100))
 					self.changes[rootnode.partID].inv = nil
 				else
-					component.Label:SetTextColor(color_changed)
+					inside_xbox.Label:SetTextColor(color_changed)
 					self.changes[rootnode.partID].inv = false
 				end
 			end
@@ -719,34 +719,34 @@ local function BuildOBJNode(self, rootnode, partData)
 			partData.inv = value
 		end
 	end
-	component:SetValue(partData.inv)
+	inside_xbox:SetValue(partData.inv)
 
 	--
 	local temp = rootnode:AddNode("")
 	temp.ShowIcons = function() return false end
 
-	local component = vgui.Create("DCheckBoxLabel", temp)
-	component:SetText("invert_normals")
-	component:Dock(LEFT)
-	component:DockMargin(22, 2, 0, 0)
-	component.Label:SetTextColor(Color(100, 100, 100))
+	local invert_xbox = vgui.Create("DCheckBoxLabel", temp)
+	invert_xbox:SetText("invert_normals")
+	invert_xbox:Dock(LEFT)
+	invert_xbox:DockMargin(22, 2, 0, 0)
+	invert_xbox.Label:SetTextColor(Color(100, 100, 100))
 
-	component.OnChange = function(_, value)
+	invert_xbox.OnChange = function(_, value)
 		if rootnode.partID and self.changes[rootnode.partID] then
 			if value == true then
 				if partData.flip == true then
-					component.Label:SetTextColor(Color(100, 100, 100))
+					invert_xbox.Label:SetTextColor(Color(100, 100, 100))
 					self.changes[rootnode.partID].flip = nil
 				else
-					component.Label:SetTextColor(color_changed)
+					invert_xbox.Label:SetTextColor(color_changed)
 					self.changes[rootnode.partID].flip = true
 				end
 			elseif value == false then
 				if partData.flip == nil then
-					component.Label:SetTextColor(Color(100, 100, 100))
+					invert_xbox.Label:SetTextColor(Color(100, 100, 100))
 					self.changes[rootnode.partID].flip = nil
 				else
-					component.Label:SetTextColor(color_changed)
+					invert_xbox.Label:SetTextColor(color_changed)
 					self.changes[rootnode.partID].flip = false
 				end
 			end
@@ -755,7 +755,53 @@ local function BuildOBJNode(self, rootnode, partData)
 			partData.flip = value
 		end
 	end
-	component:SetValue(partData.flip)
+	invert_xbox:SetValue(partData.flip)
+
+	--
+	local temp = rootnode:AddNode("")
+	temp.ShowIcons = function() return false end
+
+	local smooth_xbox = vgui.Create("DCheckBoxLabel", temp)
+	smooth_xbox:SetText("smooth_normals")
+	smooth_xbox:Dock(LEFT)
+	smooth_xbox:DockMargin(22, 2, 0, 0)
+	smooth_xbox.Label:SetTextColor(Color(100, 100, 100))
+
+	local smooth_slider = vgui.Create("DNumSlider", temp)
+	smooth_slider.Scratch:SetVisible(false)
+	smooth_slider.Label:SetVisible(false)
+	smooth_slider:SetWide(128)
+	smooth_slider:DockMargin(24, 0, 0, 0)
+	smooth_slider:Dock(LEFT)
+	smooth_slider:SetMin(0)
+	smooth_slider:SetMax(180)
+	smooth_slider:SetDecimals(0)
+
+	smooth_xbox.OnChange = function(_, value)
+		if not value and smooth_slider:GetValue() ~= 0 then
+			smooth_slider:SetValue(0)
+		end
+	end
+
+	partData.smooth = partData.smooth or 0
+
+	smooth_slider.OnValueChanged = function(_, value)
+		smooth_xbox:SetValue(value > 0)
+		if rootnode.partID and self.changes[rootnode.partID] then
+			if partData.smooth ~= value then
+				smooth_xbox.Label:SetTextColor(color_changed)
+				self.changes[rootnode.partID].smooth = value
+			else
+				smooth_xbox.Label:SetTextColor(Color(100, 100, 100))
+				self.changes[rootnode.partID].smooth = nil
+			end
+			ToggleNodeColors(self, rootnode)
+		else
+			partData.smooth = value
+		end
+	end
+
+	smooth_slider:SetValue(partData.smooth)
 end
 
 

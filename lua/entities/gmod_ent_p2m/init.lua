@@ -191,6 +191,11 @@ safeData.flip = function(value, data)
 	data.flip = tobool(value) or nil
 end
 
+safeData.smooth = function(value, data)
+	local num = tonumber(value or 0)
+	data.smooth = num > 0 and math.Clamp(math.abs(num), 0, 180) or nil
+end
+
 safeData.pos = function(value, data, unsetZero)
 	if type(value) ~= "Vector" then
 		data.pos = Vector()
@@ -266,6 +271,7 @@ net.Receive("NetP2M.MakeChanges", function(len, ply)
 				data.name = string.lower(string.Trim(partData.name or "no_name"))
 				data.obj  = partData.obj
 
+				safeData.smooth(partData.smooth, data)
 				safeData.flip(partData.flip, data)
 				safeData.inv(partData.inv, data)
 				safeData.pos(partData.pos, data)

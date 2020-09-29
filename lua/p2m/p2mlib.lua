@@ -19,6 +19,7 @@ local coroutine_yield = coroutine.yield
 
 local Vector = Vector
 local vec = Vector()
+local div = vec.Div
 local mul = vec.Mul
 local add = vec.Add
 local dot = vec.Dot
@@ -26,6 +27,8 @@ local cross = vec.Cross
 local normalize = vec.Normalize
 local rotate = vec.Rotate
 
+local math_cos = math.cos
+local math_rad = math.rad
 local math_abs = math.abs
 local math_min = math.min
 local math_max = math.max
@@ -429,6 +432,38 @@ local function meshFromOBJ(threaded, part, textureScale)
 					add(vert, pos)
 				end
 				vlook[#vlook + 1] = vert
+			end
+		end
+
+		-- https://github.com/thegrb93/StarfallEx/blob/b6de9fbe84040e9ebebcbe858c30adb9f7d937b5/lua/starfall/libs_sh/mesh.lua#L229
+		-- credit to Sevii
+		if part.smooth then
+			local smoothrad = math_cos(math_rad(part.smooth))
+			if smoothrad ~= 1 then
+				local norms = setmetatable({},{__index = function(t,k) local r=setmetatable({},{__index=function(t,k) local r=setmetatable({},{__index=function(t,k) local r={} t[k]=r return r end}) t[k]=r return r end}) t[k]=r return r end})
+				for _, vertex in ipairs(vmesh) do
+					local pos = vertex.pos
+					local norm = norms[pos[1]][pos[2]][pos[3]]
+					norm[#norm+1] = vertex.normal
+				end
+
+				for _, vertex in ipairs(vmesh) do
+					local normal = Vector()
+					local count = 0
+					local pos = vertex.pos
+
+					for _, norm in ipairs(norms[pos[1]][pos[2]][pos[3]]) do
+						if dot(vertex.normal, norm) >= smoothrad then
+							add(normal, norm)
+							count = count + 1
+						end
+					end
+
+					if count > 1 then
+						div(normal, count)
+						vertex.normal = normal
+					end
+				end
 			end
 		end
 

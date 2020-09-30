@@ -2,7 +2,7 @@
 E2Lib.RegisterExtension("prop2mesh", true, "Allows E2 chips to create and manipulate prop2mesh entities")
 
 local LIMIT_MODELS = 250 -- per controller
-local LIMIT_CLIPS  = 5   -- per model
+local LIMIT_CLIPS  = 10  -- per model
 
 
 -- -----------------------------------------------------------------------------

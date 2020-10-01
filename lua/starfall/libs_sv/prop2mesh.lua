@@ -100,6 +100,7 @@ return function(instance)
 
 		local p2ment = ents.Create(ent_class)
 		if p2ment and p2ment:IsValid() then
+			p2ment:SetNWBool("P2M_HIDEMODEL", true)
 			p2ment:SetPlayer(ply)
 			p2ment:SetPos(SF.clampPos(pos))
 			p2ment:SetAngles(ang)

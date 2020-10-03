@@ -268,6 +268,13 @@ e2function void entity:p2mHideModel(number bool)
 	this:SetNWBool("P2M_HIDEMODEL", tobool(bool))
 end
 
+e2function void entity:p2mSetMeshScale(number scale)
+	if not P2M_CanManipulate(self, this, "mscale", false) then
+		return
+	end
+	this:SetMeshScale(scale)
+end
+
 -- e2function void entity:p2mSetModel(string model)
 -- 	if not P2M_CanManipulate(self, this, "mdl") then
 -- 		return

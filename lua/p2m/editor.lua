@@ -53,6 +53,11 @@ hook.Add("PostDrawOpaqueRenderables", "P2MDrawEditorGhosts", function()
 	local doClipping = enable_clipping:GetBool()
 
 	for editor, partDataHover in pairs(editors) do
+		if not IsValid(editor.Entity) then
+			editors[editor] = nil
+			continue
+		end
+
 		for partID, partData in ipairs(editor.Data) do
 			if next(editor.changes[partID]) == nil or not partData.mdl then
 				continue

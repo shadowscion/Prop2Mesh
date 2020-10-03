@@ -214,4 +214,28 @@ return function(instance)
 			p2ment.SFP2MResevoir= {}
 		end
 	end
+
+	--- Hide p2m model.
+	-- @param set
+	function ents_methods:p2mHideModel(set)
+		checkluatype(set, TYPE_BOOL)
+		local p2ment = eunwrap(self)
+		if p2ment:IsValid() and p2ment:GetClass() == ent_class then
+			p2ment:SetNWBool("P2M_HIDEMODEL", set)
+		else
+			SF.Throw("Expected p2m got Entity.", 3)
+		end
+	end
+
+	--- Set p2m mesh scale.
+	-- @param scale
+	function ents_methods:p2mSetMeshScale(scale)
+		checkluatype(scale, TYPE_NUMBER)
+		local p2ment = eunwrap(self)
+		if p2ment:IsValid() and p2ment:GetClass() == ent_class then
+			p2ment:SetMeshScale(scale)
+		else
+			SF.Throw("Expected p2m got Entity.", 3)
+		end
+	end
 end

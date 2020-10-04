@@ -68,7 +68,7 @@ function ENT:SetMeshScale(scale)
 
 	self:SetNWFloat("P2M_MSCALE", scale)
 
-	self:Invalidate()
+	--self:Invalidate()
 
 end
 

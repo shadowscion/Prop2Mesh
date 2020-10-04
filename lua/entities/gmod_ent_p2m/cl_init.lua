@@ -314,6 +314,23 @@ end
 
 
 -- -----------------------------------------------------------------------------
+function ENT:GetRenderScale()
+	local scalar = self:GetMeshScale()
+	if self.ScaleN ~= scalar then
+		self.ScaleN = scalar
+		if scalar == 1 then
+			self.ScaleV = nil
+			self.ScaleM = nil
+		else
+			self.ScaleV = Vector(scalar, scalar, scalar)
+			self.ScaleM = Matrix()
+			self.ScaleM:SetScale(self.ScaleV)
+		end
+	end
+end
+
+
+-- -----------------------------------------------------------------------------
 function ENT:Think()
 
 	if globalDisable:GetBool() or globalSuppress or self.suppress then
@@ -339,21 +356,9 @@ function ENT:Think()
 		end
 	end
 
-	if self.checkmscale then
-		local scalar = self:GetMeshScale()
-		if scalar == 1 then
-			self.ScaleV = nil
-			self.ScaleM = nil
-		else
-			self.ScaleV = Vector(scalar, scalar, scalar)
-			self.ScaleM = Matrix()
-			self.ScaleM:SetScale(self.ScaleV)
-		end
-		self.checkmscale = nil
-	end
-
 	self:GetRenderMeshes()
 	self:GetRenderMaterial()
+	self:GetRenderScale()
 
 	if self:GetColor().a ~= 255 then
 		self.RenderGroup = RENDERGROUP_BOTH
@@ -417,7 +422,6 @@ local function Snapshot(controller)
 	end
 
 	controller.checkmodels = true
-	controller.checkmscale = true
 
 end
 

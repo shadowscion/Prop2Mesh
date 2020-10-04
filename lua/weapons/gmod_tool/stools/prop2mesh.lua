@@ -520,7 +520,7 @@ if SERVER then
 		entry.holo = true
 
 		if ent.scale then
-			entry.scale = Vector(ent.scale)
+			entry.scale = ent:GetScale()
 		end
 
 		if ent.clips then

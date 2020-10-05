@@ -1078,6 +1078,10 @@ function TOOL:DrawHUD()
 		local ang = overlay_ent:GetAngles()
 
 		cam.Start3D()
+			render.DrawLine(pos, pos + overlay_ent:GetForward()*12, Color(0, 255, 0))
+			render.DrawLine(pos, pos + overlay_ent:GetRight()*12, Color(255, 0, 0))
+			render.DrawLine(pos, pos + overlay_ent:GetUp()*12, Color(0, 0, 255))
+
 			local mins, maxs = overlay_ent:GetModelBounds()
 			render.DrawWireframeBox(pos, ang, mins, maxs, overlay_ent.OutlineColor1)
 

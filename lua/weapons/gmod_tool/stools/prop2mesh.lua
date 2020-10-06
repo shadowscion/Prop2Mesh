@@ -965,6 +965,16 @@ local function DForm_Statistics(self)
 				node:AddNode(string.format("%d models", mcount), "icon16/bullet_blue.png")
 				node:AddNode(string.format("%d triangles", tcount), tcount < 21666 and "icon16/bullet_blue.png" or "icon16/bullet_red.png")
 
+				if controller:GetNWBool("isE2P2M") then
+					node:SetText(string.format("%s[E2]", tostring(controller)))
+					node.Icon:SetImageColor(Color(255,0,0))
+					node.Icon:SetImage("expression 2/cog_world")
+				elseif controller:GetNWBool("isSFP2M") then
+					node:SetText(string.format("%s[SF]", tostring(controller)))
+					node.Icon:SetImageColor(Color(0,0,255))
+					node.Icon:SetImage("radon/starfall2")
+				end
+
 				node.Label.OnCursorEntered = function()
 					if IsValid(controller) then
 						controller.doFlash = true

@@ -114,6 +114,7 @@ return function(instance)
 			p2ment:DrawShadow(false)
 			p2ment:Activate()
 
+			p2ment:SetNWBool("isSFP2M", true)
 			p2ment.isSFP2M = true
 			p2ment.DoNotDuplicate = true
 			p2ment.SFP2MResevoir = {}

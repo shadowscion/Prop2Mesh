@@ -96,6 +96,7 @@ local function P2M_Create(self, pos, ang, uvscale, meshscale)
 		return NULL
 	end
 
+	controller:SetNWBool("isE2P2M", true)
 	controller.isE2P2M = true
 	controller.DoNotDuplicate = true
 	controller:SetSolid(SOLID_NONE)

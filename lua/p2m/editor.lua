@@ -185,7 +185,14 @@ function PANEL:Init()
 		net.WriteData(data, size)
 		net.SendToServer()
 
-		self:Close()
+		self.changes = {}
+		self.settings = {}
+		self.additions = {}
+
+		self.ListenForChanges = true
+		self.editor:Clear()
+
+		--self:Close()
 	end
 
 	self.editor.Paint = function(pnl, w, h)
@@ -205,9 +212,16 @@ function PANEL:Init()
 	end
 end
 
+
 -- -----------------------------------------------------------------------------
 function PANEL:OnClose()
 	editors[self] = nil
+	self:ResetEntityProperties()
+end
+
+
+-- -----------------------------------------------------------------------------
+function PANEL:ResetEntityProperties()
 	if IsValid(self.Entity) then
 		self.Entity:RemoveCallOnRemove("RemoveP2MEditor")
 		if self.ResetEntityColor then
@@ -216,11 +230,28 @@ function PANEL:OnClose()
 		end
 		self.Entity.MaterialName = nil
 	end
+	self.ListenForChanges = nil
+end
+
+
+-- -----------------------------------------------------------------------------
+function PANEL:Think()
+	if self.ListenForChanges then
+		if IsValid(self.Entity) and self.CRC then
+			local crc = self.Entity:GetCRC()
+			if p2mlib.models[crc] and self.CRC ~= crc then
+				self:SetEntity(self.Entity)
+				self.ListenForChanges = nil
+			end
+		end
+	end
 end
 
 
 -- -----------------------------------------------------------------------------
 function PANEL:SetEntity(ent)
+	self:ResetEntityProperties()
+
 	if not IsValid(ent) or ent:GetClass() ~= "gmod_ent_p2m" then
 		return
 	end
@@ -240,6 +271,7 @@ function PANEL:SetEntity(ent)
 	local tbl = p2mlib.models[crc]
 
 	if tbl then
+		self.CRC  = crc
 		self.Data = util.JSONToTable(util.Decompress(tbl.data))
 	else
 		self.Data = {}

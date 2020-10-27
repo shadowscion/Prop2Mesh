@@ -465,7 +465,7 @@ if SERVER then
 				end
 
 				local normal = clip.n:Forward()
-				entry.clips[#entry.clips + 1] = { n = normal, d = clip.d + normal:Dot(ent:OBBCenter()) }
+				entry.clips[#entry.clips + 1] = { n = normal, d = clip.d + normal:Dot(ent.OBBCenterOrg or ent:OBBCenter()) }
 
 				::invalid::
 			end

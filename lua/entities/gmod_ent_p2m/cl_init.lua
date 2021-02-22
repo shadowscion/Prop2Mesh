@@ -429,6 +429,10 @@ hook.Add("OnEntityCreated", "P2M.Init", Snapshot)
 
 net.Receive("NetP2M.UpdateAll", function()
 	local controller = net.ReadEntity()
+	if not IsValid(controller) then
+		return
+	end
+
 	local old_crc = net.ReadString()
 
 	p2mlib.ClearUser(old_crc, controller)

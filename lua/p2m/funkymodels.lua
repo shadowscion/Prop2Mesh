@@ -78,11 +78,16 @@ push("models/kobilica/")
 push("models/sprops/trans/wheel_f/")
 push("models/sprops/trans/wheels_g/")
 push("models/sprops/trans/wheel_big_g/")
+push("models/engine/")
+push("models/wings/")
+push("models/misc/")
 
 
 -- -----------------------------------------------------------------------------
 -- MODELS
 pushTo = funkyModel
+push("models/gears/planet_mount.mdl")
+push("models/gears/planet_16.mdl")
 push("models/props_placeable/witch_hatch_lid.mdl")
 push("models/wingf0x/ethernetplug.mdl")
 push("models/props_survival/repulsor/repulsor.mdl")
@@ -370,6 +375,21 @@ push("models/cheeze/wires/gyroscope.mdl")
 push("models/cheeze/wires/ram.mdl")
 push("models/cheeze/wires/router.mdl")
 push("models/cheeze/wires/wireless_card.mdl")
+push("models/wingf0x/altisasocket.mdl")
+push("models/wingf0x/ethernetsocket.mdl")
+push("models/wingf0x/hdmiplug.mdl")
+push("models/wingf0x/hdmisocket.mdl")
+push("models/wingf0x/isaplug.mdl")
+push("models/wingf0x/isasocket.mdl")
+push("models/segment.mdl")
+push("models/segment2.mdl")
+push("models/segment3.mdl")
+push("models/blacknecro/ledboard60.mdl")
+push("models/blacknecro/tv_plasma_4_3.mdl")
+push("models/props_phx/trains/trackslides_inner.mdl")
+push("models/props_phx/trains/trackslides_outer.mdl")
+push("models/props_phx/trains/trackslides_both.mdl")
+push("models/hunter/plates/plate05x05_rounded.mdl")
 
 
 -- -----------------------------------------------------------------------------
@@ -408,8 +428,12 @@ push("models/sprops/trans/miscwheels/tank20.mdl", fix)
 push("models/sprops/trans/miscwheels/tank25.mdl", fix)
 push("models/sprops/trans/miscwheels/tank30.mdl", fix)
 
-push("models/props_mining/diesel_generator_crank.mdl", function(partnum, numparts, rotated, normal)
+local fix = function(partnum, numparts, rotated, normal)
 	local angle = Angle(rotated)
 	angle:RotateAroundAxis(angle:Forward(), 90)
 	return angle
-end)
+end
+push("models/props_mining/diesel_generator_crank.mdl", fix)
+push("models/props/de_nuke/hr_nuke/nuke_vent_bombsite/nuke_vent_bombsite_breakable_a.mdl", fix)
+push("models/props/de_nuke/hr_nuke/nuke_vent_bombsite/nuke_vent_bombsite_breakable_b.mdl", fix)
+push("models/props/de_nuke/hr_nuke/nuke_vent_bombsite/nuke_vent_bombsite_breakable_c.mdl", fix)

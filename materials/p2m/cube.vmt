@@ -1,0 +1,7 @@
+"UnlitGeneric"
+{
+	"$baseTexture"  "p2m/cube"
+	"$selfillum"    "1"
+	"$reflectivity" "[0 0 0]"
+	"$nodecal"      "1"
+}

@@ -1,0 +1,20 @@
+@name e2m_example_basic
+@inputs 
+@outputs 
+@persist 
+@trigger 
+
+# assign number of controllers you want on the entity
+P = p2mCreate(2, entity():pos(), entity():angles())
+
+# push to the desired controller index
+P:p2mSetColor(1, vec(255, 0, 0))
+P:p2mPushModel(1, "models/props_borealis/bluebarrel001.mdl", vec(), ang())
+P:p2mPushModel(1, "models/props_borealis/bluebarrel001.mdl", vec(55,0,0), ang())
+
+#
+P:p2mSetColor(2, vec(0, 255, 0))
+P:p2mPushModel(2, "models/props_borealis/mooring_cleat01.mdl", vec(0,0,50), ang(45,0,0))
+
+# build
+P:p2mBuild()

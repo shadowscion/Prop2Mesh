@@ -208,6 +208,7 @@ local function p2mCreate(context, pos, ang, count)
 		self:CPPISetOwner(context.player)
 	end
 
+	self:SetPlayer(context.player)
 	self:SetSolid(SOLID_NONE)
 	self:SetMoveType(MOVETYPE_NONE)
 	self:DrawShadow(false)

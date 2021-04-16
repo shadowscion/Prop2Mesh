@@ -60,6 +60,13 @@ function ENT:Initialize()
 	self.prop2mesh_sync = true
 end
 
+function ENT:SetPlayer(pl)
+	self:SetVar("Founder", pl)
+end
+
+function ENT:GetPlayer()
+	return self:GetVar("Founder", NULL)
+end
 
 function ENT:Think()
 	if self.prop2mesh_upload_queue then

@@ -95,6 +95,7 @@ local function getLegacyParts(data)
 						part.objn = v.name or crc
 						part.vsmooth = tonumber(v.smooth)
 						part.vinvert = v.flip and 1 or nil
+						part.vinside = v.inv and 1 or nil
 					else
 						if v.holo then part.holo = v.mdl else part.prop = v.mdl end
 

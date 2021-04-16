@@ -1,0 +1,16 @@
+{
+	"title"		:	"Prop2Mesh",
+	"type"		:	"tool",
+	"tags"		:	[ "build", "fun" ],
+	"ignore"	:
+	[
+		"*.psd",
+		"*.vcproj",
+		"*.svn*",
+		"*.git*",
+		"*.txt",
+		"*.sw.vtx",
+		"prop2mesh.jpg",
+		"README.md"
+	]
+}

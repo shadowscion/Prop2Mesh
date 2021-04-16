@@ -41,15 +41,17 @@ function prop2mesh.getMeshData(crc, unzip)
 	return util.JSONToTable(util.Decompress(dat))
 end
 
+--[[
 concommand.Add("prop2mesh_dump", function()
 	PrintTable(recycle)
 	PrintTable(garbage)
 end)
+]]
 
-timer.Create("prop2trash", 1, 0, function()
+timer.Create("prop2trash", 60, 0, function()
 	local curtime = SysTime()
 	for crc, usedtime in pairs(garbage) do
-		if curtime - usedtime > 3 then
+		if curtime - usedtime > 120 then
 			if recycle[crc] and recycle[crc].meshes then
 				for uvs, meshdata in pairs(recycle[crc].meshes) do
 					if meshdata.basic then

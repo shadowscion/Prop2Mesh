@@ -238,7 +238,7 @@ end
 
 function ENT:SetControllerCol(index, val)
 	local info = self.prop2mesh_controllers[index]
-	if (info and IsColor(val)) and (info.col.r ~= val.r or info.col.g ~= val.g or info.col.b ~= val.b or info.col.a ~= val.a) then
+	if (info and IsColor(val) or istable(val)) and (info.col.r ~= val.r or info.col.g ~= val.g or info.col.b ~= val.b or info.col.a ~= val.a) then
 		info.col.r = val.r
 		info.col.g = val.g
 		info.col.b = val.b

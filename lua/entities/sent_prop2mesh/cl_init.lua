@@ -6,7 +6,6 @@ include("shared.lua")
 local prop2mesh = prop2mesh
 
 local defaultmat = Material(prop2mesh.defaultmat)
-local debugwhite = Material("models/debug/debugwhite")
 local wireframe = Material("models/wireframe")
 
 local net = net
@@ -180,6 +179,11 @@ local function getComplex(crc, uvs)
 end
 
 local vec = Vector()
+local debugwhite = CreateMaterial("p2mdebugwhite", "UnlitGeneric", {
+	["$basetexture"] = "color/white",
+	["$vertexcolor"] = 1
+})
+
 local function drawModel(self)
 	if draw_disable then
 		local min, max = self:GetRenderBounds()
@@ -445,6 +449,10 @@ end
 
 kvpass.mat = function(self, info, val)
 	info.mat = safemat(val)
+end
+
+kvpass.scale = function(self, info, val)
+	info.scale = Vector(unpack(val))
 end
 
 

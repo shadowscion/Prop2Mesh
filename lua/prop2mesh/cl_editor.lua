@@ -305,6 +305,7 @@ local function installEditors(partnode)
 	partnode.edited = true
 end
 
+--[[
 local function partcopy(from)
 	local a = { pos = Vector(), ang = Angle(), scale = Vector(1,1,1), vinvert = 0, vinside = 0, vsmooth = 0 }
 	local b = { pos = Vector(), ang = Angle(), scale = Vector(1,1,1), vinvert = 0, vinside = 0, vsmooth = 0 }
@@ -318,6 +319,25 @@ local function partcopy(from)
 		elseif isangle(v) then
 			a[k] = Angle(v)
 			b[k] = Angle(v)
+		end
+	end
+	return a, b
+end
+]]
+
+local function partcopy(from)
+	local a = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0 }
+	local b = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0 }
+	for k, v in pairs(from) do
+		if isnumber(v) or isstring(v) then
+			a[k] = v
+			b[k] = v
+		elseif isvector(v) then
+			a[k] = {v.x, v.y, v.z}
+			b[k] = {v.x, v.y, v.z}
+		elseif isangle(v) then
+			a[k] = {v.p, v.y, v.r}
+			b[k] = {v.p, v.y, v.r}
 		end
 	end
 	return a, b
@@ -498,6 +518,10 @@ function PANEL:Init()
 			end
 		end
 
+		PrintTable(set)
+		PrintTable(add)
+		PrintTable(mod)
+
 		if next(set) or next(add) or next(mod) then
 			net.Start("prop2mesh_upload_start")
 			net.WriteUInt(self.Entity:EntIndex(), 16)
@@ -606,14 +630,16 @@ local function onPartHover(label)
 			self.Ghost:SetNoDraw(false)
 			self.Ghost:SetModel(partnode.new.holo or partnode.new.prop)
 
-			local pos, ang = LocalToWorld(partnode.new.pos, partnode.new.ang, self.Entity:GetPos(), self.Entity:GetAngles())
+			local scale = partnode:GetParentNode().conscale or Vector(1,1,1)
+
+			local pos, ang = LocalToWorld(Vector(unpack(partnode.new.pos))*scale, Angle(unpack(partnode.new.ang)), self.Entity:GetPos(), self.Entity:GetAngles())
 
 			self.Ghost:SetParent(self.Entity)
 			self.Ghost:SetPos(pos)
 			self.Ghost:SetAngles(ang)
 
 			if partnode.new.scale then
-				matrix:SetScale(partnode.new.scale)
+				matrix:SetScale(Vector(unpack(partnode.new.scale))*scale)
 				self.Ghost:EnableMatrix("RenderMultiply", matrix)
 			else
 				self.GHost:DisableMatrix("RenderMultiply")
@@ -646,8 +672,10 @@ function PANEL:RemakeTree()
 		local setroot = conroot:AddNode("settings", "icon16/cog.png")
 
 		setroot.set = self.updates[i].set
-		setroot.old = { uvs = self.Entity.prop2mesh_controllers[i].uvs, scale = Vector(self.Entity.prop2mesh_controllers[i].scale) }
-		setroot.new = { uvs = self.Entity.prop2mesh_controllers[i].uvs, scale = Vector(self.Entity.prop2mesh_controllers[i].scale) }
+
+		local setscale = self.Entity.prop2mesh_controllers[i].scale
+		setroot.old = { uvs = self.Entity.prop2mesh_controllers[i].uvs, scale = {setscale.x,setscale.y,setscale.z} }
+		setroot.new = { uvs = self.Entity.prop2mesh_controllers[i].uvs, scale = {setscale.x,setscale.y,setscale.z} }
 
 		registerVector(setroot, "mesh scale", "scale")
 		registerFloat(setroot, "texture size", "uvs", 0, 512)
@@ -662,6 +690,9 @@ function PANEL:RemakeTree()
 		filenodes[#filenodes + 1] = objfile
 		objfile.list = objlist
 		objfile.add = self.updates[i].add
+
+		objlist.conscale = setscale
+		mdllist.conscale = setscale
 
 		for k, v in ipairs(condata) do
 			local root = v.objd and objlist or mdllist

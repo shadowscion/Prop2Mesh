@@ -68,6 +68,11 @@ function ENT:GetPlayer()
 	return self:GetVar("Founder", NULL)
 end
 
+local kvpass = {}
+kvpass.scale = function(val)
+	return { val.x, val.y, val.z }
+end
+
 function ENT:Think()
 	if self.prop2mesh_upload_queue then
 		self:SetNetworkedBool("uploading", true)
@@ -105,7 +110,11 @@ function ENT:Think()
 
 			for index, update in pairs(self.prop2mesh_updates) do
 				for key in pairs(update) do
-					update[key] = self.prop2mesh_controllers[index][key]
+					if kvpass[key] then
+						update[key] = kvpass[key](self.prop2mesh_controllers[index][key])
+					else
+						update[key] = self.prop2mesh_controllers[index][key]
+					end
 				end
 			end
 

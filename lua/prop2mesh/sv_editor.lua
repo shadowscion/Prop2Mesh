@@ -46,20 +46,20 @@ kvpass.vinside = function(data, index, val)
 end
 
 kvpass.pos = function(data, index, val)
-	if isvector(val) then
-		data[index].pos = val
+	if istable(val) and #val == 3 then
+		data[index].pos = Vector(unpack(val))
 	end
 end
 
 kvpass.ang = function(data, index, val)
-	if isangle(val) then
-		data[index].ang = val
+	if istable(val) and #val == 3 then
+		data[index].ang = Angle(unpack(val))
 	end
 end
 
 kvpass.scale = function(data, index, val)
-	if isvector(val) and (val.x ~= 1 or val.y ~= 1 or val.z ~= 1) then
-		data[index].scale = val
+	if istable(val) and #val == 3 and (val[1] ~= 1 or val[2] ~= 1 or val[3] ~= 1) then
+		data[index].scale = Vector(unpack(val))
 	end
 end
 
@@ -143,7 +143,7 @@ local function applyUpload(self)
 
 			if changes.setme then
 				if changes.setme.uvs then self:SetControllerUVS(index, changes.setme.uvs) end
-				if changes.setme.scale then self:SetControllerScale(index, changes.setme.scale) end
+				if changes.setme.scale then self:SetControllerScale(index, Vector(unpack(changes.setme.scale))) end
 			end
 
 			finalData[index].custom[id] = upload.data
@@ -187,7 +187,6 @@ net.Receive("prop2mesh_upload_start", function(len, pl)
 		return
 	end
 
-
 	local set, add, mod
 	if net.ReadBool() then set = net.ReadTable() else set = {} end
 	if net.ReadBool() then add = net.ReadTable() else add = {} end
@@ -202,7 +201,7 @@ net.Receive("prop2mesh_upload_start", function(len, pl)
 					self:SetControllerUVS(index, updates.uvs)
 				end
 				if updates.scale then
-					self:SetControllerScale(index, updates.scale)
+					self:SetControllerScale(index, Vector(unpack(updates.scale)))
 				end
 			end
 

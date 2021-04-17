@@ -33,6 +33,7 @@ if SERVER then
 			col = Color(255, 255, 255, 255),
 			mat = prop2mesh.defaultmat,
 			scale = Vector(1, 1, 1),
+			clips = {},
 		}
 	end
 

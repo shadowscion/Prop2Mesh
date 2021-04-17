@@ -184,6 +184,35 @@ local debugwhite = CreateMaterial("p2mdebugwhite", "UnlitGeneric", {
 	["$vertexcolor"] = 1
 })
 
+local function renderOverride(self)
+	local prev = render.EnableClipping(true)
+
+	local pos = self:GetPos()
+	local ang = self:GetAngles()
+
+	for i = 1, #self.clips do
+		local clip = self.clips[i]
+		local norm = Vector(clip.n)
+		norm:Rotate(ang)
+
+		render.PushCustomClipPlane(norm, norm:Dot(pos + norm * clip.d))
+	end
+
+	self:DrawModel()
+
+	-- if true then
+	-- 	render.CullMode(MATERIAL_CULLMODE_CW)
+	-- 	self:DrawModel()
+	-- 	render.CullMode(MATERIAL_CULLMODE_CCW)
+	-- end
+
+	for _ = 1, #self.clips do
+		render.PopCustomClipPlane()
+	end
+
+	render.EnableClipping(prev)
+end
+
 local function drawModel(self)
 	if draw_disable then
 		local min, max = self:GetRenderBounds()
@@ -197,6 +226,7 @@ local function drawModel(self)
 		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), min, max, color_black, true)
 		return
 	end
+
 	if draw_wireframe and self.isowner then
 		render.SetBlend(1)
 		render.SetColorModulation(1, 1, 1)
@@ -206,6 +236,7 @@ local function drawModel(self)
 	else
 		self:DrawModel()
 	end
+
 	local complex = getComplex(self.crc, self.uvs)
 	if complex then
 		local matrix = self:GetWorldTransformMatrix()
@@ -258,6 +289,13 @@ local function refresh(self, info)
 	info.ent.uvs = info.uvs
 	info.ent.isowner = self.isowner
 
+	if info.clips then
+		info.ent.clips = info.clips
+		info.ent.RenderOverride = renderOverride
+	else
+		info.ent.RenderOverride = nil
+	end
+
 	if checkdownload(self, info.crc) then
 		local mdata = checkmesh(info.crc, info.uvs)
 		if mdata and mdata.ready then
@@ -273,7 +311,6 @@ local function refreshAll(self, prop2mesh_controllers)
 		refresh(self, info)
 	end
 end
-
 
 local function discard(self, prop2mesh_controllers)
 	for _, info in pairs(prop2mesh_controllers) do
@@ -455,6 +492,14 @@ kvpass.scale = function(self, info, val)
 	info.scale = Vector(unpack(val))
 end
 
+kvpass.clips = function(self, info, val)
+	info.clips = {}
+	for i = 1, #val do
+		local clip = val[i]
+		info.clips[#info.clips + 1] = { n = Vector(clip[1], clip[2], clip[3]), d = clip[4] }
+	end
+end
+
 
 --[[
 
@@ -496,7 +541,7 @@ net.Receive("prop2mesh_sync", function(len)
 	self.prop2mesh_controllers = {}
 
 	for i = 1, net.ReadUInt(8) do
-		self.prop2mesh_controllers[i] = {
+		local info = {
 			crc   = net.ReadString(),
 			uvs   = safeuvs(net.ReadUInt(12)),
 			mat   = safemat(net.ReadString()),
@@ -504,6 +549,16 @@ net.Receive("prop2mesh_sync", function(len)
 			scale = Vector(net.ReadFloat(), net.ReadFloat(), net.ReadFloat()),
 			index = i,
 		}
+
+		local clipnum = net.ReadUInt(4)
+		if clipnum > 0 then
+			info.clips = {}
+			for j = 1, clipnum do
+				info.clips[#info.clips + 1] = { n = Vector(net.ReadFloat(), net.ReadFloat(), net.ReadFloat()), d = net.ReadFloat() }
+			end
+		end
+
+		self.prop2mesh_controllers[i] = info
 	end
 
 	self.prop2mesh_refresh = true

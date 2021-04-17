@@ -11,6 +11,15 @@ ENT.RenderGroup = RENDERGROUP_BOTH
 cleanup.Register("sent_prop2mesh_legacy")
 
 if CLIENT then
+	function ENT:Think()
+		if self.Clipped or self.ClipData then -- oof
+			self.RenderOverride = self.RenderOverride_preclipping or nil
+			self.Clipped = nil
+			self.ClipData = nil
+		end
+		BaseClass.Think(self)
+	end
+
 	return
 end
 
@@ -29,6 +38,15 @@ function ENT:Think()
 		if info.mat ~= val then
 			info.mat = val
 			self:AddControllerUpdate(1, "mat")
+		end
+		local val = self.ClipData or {}
+		if #info.clips ~= #val then
+			self:ClearControllerClips(1)
+			for i = 1, #val do
+				local clip = val[i]
+				local norm = clip.n:Forward()
+				self:AddControllerClip(1, norm.x, norm.y, norm.z, clip.d)
+			end
 		end
 	end
 	BaseClass.Think(self)

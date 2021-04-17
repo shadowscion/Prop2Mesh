@@ -668,9 +668,3 @@ hook.Add("Think", "prop2mesh_meshlab", function()
 		end
 	end
 end)
-
-
-
-
-print( pluralf("prop2mesh %d server download%s remaining", 1, "s") )
-print( pluralf("prop2mesh %d server download%s remaining", 0, "s") )

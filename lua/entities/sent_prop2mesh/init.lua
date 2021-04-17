@@ -164,6 +164,12 @@ duplicator.RegisterEntityModifier("prop2mesh", function(ply, self, dupe)
 			self:SetControllerUVS(k, v.uvs)
 			self:SetControllerScale(k, v.scale)
 
+			if v.clips then
+				for _, clip in pairs(v.clips) do
+					self:AddControllerClip(k, unpack(clip))
+				end
+			end
+
 			if dupe_data and dupe_data[v.crc] then
 				dupe_lookup[v.crc] = true
 				info.crc = v.crc
@@ -217,6 +223,7 @@ function ENT:SendControllers(syncwith)
 
 	for i = 1, #self.prop2mesh_controllers do
 		local info = self.prop2mesh_controllers[i]
+
 		net.WriteString(info.crc)
 		net.WriteUInt(info.uvs, 12)
 		net.WriteString(info.mat)
@@ -227,6 +234,15 @@ function ENT:SendControllers(syncwith)
 		net.WriteFloat(info.scale.x)
 		net.WriteFloat(info.scale.y)
 		net.WriteFloat(info.scale.z)
+
+		net.WriteUInt(#info.clips, 4)
+		for j = 1, #info.clips do
+			local clip = info.clips[j]
+			net.WriteFloat(clip[1])
+			net.WriteFloat(clip[2])
+			net.WriteFloat(clip[3])
+			net.WriteFloat(clip[4])
+		end
 	end
 
 	if syncwith then
@@ -279,6 +295,50 @@ function ENT:SetControllerUVS(index, val)
 	if (info and isnumber(val)) and (info.uvs ~= val) then
 		info.uvs = val
 		self:AddControllerUpdate(index, "uvs")
+	end
+end
+
+local function ClipExists(clips, normx, normy, normz, dist)
+	local x = math.Round(normx, 4)
+	local y = math.Round(normy, 4)
+	local z = math.Round(normz, 4)
+	local d = math.Round(dist, 2)
+
+	for i, clip in ipairs(clips) do
+		if math.Round(clip[1], 4) ~= x then continue end
+		if math.Round(clip[2], 4) ~= y then continue end
+		if math.Round(clip[3], 4) ~= z then continue end
+		if math.Round(clip[4], 2) ~= d then continue end
+
+		return true, i
+	end
+
+	return false
+end
+
+function ENT:AddControllerClip(index, normx, normy, normz, dist)
+	local info = self.prop2mesh_controllers[index]
+	if info then
+		if not ClipExists(info.clips, normx, normy, normz, dist) then
+			table.insert(info.clips, { normx, normy, normz, dist })
+			self:AddControllerUpdate(index, "clips")
+		end
+	end
+end
+
+function ENT:RemoveControllerClip(index, clipindex)
+	local info = self.prop2mesh_controllers[index]
+	if info and info.clips[clipindex] then
+		table.remove(info.clips, clipindex)
+		self:AddControllerUpdate(index, "clips")
+	end
+end
+
+function ENT:ClearControllerClips(index)
+	local info = self.prop2mesh_controllers[index]
+	if info and #info.clips > 0 then
+		info.clips = {}
+		self:AddControllerUpdate(index, "clips")
 	end
 end
 

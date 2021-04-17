@@ -55,7 +55,7 @@ timer.Create("prop2trash", 60, 0, function()
 				for uvs, meshdata in pairs(recycle[crc].meshes) do
 					if meshdata.basic then
 						if IsValid(meshdata.basic.Mesh) then
-							print("destroying", meshdata.basic.Mesh)
+							--print("destroying", meshdata.basic.Mesh)
 							meshdata.basic.Mesh:Destroy()
 							meshdata.basic.Mesh = nil
 						end
@@ -63,7 +63,7 @@ timer.Create("prop2trash", 60, 0, function()
 					if meshdata.complex then
 						for m, meshpart in pairs(meshdata.complex) do
 							if IsValid(meshpart) then
-								print("destroying", meshpart)
+								--print("destroying", meshpart)
 								meshpart:Destroy()
 								meshdata.complex[m] = nil
 							end

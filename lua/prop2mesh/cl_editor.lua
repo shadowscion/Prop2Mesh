@@ -518,10 +518,6 @@ function PANEL:Init()
 			end
 		end
 
-		PrintTable(set)
-		PrintTable(add)
-		PrintTable(mod)
-
 		if next(set) or next(add) or next(mod) then
 			net.Start("prop2mesh_upload_start")
 			net.WriteUInt(self.Entity:EntIndex(), 16)

@@ -40,7 +40,7 @@ function ENT:Think()
 			self:AddControllerUpdate(1, "mat")
 		end
 		local val = self.ClipData or {}
-		if #info.clips ~= #val then
+		if #info.clips ~= #val then -- potential issue if not all the clips get added
 			self:ClearControllerClips(1)
 			for i = 1, #val do
 				local clip = val[i]

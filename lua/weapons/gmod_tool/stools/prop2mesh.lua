@@ -421,9 +421,14 @@ if SERVER then
 		tr.Entity:SetControllerMat(index - 1, mat)
 	end
 	multitool.modes.proper_clipping = function(ply, tr, index)
+		if ply:KeyDown(IN_RELOAD) then
+			tr.Entity:ClearControllerClips(index - 1)
+			return
+		end
 		if ply:KeyDown(IN_ATTACK2) then
 			local tool = ply:GetTool("proper_clipping")
-			if tool:GetStage() == 1 then
+			if tool:GetStage() == 1 or tool:GetOperation() ~= 0 then
+				ply:ChatPrint("Only clip by plane is supported")
 				return
 			end
 			local norm, origin = tool.norm, tool.origin
@@ -431,21 +436,26 @@ if SERVER then
 				return
 			end
 
+			norm = Vector(norm)
+			origin = Vector(origin)
+
 			norm = norm * (ply:KeyDown(IN_WALK) and -1 or 1)
 			dist = norm:Dot(tr.Entity:GetPos() - (origin + norm * ply:GetInfoNum("proper_clipping_offset", 0)))
 			norm = tr.Entity:WorldToLocalAngles(norm:Angle()):Forward() * -1
 
 			tr.Entity:AddControllerClip(index - 1, norm.x, norm.y, norm.z, dist)
-			return
-		end
-		if ply:KeyDown(IN_RELOAD) then
-			tr.Entity:ClearControllerClips(index - 1)
 		end
 	end
+
 	multitool.modes.visual_adv = function(ply, tr, index)
+		if ply:KeyDown(IN_RELOAD) then
+			tr.Entity:ClearControllerClips(index - 1)
+			return
+		end
 		if ply:KeyDown(IN_ATTACK2) then
 			local tool = ply:GetTool("visual_adv")
-			if tool:GetStage() == 1 then
+			if tool.mode ~= 1 then
+				ply:ChatPrint("Only clip by plane is supported")
 				return
 			end
 			local norm, origin = tool.norm, tool.pos
@@ -453,15 +463,14 @@ if SERVER then
 				return
 			end
 
+			norm = Vector(norm)
+			origin = Vector(origin)
+
 			norm = norm * (ply:KeyDown(IN_WALK) and -1 or 1) * -1
 			dist = norm:Dot(tr.Entity:GetPos() - origin)
 			norm = tr.Entity:WorldToLocalAngles(norm:Angle()):Forward() * -1
 
 			tr.Entity:AddControllerClip(index - 1, norm.x, norm.y, norm.z, dist)
-			return
-		end
-		if ply:KeyDown(IN_RELOAD) then
-			tr.Entity:ClearControllerClips(index - 1)
 		end
 	end
 
@@ -473,7 +482,10 @@ if SERVER then
 		if index ~= 1 then
 			multitool.modes[tool](ply, tr, index)
 			if game.SinglePlayer() then
-				ply:GetActiveWeapon():CallOnClient("PrimaryAttack")
+				local swep = ply:GetActiveWeapon()
+				if swep and swep.DoShootEffect then
+					swep:DoShootEffect(tr.HitPos, tr.HitNormal, tr.Entity, tr.PhysicsBone, IsFirstTimePredicted())
+				end
 			end
 			return false
 		end
@@ -1179,32 +1191,6 @@ end
 --[[
 	clipping tools
 ]]
-local color_clip = Color(255, 125, 0, 15)
-local cliphud = function(self)
-	local controller = multitool.entity.prop2mesh_controllers[multitool.lines_display_sel - 1]
-	if not controller or not controller.clips then
-		return
-	end
-
-	cam.Start3D()
-		local pos = multitool.entity:GetPos()
-		local ang = multitool.entity:GetAngles()
-
-		for i = 1, #controller.clips do
-			local clip = controller.clips[i]
-
-			local norm = Vector(clip.n)
-			norm:Rotate(ang)
-
-			local origin = pos + norm*clip.d
-
-			render.DrawLine(origin, origin - norm*3, _blue)
-			render.DrawLine(origin, origin - norm:Angle():Right()*3, _red)
-			render.DrawLine(origin, origin - norm:Angle():Up()*3, _green)
-		end
-	cam.End3D()
-end
-
 local lang_tmp1 = "Clip entity"
 local lang_tmp2 = "Clip controller [%d] [%d clips]"
 
@@ -1218,18 +1204,7 @@ local cliptext = function(self)
 end
 
 
-local mode = {}
-multitool.modes.proper_clipping = mode
-
-mode.title_text = "PROPER CLIPPING TOOL"
-
-surface.SetFont(multitool.title_font)
-mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
-
-mode.getLines = cliptext
-mode.hud = cliphud
-
-
+-- visclip adv
 local mode = {}
 multitool.modes.visual_adv = mode
 
@@ -1239,4 +1214,48 @@ surface.SetFont(multitool.title_font)
 mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 
 mode.getLines = cliptext
-mode.hud = cliphud
+
+
+-- properclipping
+local mode = {}
+multitool.modes.proper_clipping = mode
+
+mode.title_text = "PROPER CLIPPING TOOL"
+
+surface.SetFont(multitool.title_font)
+mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
+
+mode.getLines = cliptext
+
+--[[
+function mode:hud()
+	local controller = multitool.entity.prop2mesh_controllers[multitool.lines_display_sel - 1]
+	if not controller then
+		return
+	end
+
+	local tool = LocalPlayer():GetTool()
+	if tool.norm and tool.origin and controller.ent then
+		cam.IgnoreZ(true)
+			local i = LocalPlayer():KeyDown(IN_WALK)
+			local offset = tool:GetClientNumber("offset") * (i and -1 or 1)
+
+			local prev = render.EnableClipping(true)
+			render.SuppressEngineLighting(true)
+
+			render.PushCustomClipPlane(tool.norm * (i and 1 or -1), tool.norm:Dot(tool.origin) * (i and 1 or -1) - offset)
+			render.SetColorModulation(0.3, 2, 0.5)
+			controller.ent:DrawModel()
+			render.PopCustomClipPlane()
+
+			render.PushCustomClipPlane(tool.norm * (i and -1 or 1), tool.norm:Dot(tool.origin) * (i and -1 or 1) + offset)
+			render.SetColorModulation(2, 0.2, 0.3)
+			controller.ent:DrawModel()
+			render.PopCustomClipPlane()
+
+			render.SuppressEngineLighting(false)
+			render.EnableClipping(prev)
+		cam.IgnoreZ(false)
+	end
+end
+]]

@@ -44,8 +44,8 @@ function ENT:Think()
 			self:ClearControllerClips(1)
 			for i = 1, #val do
 				local clip = val[i]
-				local norm = clip.n:Forward()
-				self:AddControllerClip(1, norm.x, norm.y, norm.z, clip.d)
+				local norm = clip.norm or clip.n:Forward()
+				self:AddControllerClip(1, norm.x, norm.y, norm.z, clip.dist or clip.d)
 			end
 		end
 	end

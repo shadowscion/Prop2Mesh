@@ -21,8 +21,11 @@ empty.Mesh:BuildFromTriangles({{pos = Vector()},{pos = Vector()},{pos = Vector()
 --[[
 
 ]]
-local recycle = {}
-local garbage = {}
+if not prop2mesh.recycle then prop2mesh.recycle = {} end
+if not prop2mesh.garbage then prop2mesh.garbage = {} end
+
+local recycle = prop2mesh.recycle
+local garbage = prop2mesh.garbage
 
 function prop2mesh.getMeshInfo(crc, uvs)
 	local mdata = recycle[crc] and recycle[crc].meshes[uvs]
@@ -569,6 +572,9 @@ end)
 prop2mesh.downloads = 0
 net.Receive("prop2mesh_download", function(len)
 	local crc = net.ReadString()
+	if not recycle[crc] then
+		recycle[crc] = { users = {}, meshes = {} }
+	end
 	recycle[crc].stream = net.ReadStream(nil, function(data)
 		if not recycle[crc] then
 			recycle[crc] = { users = {}, meshes = {} }

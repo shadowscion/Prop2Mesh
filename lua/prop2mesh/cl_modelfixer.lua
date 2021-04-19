@@ -268,6 +268,7 @@ models/props_junk/ravenholmsign.mdl
 models/props_lab/blastdoor001a.mdl
 models/props_lab/blastdoor001b.mdl
 models/props_lab/blastdoor001c.mdl
+models/props_lab/blastwindow.mdl
 models/props_lab/citizenradio.mdl
 models/props_lab/clipboard.mdl
 models/props_lab/crematorcase.mdl

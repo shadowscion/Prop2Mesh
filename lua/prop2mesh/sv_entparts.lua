@@ -31,6 +31,11 @@ local entclass = {}
 --[[
 
 ]]
+function prop2mesh.getPartClasses()
+	local keys = table.GetKeys(entclass)
+	return keys, #keys
+end
+
 function prop2mesh.partsFromEnts(entlist, worldpos, worldang)
 	local partlist = {}
 
@@ -199,7 +204,7 @@ entclass.starfall_hologram = function(partlist, ent, worldpos, worldang)
 
 	if ent.clips then
 		local pclips = {}
-		for _, clip in pairs(holo.clips) do
+		for _, clip in pairs(ent.clips) do
 			if not IsValid(clip.entity) then
 				goto badclip
 			end

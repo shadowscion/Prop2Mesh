@@ -7,16 +7,28 @@ local ents = ents
 local table = table
 local IsValid = IsValid
 
+local function GetClientFilters(csv)
+	local ret = {}
+
+	for k, v in pairs(string.Split(string.lower(string.Trim(csv)), ",")) do
+		v = string.Trim(v)
+		ret[v] = true
+	end
+
+	return ret
+end
+
 if SERVER then
-	local select_material      = "models/debug/debugwhite"
-	local select_color_class   = {
-		acf_armor              = Color(255, 125, 0, 125),
-		prop_physics           = Color(255, 0, 0, 125),
-		gmod_wire_hologram     = Color(0, 255, 0, 125),
-		starfall_hologram      = Color(255, 0, 255, 125),
-		sent_prop2mesh_legacy  = Color(255, 255, 0, 125),
-	}
-	local select_color_p2m     = Color(0, 0, 255, 255)
+	local pkey, pnum = prop2mesh.getPartClasses()
+	local select_color_class = {}
+
+	for k, v in SortedPairsByValue(pkey) do
+		select_color_class[v] = HSVToColor((360 / pnum)*(k - 1), 1, 1)
+		select_color_class[v].a = 125
+	end
+
+	local select_color_p2m = Color(0, 0, 255, 255)
+	local select_material  = "models/debug/debugwhite"
 
 	local function checkOwner(ply, ent)
 		if CPPI then
@@ -72,11 +84,26 @@ if SERVER then
 		return ent
 	end
 
+	function TOOL:GetClassWhitelist()
+		local class_filters = GetClientFilters(self:GetClientInfo("tool_filter_ilist"))
+		local class_whitelist = {}
+
+		for k, v in pairs(select_color_class) do
+			if not class_filters[k] then class_whitelist[k] = true end
+		end
+
+		return class_whitelist
+	end
+
 	function TOOL:GetFilteredEntities(tr, group)
+
 		if next(group) == nil then
 			return
 		end
 
+		local class_whitelist = self:GetClassWhitelist()
+
+		--[[
 		local class_whitelist = {}
 		if not tobool(self:GetClientNumber("tool_filter_iprop")) then
 			class_whitelist.prop_physics = true
@@ -91,6 +118,7 @@ if SERVER then
 		if not tobool(self:GetClientNumber("tool_filter_ipacf")) then
 			class_whitelist.acf_armor = true
 		end
+		]]
 
 		local ignore_invs = tobool(self:GetClientNumber("tool_filter_iinvs"))
 		local ignore_prnt = tobool(self:GetClientNumber("tool_filter_iprnt"))
@@ -543,10 +571,15 @@ local ConVars = {
 	["tool_filter_iinvs"]    = 1,
 	["tool_filter_iprnt"]    = 0,
 	["tool_filter_icnst"]    = 0,
+
+	--[[
 	["tool_filter_iprop"]    = 0,
 	["tool_filter_iholo"]    = 0,
 	["tool_filter_ilp2m"]    = 1, -- legacy p2m
 	["tool_filter_ipacf"]    = 1, -- procedural armor
+	]]
+
+	["tool_filter_ilist"]    = "acf_armor, sent_prop2mesh_legacy",
 }
 TOOL.ClientConVar = ConVars
 
@@ -614,10 +647,50 @@ local function BuildPanel_ToolSettings(self)
 		surface.DrawLine(0, h - 1, w, h - 1)
 	end
 
+	--[[
 	pnl:CheckBox("Ignore props", "prop2mesh_tool_filter_iprop")
 	pnl:CheckBox("Ignore holos", "prop2mesh_tool_filter_iholo")
 	pnl:CheckBox("Ignore acf armor", "prop2mesh_tool_filter_ipacf")
 	pnl:CheckBox("Ignore legacy p2m", "prop2mesh_tool_filter_ilp2m")
+	]]
+
+	local scroll = vgui.Create("DScrollPanel", pnl)
+	scroll:SetTall(96)
+	scroll:Dock(FILL)
+	pnl:AddItem(scroll)
+
+	local class_list_display = { "prop_physics", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
+	local class_list_convar = GetConVar("prop2mesh_tool_filter_ilist")
+	local class_list_filter = GetClientFilters(class_list_convar:GetString())
+
+	local colortext_def = Color(55, 55, 55)
+	local colortext_sel = Color(75, 175, 75)
+
+	local boxes = {}
+	for k, v in ipairs(class_list_display) do
+		local cbox = scroll:Add("DCheckBoxLabel")
+		cbox:Dock(TOP)
+		cbox:DockMargin(0, 0, 0, 5)
+		cbox:SetText("Ignore " .. v)
+		cbox.OnChange = function(_, val)
+			class_list_filter = GetClientFilters(class_list_convar:GetString())
+			if val then class_list_filter[v] = true else class_list_filter[v] = nil end
+			RunConsoleCommand("prop2mesh_tool_filter_ilist", table.concat(table.GetKeys(class_list_filter), ","))
+			cbox:SetTextColor(val and colortext_sel or colortext_def)
+		end
+		cbox:SetChecked(class_list_filter[v] or false)
+		cbox:SetTextColor(class_list_filter[v] and colortext_sel or colortext_def)
+		cbox.key = v
+		table.insert(boxes, cbox)
+	end
+
+	self.tempfixfilters = function()
+		local class_list_filter = GetClientFilters(class_list_convar:GetString())
+		for k, v in pairs(boxes) do
+			v:SetChecked(class_list_filter[v.key] or false)
+			v:SetTextColor(class_list_filter[v.key] and colortext_sel or colortext_def)
+		end
+	end
 
 	--
 	local help = pnl:Help("Entity options")
@@ -710,6 +783,7 @@ TOOL.BuildCPanel = function(self)
 				convar:Revert()
 			end
 		end
+		self.tempfixfilters()
 	end
 	self:AddPanel(BuildPanel_ToolSettings(self))
 	self:AddPanel(BuildPanel_Profiler(self))

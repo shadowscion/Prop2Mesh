@@ -10,6 +10,7 @@ local IsValid = IsValid
 if SERVER then
 	local select_material      = "models/debug/debugwhite"
 	local select_color_class   = {
+		acf_armor              = Color(255, 125, 0, 125),
 		prop_physics           = Color(255, 0, 0, 125),
 		gmod_wire_hologram     = Color(0, 255, 0, 125),
 		starfall_hologram      = Color(255, 0, 255, 125),
@@ -86,6 +87,9 @@ if SERVER then
 		end
 		if not tobool(self:GetClientNumber("tool_filter_ilp2m")) then
 			class_whitelist.sent_prop2mesh_legacy = true
+		end
+		if not tobool(self:GetClientNumber("tool_filter_ipacf")) then
+			class_whitelist.acf_armor = true
 		end
 
 		local ignore_invs = tobool(self:GetClientNumber("tool_filter_iinvs"))
@@ -257,6 +261,8 @@ if SERVER then
 						end
 					end
 				else
+					if self.selection[tr.Entity] then self:DeselectEntity(tr.Entity) else self:SelectEntity(tr.Entity) end
+					--[[
 					if self:GetClientNumber("tool_filter_iprop") ~= 0 and self:GetClientNumber("tool_filter_iholo") == 0 then
 						local find = {}
 						local cone = ents.FindInCone(tr.StartPos, tr.Normal, tr.HitPos:Distance(tr.StartPos) * 2, math.cos(math.rad(3)))
@@ -279,6 +285,7 @@ if SERVER then
 					else
 						if self.selection[tr.Entity] then self:DeselectEntity(tr.Entity) else self:SelectEntity(tr.Entity) end
 					end
+					]]
 				end
 			end
 		end
@@ -538,8 +545,8 @@ local ConVars = {
 	["tool_filter_icnst"]    = 0,
 	["tool_filter_iprop"]    = 0,
 	["tool_filter_iholo"]    = 0,
-	["tool_filter_ilp2m"]    = 1,
-	["tool_config_halos"]    = 1,
+	["tool_filter_ilp2m"]    = 1, -- legacy p2m
+	["tool_filter_ipacf"]    = 1, -- procedural armor
 }
 TOOL.ClientConVar = ConVars
 
@@ -609,6 +616,7 @@ local function BuildPanel_ToolSettings(self)
 
 	pnl:CheckBox("Ignore props", "prop2mesh_tool_filter_iprop")
 	pnl:CheckBox("Ignore holos", "prop2mesh_tool_filter_iholo")
+	pnl:CheckBox("Ignore acf armor", "prop2mesh_tool_filter_ipacf")
 	pnl:CheckBox("Ignore legacy p2m", "prop2mesh_tool_filter_ilp2m")
 
 	--

@@ -101,10 +101,18 @@ entclass.prop_physics = function(partlist, ent, worldpos, worldang)
 		part.bodygroup = bodygroup
 	end
 
+	local scale
+	if ent.GetScale then scale = ent:GetScale() else scale = ent:GetManipulateBoneScale(0) end
+	if isvector(scale) and scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
+		part.scale = scale
+	end
+
+	--[[
 	local scale = ent:GetManipulateBoneScale(0)
 	if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
 		part.scale = scale
 	end
+	]]
 
 	local clips = ent.ClipData or ent.EntityMods and ent.EntityMods.clips
 	if clips then
@@ -117,7 +125,7 @@ entclass.prop_physics = function(partlist, ent, worldpos, worldang)
 				part.vinside = 1
 			end
 			local normal = clip.n:Forward()
-			pclips[#pclips + 1] = { n = normal, d = clip.d + normal:Dot(ent:OBBCenter()) }
+			pclips[#pclips + 1] = { n = normal, d = clip.d + normal:Dot(ent.OBBCenterOrg or ent:OBBCenter()) }
 
 			::badclip::
 		end
@@ -128,6 +136,8 @@ entclass.prop_physics = function(partlist, ent, worldpos, worldang)
 
 	partlist[#partlist + 1] = part
 end
+
+entclass.acf_armor = entclass.prop_physics
 
 entclass.gmod_wire_hologram = function(partlist, ent, worldpos, worldang)
 	local holo = ent.E2HoloData

@@ -6,17 +6,17 @@ local E2Lib, WireLib, prop2mesh, math =
 
 --[[
 ]]
-local _COL    = 1
-local _MAT    = 2
-local _POS    = 3
-local _ANG    = 4
-local _SCALE  = 5
-local _UVS    = 6
+local _COL    = -1
+local _MAT    = -2
+local _POS    = -3
+local _ANG    = -4
+local _SCALE  = -5
+local _UVS    = -6
 
-local _PARENT = 7
-local _MODEL  = 8
-local _NODRAW = 9
-local _BUILD  = 10
+local _PARENT = -7
+local _MODEL  = -8
+local _NODRAW = -9
+local _BUILD  = -10
 
 local cooldowns = {}
 cooldowns[_BUILD] = 10
@@ -183,10 +183,10 @@ registerCallback("destruct", function(self)
 end)
 
 local function p2mCreate(context, pos, ang, count)
-	if not count or count < 1 then
+	if not count then
 		count = 1
 	end
-	count = math.ceil(count)
+	count = math.abs(math.ceil(count))
 
 	if count > 16 then
 		error("controller limit is 16 per entity")
@@ -241,7 +241,7 @@ end
 ]]
 __e2setcost(100)
 
-local function p2mBuild(context, self)
+local function p2mBuild(context, self)  -- maybe queue this
 	for k, v in pairs(self.prop2mesh_e2_resevoir) do
 		if self.prop2mesh_controllers[k] then
 			self:SetControllerData(k, v)

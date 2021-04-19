@@ -316,6 +316,10 @@ local function refreshAll(self, prop2mesh_controllers)
 end
 
 local function discard(self, prop2mesh_controllers)
+	if not prop2mesh_controllers then
+		return
+	end
+
 	for _, info in pairs(prop2mesh_controllers) do
 		if info.ent and IsValid(info.ent) then
 			info.ent:Remove()

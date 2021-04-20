@@ -11,15 +11,19 @@ ENT.RenderGroup = RENDERGROUP_BOTH
 cleanup.Register("sent_prop2mesh_legacy")
 
 if CLIENT then
+--[[
 	function ENT:Think()
-		if self.Clipped or self.ClipData then -- oof
-			self.RenderOverride = self.RenderOverride_preclipping or nil
-			self.Clipped = nil
-			self.ClipData = nil
+		if self.RenderOverride then
+			if self.ClipData or self.Clipped then
+				self:DisableMatrix("RenderMultiply")
+				self.Clipped = nil
+				self.ClipData = nil
+				self.RenderOverride = self.RenderOverride_preclipping or nil
+			end
 		end
 		BaseClass.Think(self)
 	end
-
+]]
 	return
 end
 
@@ -39,6 +43,7 @@ function ENT:Think()
 			info.mat = val
 			self:AddControllerUpdate(1, "mat")
 		end
+		--[[
 		local val = self.ClipData or {}
 		if #info.clips ~= #val then -- potential issue if not all the clips get added
 			self:ClearControllerClips(1)
@@ -48,6 +53,7 @@ function ENT:Think()
 				self:AddControllerClip(1, norm.x, norm.y, norm.z, clip.dist or clip.d)
 			end
 		end
+		]]
 	end
 	BaseClass.Think(self)
 end
@@ -130,9 +136,25 @@ local function getLegacyParts(data)
 end
 
 local function getLegacyInfo(data)
-	if not data then return nil end
+	if not data then
+		return
+	end
 	local uvs, scale = getLegacyMods(data.p2m_mods)
 	return uvs, scale, getLegacyParts(data.p2m_packets)
+end
+
+local function getLegacyClips(data)
+	if not data then
+		return
+	end
+
+	local clip1 = data.proper_clipping
+	local clip2 = data.clips
+
+	data.proper_clipping = nil
+	data.clips = nil
+
+	return clip1, clip2
 end
 
 duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
@@ -140,6 +162,8 @@ duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
 	if not IsValid(compat) then
 		return false
 	end
+
+	local clip1, clip2 = getLegacyClips(data.EntityMods)
 
 	duplicator.DoGeneric(compat, data)
 	compat:Spawn()
@@ -153,6 +177,32 @@ duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
 
 	compat:AddController(uvs, scale)
 	compat:SetControllerData(1, parts)
+
+	if clip1 or clip2 then
+		local clips = {}
+		if clip1 then -- proper clipping
+			for i = 1, #clip1 do
+				local clip = clip1[i]
+				local norm = clip[1]
+				clips[#clips + 1] = { norm.x, norm.y, norm.z, clip[2] }
+			end
+		elseif clip2 then -- stinky visclip adv
+			for i = 1, #clip2 do
+				local clip = clip2[i]
+				local norm = clip.n:Forward()
+				local dist = clip.d
+				if clip.new then
+					dist = dist + norm:Dot(compat:OBBCenter())
+				end
+				clips[#clips + 1] = { norm.x, norm.y, norm.z, dist }
+			end
+		end
+		if next(clips) then
+			for _, clip in pairs(clips) do
+				compat:AddControllerClip(1, unpack(clip))
+			end
+		end
+	end
 
 	return compat
 end, "Data")

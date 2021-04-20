@@ -388,7 +388,7 @@ if SERVER then
 		end
 	end
 
-	local multitool = { modes = {} }
+	local multitool = { modes = {}, legacyoverride = {} }
 	multitool.modes.material = function(ply, tr, index)
 		if ply:KeyDown(IN_ATTACK2) then
 			local mat = tr.Entity:GetControllerMat(index - 1)
@@ -455,6 +455,8 @@ if SERVER then
 		tr.Entity:SetControllerCol(index - 1, col)
 		tr.Entity:SetControllerMat(index - 1, mat)
 	end
+
+	multitool.legacyoverride.proper_clipping = true
 	multitool.modes.proper_clipping = function(ply, tr, index)
 		if ply:KeyDown(IN_RELOAD) then
 			tr.Entity:ClearControllerClips(index - 1)
@@ -482,6 +484,7 @@ if SERVER then
 		end
 	end
 
+	multitool.legacyoverride.visual_adv = true
 	multitool.modes.visual_adv = function(ply, tr, index)
 		if ply:KeyDown(IN_RELOAD) then
 			tr.Entity:ClearControllerClips(index - 1)
@@ -510,10 +513,21 @@ if SERVER then
 	end
 
 	hook.Add("CanTool", "prop2mesh_multitool", function(ply, tr, tool)
-		if not multitool.modes[tool] or not IsValid(tr.Entity) or tr.Entity:GetClass() ~= "sent_prop2mesh" then
+		if not multitool.modes[tool] or not IsValid(tr.Entity) then
 			return
 		end
-		local index = ply:GetInfoNum("prop2mesh_multitool_index", 1)
+
+		local class = tr.Entity:GetClass()
+		local index
+		if multitool.legacyoverride[tool] and class == "sent_prop2mesh_legacy" then
+			index = 2
+		else
+			if class ~= "sent_prop2mesh" then
+				return
+			end
+			index = ply:GetInfoNum("prop2mesh_multitool_index", 1)
+		end
+
 		if index ~= 1 then
 			multitool.modes[tool](ply, tr, index)
 			if game.SinglePlayer() then

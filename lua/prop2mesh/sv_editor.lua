@@ -48,18 +48,24 @@ end
 kvpass.pos = function(data, index, val)
 	if istable(val) and #val == 3 then
 		data[index].pos = Vector(unpack(val))
+	else
+		data[index].pos = Vector()
 	end
 end
 
 kvpass.ang = function(data, index, val)
 	if istable(val) and #val == 3 then
 		data[index].ang = Angle(unpack(val))
+	else
+		data[index].ang = Angle()
 	end
 end
 
 kvpass.scale = function(data, index, val)
 	if istable(val) and #val == 3 and (val[1] ~= 1 or val[2] ~= 1 or val[3] ~= 1) then
 		data[index].scale = Vector(unpack(val))
+	else
+		data[index].scale = nil
 	end
 end
 
@@ -139,7 +145,10 @@ local function applyUpload(self)
 				finalData[index] = { custom = {} }
 			end
 
-			pcall(insertUpdateChanges, self, index, finalData[index], changes.modme)
+			local ok, err = pcall(insertUpdateChanges, self, index, finalData[index], changes.modme)
+			if not ok then
+				print(err)
+			end
 
 			if changes.setme then
 				if changes.setme.uvs then self:SetControllerUVS(index, changes.setme.uvs) end

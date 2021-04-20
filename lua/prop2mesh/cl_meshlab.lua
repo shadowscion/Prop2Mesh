@@ -516,6 +516,8 @@ local function getMeshFromData(data, uvs)
 			local valid, opv = pcall(getVertsFromOBJ, partlist.custom, partnext, meshtex, vmins, vmaxs)
 			if valid and opv then
 				partverts = opv
+			else
+				print(opv)
 			end
 		end
 

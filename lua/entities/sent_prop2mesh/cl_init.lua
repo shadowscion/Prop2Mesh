@@ -407,6 +407,7 @@ function ENT:GetAllDataReady()
 end
 
 function ENT:GetDownloadProgress()
+	--[[
 	local max
 	for i = 1, #self.prop2mesh_controllers do
 		local stream = recycle[self.prop2mesh_controllers[i].crc].stream
@@ -419,6 +420,8 @@ function ENT:GetDownloadProgress()
 		end
 	end
 	return max
+	]]
+	return 1
 end
 
 
@@ -578,7 +581,46 @@ net.Receive("prop2mesh_sync", function(len)
 end)
 
 prop2mesh.downloads = 0
+
 net.Receive("prop2mesh_download", function(len)
+	local crc = net.ReadString()
+	if not crc then
+		return
+	end
+
+	prop2mesh.downloads = prop2mesh.downloads + 1
+
+	net.ReadStream(nil, function(data)
+		if not crc or not isstring(data) then
+			prop2mesh.downloads = math.max(0, prop2mesh.downloads - 1)
+			return
+		end
+
+		if not recycle[crc] then
+			recycle[crc] = { users = {}, meshes = {} }
+		end
+
+		if crc == util.CRC(data) then
+			recycle[crc].zip = data
+
+			for user in pairs(recycle[crc].users) do
+				if IsValid(user) then
+					for k, info in pairs(user.prop2mesh_controllers) do
+						if info.crc == crc then
+							checkmesh(crc, info.uvs)
+						end
+					end
+				else
+					setuser(user, crc, false)
+				end
+			end
+		else
+			garbage[crc] = SysTime() + 500
+		end
+
+		prop2mesh.downloads = math.max(0, prop2mesh.downloads - 1)
+	end)
+	--[[
 	local crc = net.ReadString()
 	if not recycle[crc] then
 		recycle[crc] = { users = {}, meshes = {} }
@@ -603,6 +645,7 @@ net.Receive("prop2mesh_download", function(len)
 		prop2mesh.downloads = math.max(0, prop2mesh.downloads - 1)
 	end)
 	prop2mesh.downloads = prop2mesh.downloads + 1
+	]]
 end)
 
 hook.Add("NotifyShouldTransmit", "prop2mesh_sync", function(self, bool)

@@ -31,6 +31,25 @@ net.Receive("prop2mesh_sync", function(len, pl)
 	self.prop2mesh_syncwith[pl] = net.ReadString()
 end)
 
+
+net.Receive("prop2mesh_download", function(len, pl)
+	local self = net.ReadEntity()
+	if not prop2mesh.isValid(self) then
+		return
+	end
+
+	local crc = net.ReadString()
+	if not crc or not isstring(self.prop2mesh_partlists[crc]) then
+		return
+	end
+
+	net.Start("prop2mesh_download")
+	net.WriteString(crc)
+	net.WriteStream(self.prop2mesh_partlists[crc])
+	net.Send(pl)
+end)
+
+--[[
 net.Receive("prop2mesh_download", function(len, pl)
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
@@ -44,7 +63,7 @@ net.Receive("prop2mesh_download", function(len, pl)
 		net.Send(pl)
 	end
 end)
-
+]]
 
 --[[
 

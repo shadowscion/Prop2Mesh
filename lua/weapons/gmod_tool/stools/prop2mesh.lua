@@ -513,7 +513,7 @@ if SERVER then
 	end
 
 	hook.Add("CanTool", "prop2mesh_multitool", function(ply, tr, tool)
-		if not multitool.modes[tool] or not IsValid(tr.Entity) then
+		if not multitool.modes[tool] or not IsValid(tr.Entity) or not checkOwner(ply, tr.Entity) then
 			return
 		end
 

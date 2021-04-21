@@ -147,10 +147,14 @@ hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uvs, mdat
 
 	if mins and maxs then
 		for user in pairs(recycle[crc].users) do
-			for k, info in pairs(user.prop2mesh_controllers) do
-				if IsValid(info.ent) and info.crc == crc and info.uvs == uvs then
-					info.ent:SetRenderBounds(mins, maxs)
+			if IsValid(user) then
+				for k, info in pairs(user.prop2mesh_controllers) do
+					if IsValid(info.ent) and info.crc == crc and info.uvs == uvs then
+						info.ent:SetRenderBounds(mins, maxs)
+					end
 				end
+			else
+				setuser(user, crc, false)
 			end
 		end
 	end

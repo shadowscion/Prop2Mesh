@@ -73,10 +73,6 @@ end
 --[[
 
 ]]
-local function makeSettingChanges(self, index, updates, forceSet)
-
-end
-
 local function makeUpdateChanges(self, index, updates, forceSet)
 	local currentData = self:GetControllerData(index)
 	if not currentData then

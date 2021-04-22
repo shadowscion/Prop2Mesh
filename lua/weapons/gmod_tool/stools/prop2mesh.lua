@@ -29,6 +29,7 @@ if SERVER then
 
 	local select_color_p2m = Color(0, 0, 255, 255)
 	local select_material  = "models/debug/debugwhite"
+	local select_candelete = { prop_physics = true }
 
 	local function checkOwner(ply, ent)
 		if CPPI then
@@ -259,6 +260,26 @@ if SERVER then
 		end)
 	end
 
+	function TOOL:SetDataByIndex(add)
+		if next(self.selection) == nil then
+			return
+		end
+		local legacy = self:IsLegacyMode()
+		local index = self:GetOwner():GetInfoNum("prop2mesh_multitool_index", 1)
+		if legacy or index ~= 1 then
+			self.p2m.ent:ToolDataByINDEX(legacy and 1 or (index - 1), self, add)
+			local rmv = self:GetClientNumber("tool_setautoremove") ~= 0
+			for k, v in pairs(self.selection) do
+				self:DeselectEntity(k)
+				if rmv and select_candelete[k:GetClass()] then
+					SafeRemoveEntity(k)
+				end
+			end
+			self.selection = {}
+			self:UnsetP2M()
+		end
+	end
+
 	function TOOL:RightClick(tr)
 		if not tr.Hit then
 			return false
@@ -267,58 +288,49 @@ if SERVER then
 			self:SetP2M(tr.Entity)
 		else
 			if self:GetOwner():KeyDown(IN_SPEED) then
-				self:SelectGroup(self:GetFilteredEntities(tr, ents.FindInSphere(tr.HitPos, math.Clamp(self:GetClientNumber("tool_filter_radius"), 0, 2048))))
+				if tr.Entity == self.p2m.ent then
+					self:SetDataByIndex(true)
+				else
+					self:SelectGroup(self:GetFilteredEntities(tr, ents.FindInSphere(tr.HitPos, math.Clamp(self:GetClientNumber("tool_filter_radius"), 0, 2048))))
+				end
 			elseif self:GetOwner():KeyDown(IN_USE) then
 				self:SelectGroup(self:GetFilteredEntities(tr, tr.Entity:GetChildren()))
 			else
 				if tr.Entity == self.p2m.ent then
-					if next(self.selection) ~= nil then
-						local legacy = self:IsLegacyMode()
-						local index = self:GetOwner():GetInfoNum("prop2mesh_multitool_index", 1)
-						if legacy or index ~= 1 then
-							self.p2m.ent:ToolDataByINDEX(legacy and 1 or (index - 1), self)
-							local rmv = self:GetClientNumber("tool_setautoremove") ~= 0
-							for k, v in pairs(self.selection) do
-								self:DeselectEntity(k)
-								if rmv then
-									SafeRemoveEntity(k)
-								end
-							end
-							self.selection = {}
-							self:UnsetP2M()
-						end
-					end
+					self:SetDataByIndex()
 				else
 					if self.selection[tr.Entity] then self:DeselectEntity(tr.Entity) else self:SelectEntity(tr.Entity) end
-					--[[
-					if self:GetClientNumber("tool_filter_iprop") ~= 0 and self:GetClientNumber("tool_filter_iholo") == 0 then
-						local find = {}
-						local cone = ents.FindInCone(tr.StartPos, tr.Normal, tr.HitPos:Distance(tr.StartPos) * 2, math.cos(math.rad(3)))
-						local whitelist = { gmod_wire_hologram = true, starfall_hologram = true }
-						for k, ent in ipairs(cone) do
-							if not whitelist[ent:GetClass()] then
-								goto skip
-							end
-							table.insert(find, { ent = ent, len = (tr.StartPos - ent:GetPos()):LengthSqr() })
-							::skip::
-						end
-						for k, v in SortedPairsByMemberValue(find, "len") do
-							if self.selection[v.ent] then
-								self:DeselectEntity(v.ent)
-								break
-							elseif self:SelectEntity(v.ent) then
-								break
-							end
-						end
-					else
-						if self.selection[tr.Entity] then self:DeselectEntity(tr.Entity) else self:SelectEntity(tr.Entity) end
-					end
-					]]
 				end
 			end
 		end
 		return true
 	end
+
+	--[[
+	-- unused code for selecting holos
+	if self:GetClientNumber("tool_filter_iprop") ~= 0 and self:GetClientNumber("tool_filter_iholo") == 0 then
+		local find = {}
+		local cone = ents.FindInCone(tr.StartPos, tr.Normal, tr.HitPos:Distance(tr.StartPos) * 2, math.cos(math.rad(3)))
+		local whitelist = { gmod_wire_hologram = true, starfall_hologram = true }
+		for k, ent in ipairs(cone) do
+			if not whitelist[ent:GetClass()] then
+				goto skip
+			end
+			table.insert(find, { ent = ent, len = (tr.StartPos - ent:GetPos()):LengthSqr() })
+			::skip::
+		end
+		for k, v in SortedPairsByMemberValue(find, "len") do
+			if self.selection[v.ent] then
+				self:DeselectEntity(v.ent)
+				break
+			elseif self:SelectEntity(v.ent) then
+				break
+			end
+		end
+	else
+		if self.selection[tr.Entity] then self:DeselectEntity(tr.Entity) else self:SelectEntity(tr.Entity) end
+	end
+	]]
 
 	function TOOL:LeftClick(tr)
 		if not tr.Hit then
@@ -337,7 +349,7 @@ if SERVER then
 							local rmv = self:GetClientNumber("tool_setautoremove") ~= 0
 							for k, v in pairs(self.selection) do
 								self:DeselectEntity(k)
-								if rmv then
+								if rmv and select_candelete[k:GetClass()] then
 									SafeRemoveEntity(k)
 								end
 							end
@@ -917,6 +929,9 @@ function multitool:Think()
 			self.entity = self.trace.Entity
 			self:onTrigger()
 		end
+		if p2m_dmodelpanel and p2m_dmodelpanel:IsVisible() then
+			p2m_dmodelpanel:SetVisible(false)
+		end
 	else
 		if self.trace.Entity ~= self.entity then
 			if p2m_dmodelpanel then
@@ -1156,9 +1171,10 @@ surface.SetFont(multitool.title_font)
 mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 
 local lang_tmp0 = "[Right] click to select this p2m entity"
-local lang_tmp1 = "[Left] click to automatically add controllers"
-local lang_tmp2 = "[Left] click to add controller"
-local lang_tmp3 = "[Right] click to use tool on controller [%d]"
+local lang_tmp1 = "[-Left] click to automatically add controllers"
+local lang_tmp2 = "[+Left] click to add controller"
+local lang_tmp3 = "[+Right] click to SET models on controller [%d]"
+local lang_tmp4 = "[-Right] click to ADD models to controller [%d]"
 
 function mode:getLines()
 	if multitool.stage == 0 then
@@ -1168,7 +1184,7 @@ function mode:getLines()
 	if multitool.stage == 1 then
 		multitool.lines = { multitool.shift and lang_tmp1 or lang_tmp2 }
 		for i = 1, #multitool.entity.prop2mesh_controllers do
-			multitool.lines[#multitool.lines + 1] = string.format(lang_tmp3, i)
+			multitool.lines[#multitool.lines + 1] = string.format(multitool.shift and lang_tmp4 or lang_tmp3, i)
 		end
 	end
 end

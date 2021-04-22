@@ -368,10 +368,24 @@ function ENT:ResetControllerData(index)
 	end
 end
 
-function ENT:SetControllerData(index, partlist, uvs)
+function ENT:SetControllerData(index, partlist, uvs, addTo)
 	local info = self.prop2mesh_controllers[index]
 	if not info or not partlist then
 		return
+	end
+
+	if addTo and next(partlist) then -- MESS
+		local currentData = self:GetControllerData(index)
+		if currentData then
+			for i = 1, #currentData do
+				partlist[#partlist + 1] = currentData[i]
+			end
+			if currentData.custom then
+				for crc, data in pairs(currentData.custom) do
+					partlist.custom[crc] = data
+				end
+			end
+		end
 	end
 
 	if not next(partlist) then
@@ -426,7 +440,7 @@ function ENT:GetControllerData(index, nodecomp)
 	return util.JSONToTable(util.Decompress(ret))
 end
 
-function ENT:ToolDataByINDEX(index, tool)
+function ENT:ToolDataByINDEX(index, tool, addTo)
 	if not self.prop2mesh_controllers[index] then
 		return false
 	end
@@ -444,7 +458,7 @@ function ENT:ToolDataByINDEX(index, tool)
 		pos = pos * (1 / num)
 	end
 
-	self:SetControllerData(index, prop2mesh.partsFromEnts(tool.selection, pos, ang), tool:GetClientNumber("tool_setuvsize"))
+	self:SetControllerData(index, prop2mesh.partsFromEnts(tool.selection, pos, ang), tool:GetClientNumber("tool_setuvsize"), addTo)
 end
 
 function ENT:ToolDataAUTO(tool)

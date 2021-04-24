@@ -53,7 +53,7 @@ end)
 timer.Create("prop2trash", 60, 0, function()
 	local curtime = SysTime()
 	for crc, usedtime in pairs(garbage) do
-		if curtime - usedtime > 120 then
+		if curtime - usedtime > 300 then
 			if recycle[crc] and recycle[crc].meshes then
 				for uvs, meshdata in pairs(recycle[crc].meshes) do
 					if meshdata.basic then
@@ -111,6 +111,15 @@ local function setuser(self, crc, bool)
 	end
 end
 
+local function setRenderBounds(self, min, max, scale)
+	if not min or not max then return end
+	if scale and (scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1) then
+		self:SetRenderBounds(Vector(min.x*scale.x, min.y*scale.y, min.z*scale.z),Vector(max.x*scale.x, max.y*scale.y, max.z*scale.z))
+	else
+		self:SetRenderBounds(min, max)
+	end
+end
+
 local function checkmesh(crc, uvs)
 	if not recycle[crc] or not recycle[crc].zip or recycle[crc].meshes[uvs] then
 		return recycle[crc].meshes[uvs]
@@ -150,7 +159,8 @@ hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uvs, mdat
 			if IsValid(user) then
 				for k, info in pairs(user.prop2mesh_controllers) do
 					if IsValid(info.ent) and info.crc == crc and info.uvs == uvs then
-						info.ent:SetRenderBounds(mins, maxs)
+						setRenderBounds(info.ent, mins, maxs, info.scale)
+						--info.ent:SetRenderBounds(mins, maxs)
 					end
 				end
 			else
@@ -306,7 +316,8 @@ local function refresh(self, info)
 	if checkdownload(self, info.crc) then
 		local mdata = checkmesh(info.crc, info.uvs)
 		if mdata and mdata.ready then
-			info.ent:SetRenderBounds(mdata.vmins, mdata.vmaxs)
+			setRenderBounds(info.ent, mdata.vmins, mdata.vmaxs, info.scale)
+			--info.ent:SetRenderBounds(mdata.vmins, mdata.vmaxs)
 		end
 	end
 

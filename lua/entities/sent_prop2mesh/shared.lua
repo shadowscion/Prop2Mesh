@@ -6,25 +6,25 @@ DEFINE_BASECLASS("base_anim")
 ENT.PrintName   = "sent_prop2mesh"
 ENT.Author      = "shadowscion"
 ENT.AdminOnly   = false
-ENT.Spawnable   = true
-ENT.Category    = "prop2mesh"
+--ENT.Spawnable   = false
+--ENT.Category    = "prop2mesh"
 ENT.RenderGroup = RENDERGROUP_BOTH
 
 cleanup.Register("sent_prop2mesh")
 
-function ENT:SpawnFunction(ply, tr, ClassName)
-	if not tr.Hit then
-		return
-	end
+-- function ENT:SpawnFunction(ply, tr, ClassName)
+-- 	if not tr.Hit then
+-- 		return
+-- 	end
 
-	local ent = ents.Create(ClassName)
-	ent:SetModel("models/p2m/cube.mdl")
-	ent:SetPos(tr.HitPos + tr.HitNormal)
-	ent:Spawn()
-	ent:Activate()
+-- 	local ent = ents.Create(ClassName)
+-- 	ent:SetModel("models/p2m/cube.mdl")
+-- 	ent:SetPos(tr.HitPos + tr.HitNormal)
+-- 	ent:Spawn()
+-- 	ent:Activate()
 
-	return ent
-end
+-- 	return ent
+-- end
 
 function ENT:GetControllerCol(index)
 	return self.prop2mesh_controllers[index] and self.prop2mesh_controllers[index].col

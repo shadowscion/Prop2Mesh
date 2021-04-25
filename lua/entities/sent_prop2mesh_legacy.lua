@@ -1,29 +1,16 @@
 AddCSLuaFile()
 DEFINE_BASECLASS("sent_prop2mesh")
 
-ENT.PrintName   = "prop2mesh_legacy"
+ENT.PrintName   = "sent_prop2mesh_legacy"
 ENT.Author      = "shadowscion"
 ENT.AdminOnly   = false
-ENT.Spawnable   = true
-ENT.Category    = "prop2mesh"
+--ENT.Spawnable   = true
+--ENT.Category    = "prop2mesh"
 ENT.RenderGroup = RENDERGROUP_BOTH
 
 cleanup.Register("sent_prop2mesh_legacy")
 
 if CLIENT then
---[[
-	function ENT:Think()
-		if self.RenderOverride then
-			if self.ClipData or self.Clipped then
-				self:DisableMatrix("RenderMultiply")
-				self.Clipped = nil
-				self.ClipData = nil
-				self.RenderOverride = self.RenderOverride_preclipping or nil
-			end
-		end
-		BaseClass.Think(self)
-	end
-]]
 	return
 end
 
@@ -43,17 +30,6 @@ function ENT:Think()
 			info.mat = val
 			self:AddControllerUpdate(1, "mat")
 		end
-		--[[
-		local val = self.ClipData or {}
-		if #info.clips ~= #val then -- potential issue if not all the clips get added
-			self:ClearControllerClips(1)
-			for i = 1, #val do
-				local clip = val[i]
-				local norm = clip.norm or clip.n:Forward()
-				self:AddControllerClip(1, norm.x, norm.y, norm.z, clip.dist or clip.d)
-			end
-		end
-		]]
 	end
 	BaseClass.Think(self)
 end

@@ -37,6 +37,30 @@ if SERVER then
 		}
 	end
 
+	local function makeEntity(class, pl, dupedata) -- limits would go here?
+		local self = ents.Create(class)
+		if not (self and self:IsValid()) then
+			return false
+		end
+
+		if dupedata then
+			duplicator.DoGeneric(self, dupedata)
+		end
+		self:Spawn()
+		self:Activate()
+
+		return self
+	end
+	prop2mesh.makeEntity = makeEntity
+
+	duplicator.RegisterEntityClass("sent_prop2mesh", function(pl, data)
+		return makeEntity("sent_prop2mesh", pl, data)
+	end, "Data")
+
+	duplicator.RegisterEntityClass("sent_prop2mesh_legacy", function(pl, data)
+		return makeEntity("sent_prop2mesh_legacy", pl, data)
+	end, "Data")
+
 elseif CLIENT then
 	include("prop2mesh/cl_meshlab.lua")
 	include("prop2mesh/cl_modelfixer.lua")

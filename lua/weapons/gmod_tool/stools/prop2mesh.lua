@@ -365,9 +365,9 @@ if SERVER then
 				end
 			end
 		else
-			if (CPPI and tr.Entity:CPPICanTool(self:GetOwner(), "prop2mesh")) or not CPPI then
+			--if (CPPI and tr.Entity:CPPICanTool(self:GetOwner(), "prop2mesh")) or not CPPI then
 				self:MakeEnt(tr)
-			end
+			--end
 		end
 		return true
 	end

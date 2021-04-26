@@ -69,6 +69,15 @@ kvpass.scale = function(data, index, val)
 	end
 end
 
+kvpass.submodels = function(data, index, val)
+	if istable(val) then
+		for k, v in pairs(val) do
+			if tobool(v) then val[k] = 1 else val[k] = nil end
+		end
+		data[index].submodels = next(val) and val or nil
+	end
+end
+
 
 --[[
 

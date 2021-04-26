@@ -309,7 +309,21 @@ local function checkClips(clips)
 	return swap
 end
 
-local function p2mPushModel(context, self, index, model, pos, ang, scale, clips, vinside, vsmooth, bodygroup)
+local function checkSubmodels(submodels)
+	if #submodels == 0 then
+		return
+	end
+	local swap = {}
+	for i = 1, #submodels do
+		local n = isnumber(submodels[i]) and math.floor(math.abs(submodels[i]))
+		if n > 0 then
+			swap[n] = 1
+		end
+	end
+	return next(swap) and swap
+end
+
+local function p2mPushModel(context, self, index, model, pos, ang, scale, clips, vinside, vsmooth, bodygroup, submodels)
 	errorcheck(context, self, index)
 
 	if scale then
@@ -320,6 +334,7 @@ local function p2mPushModel(context, self, index, model, pos, ang, scale, clips,
 	end
 
 	if clips then clips = checkClips(clips) end
+	if submodels then submodels = checkSubmodels(submodels) end
 
 	if bodygroup then
 		bodygroup = math.floor(math.abs(bodygroup))
@@ -337,6 +352,7 @@ local function p2mPushModel(context, self, index, model, pos, ang, scale, clips,
 		vinside = tobool(vinside) and 1 or nil,
 		vsmooth = tobool(vsmooth) and 1 or nil,
 		bodygroup = bodygroup,
+		submodels = submodels,
 	}
 
 	return #self.prop2mesh_e2_resevoir[index]
@@ -352,6 +368,7 @@ local stypes = {
 	flat      = "n",
 	bodygroup = "n",
 	clips     = "r",
+	submodels = "r",
 }
 
 e2function void entity:p2mPushModel(index, table data)
@@ -362,7 +379,7 @@ e2function void entity:p2mPushModel(index, table data)
 				real[k] = data.s[k]
 			end
 		end
-		p2mPushModel(self, this, index, real.model, real.pos, real.ang, real.scale, real.clips, real.inside, real.flat, real.bodygroup)
+		p2mPushModel(self, this, index, real.model, real.pos, real.ang, real.scale, real.clips, real.inside, real.flat, real.bodygroup, real.submodels)
 	end
 end
 
@@ -388,13 +405,25 @@ end
 --NOSCALE,RFLAGS,BODYGROUP
 e2function void entity:p2mPushModel(index, string model, vector pos, angle ang, number renderinside, number renderflat, number bodygroup)
 	if checkvalid(self, this, nil, index, true) then
-		p2mPushModel(self, this, index, model, pos, ang, nil, nil, renderinside, renderfla, bodygroup)
+		p2mPushModel(self, this, index, model, pos, ang, nil, nil, renderinside, renderflat, bodygroup)
 	end
 end
 --NOSCALE,RFLAGS,BODYGROUP,CLIPS
 e2function void entity:p2mPushModel(index, string model, vector pos, angle ang, number renderinside, number renderflat, number bodygroup, array clips)
 	if checkvalid(self, this, nil, index, true) then
 		p2mPushModel(self, this, index, model, pos, ang, nil, clips, renderinside, renderflat, bodygroup)
+	end
+end
+--NOSCALE,RFLAGS,BODYGROUP,HIDESUBMODELS
+e2function void entity:p2mPushModel(index, string model, array hidesubmodels, vector pos, angle ang, number renderinside, number renderflat, number bodygroup)
+	if checkvalid(self, this, nil, index, true) then
+		p2mPushModel(self, this, index, model, pos, ang, nil, nil, renderinside, renderflat, bodygroup, hidesubmodels)
+	end
+end
+--NOSCALE,RFLAGS,BODYGROUP,CLIPS,HIDESUBMODELS
+e2function void entity:p2mPushModel(index, string model, array hidesubmodels, vector pos, angle ang, number renderinside, number renderflat, number bodygroup, array clips)
+	if checkvalid(self, this, nil, index, true) then
+		p2mPushModel(self, this, index, model, pos, ang, nil, clips, renderinside, renderflat, bodygroup, hidesubmodels)
 	end
 end
 
@@ -427,5 +456,17 @@ end
 e2function void entity:p2mPushModel(index, string model, vector pos, angle ang, vector scale, number renderinside, number renderflat, number bodygroup, array clips)
 	if checkvalid(self, this, nil, index, true) then
 		p2mPushModel(self, this, index, model, pos, ang, scale, clips, renderinside, renderflat, bodygroup)
+	end
+end
+--SCALE,RFLAGS,BODYGROUP,HIDESUBMODELS
+e2function void entity:p2mPushModel(index, string model, array hidesubmodels, vector pos, angle ang, vector scale, number renderinside, number renderflat, number bodygroup)
+	if checkvalid(self, this, nil, index, true) then
+		p2mPushModel(self, this, index, model, pos, ang, scale, nil, renderinside, renderflat, bodygroup, hidesubmodels)
+	end
+end
+--SCALE,RFLAGS,BODYGROUP,CLIPS,HIDESUBMODELS
+e2function void entity:p2mPushModel(index, string model, array hidesubmodels, vector pos, angle ang, vector scale, number renderinside, number renderflat, number bodygroup, array clips)
+	if checkvalid(self, this, nil, index, true) then
+		p2mPushModel(self, this, index, model, pos, ang, scale, clips, renderinside, renderflat, bodygroup, hidesubmodels)
 	end
 end

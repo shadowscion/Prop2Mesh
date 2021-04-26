@@ -403,18 +403,18 @@ function ENT:GetAllDataReady()
 		end
 
 		if not recycle[crc] or not recycle[crc].zip then
-			return false
+			return false, 1
 		else
 			local meshes = recycle[crc].meshes[info.uvs]
-			if meshes and not meshes.ready then
-				return false
+			if not meshes or (meshes and not meshes.ready) then
+				return false, 2
 			end
 		end
 
 		::CONTINUE::
 	end
 
-	return true
+	return true, 3
 end
 
 function ENT:GetDownloadProgress()

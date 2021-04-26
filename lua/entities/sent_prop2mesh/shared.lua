@@ -79,18 +79,7 @@ properties.Add("prop2mesh", {
 		prop2mesh.editor:SetPos(ScrW() - w - 30, ScrH() - h - 30)
 		prop2mesh.editor:SetSize(w, h)
 		prop2mesh.editor:SetDraggable(false)
-
-		if IsValid(prop2mesh.editor.Entity) then
-			prop2mesh.editor.Entity:RemoveCallOnRemove("prop2mesh_editor_close")
-		end
-
-		prop2mesh.editor.Entity = ent
-		prop2mesh.editor.Entity:CallOnRemove("prop2mesh_editor_close", function()
-			prop2mesh.editor:Remove()
-		end)
-
-		prop2mesh.editor:SetTitle(tostring(prop2mesh.editor.Entity))
-		prop2mesh.editor:RemakeTree()
+		prop2mesh.editor:RequestSetEntity(ent)
 	end,
 
 	Receive = function(self, len, pl) -- SERVER

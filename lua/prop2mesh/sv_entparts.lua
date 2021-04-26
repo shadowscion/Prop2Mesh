@@ -11,10 +11,11 @@
 	-- optional
 	scale       -- x y z scales
 	bodygroup   -- mask
-	vsmooth    -- unset to use model normals, 0 to use flat shading, degrees to calculate
-	vinvert    -- flip normals
-	vinside    -- render inside
-	objn     -- prettyprint
+	vsmooth     -- unset to use model normals, 0 to use flat shading, degrees to calculate
+	vinvert     -- flip normals
+	vinside     -- render inside
+	objn        -- prettyprint
+	submodels   -- lookup table of bools that hides submeshes by index
 ]]
 
 local prop2mesh = prop2mesh
@@ -111,13 +112,6 @@ entclass.prop_physics = function(partlist, ent, worldpos, worldang)
 	if isvector(scale) and scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
 		part.scale = scale
 	end
-
-	--[[
-	local scale = ent:GetManipulateBoneScale(0)
-	if scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
-		part.scale = scale
-	end
-	]]
 
 	local clips = ent.ClipData or ent.EntityMods and ent.EntityMods.clips
 	if clips then

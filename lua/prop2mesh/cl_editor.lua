@@ -101,6 +101,8 @@ theme.colorText_default = Color(100, 100, 100)
 theme.colorMain = Color(75, 75, 75)
 theme.colorTree = Color(245, 245, 245)
 
+local wireframe = Material("models/wireframe")
+
 local TreeAddNode, NodeAddNode
 function TreeAddNode(self, text, icon, font)
 	local node = DTree.AddNode(self, string.lower(text), icon)
@@ -116,6 +118,8 @@ function NodeAddNode(self, text, icon, font)
 	node.AddNode = NodeAddNode
 	return node
 end
+
+local function HideIcons() return false end
 
 
 --[[
@@ -174,7 +178,7 @@ end
 
 local function registerVector(partnode, name, key)
 	local node = partnode:AddNode(name, "icon16/bullet_black.png"):AddNode("")
-	node.ShowIcons = function() return false end
+	node.ShowIcons = HideIcons
 	node:SetDrawLines(false)
 
 	local x = vgui.Create("DTextEntry", node)
@@ -232,7 +236,7 @@ end
 
 local function registerBoolean(partnode, name, key)
 	local node = partnode:AddNode("")
-	node.ShowIcons = function() return false end
+	node.ShowIcons = HideIcons
 
 	local x = vgui.Create("DCheckBoxLabel", node)
 	x:SetText(name)
@@ -251,7 +255,7 @@ end
 
 local function registerFloat(partnode, name, key, min, max)
 	local node = partnode:AddNode("")
-	node.ShowIcons = function() return false end
+	node.ShowIcons = HideIcons
 
 	local x = vgui.Create("DCheckBoxLabel", node)
 	x:Dock(LEFT)
@@ -282,6 +286,66 @@ local function registerFloat(partnode, name, key, min, max)
 	s:SetValue(partnode.new[key])
 end
 
+local function registerSubmodels(partnode)
+	if partnode.new.objd or (not partnode.new.prop and not partnode.new.holo) then
+		return
+	end
+
+	local submeshes = util.GetModelMeshes(partnode.new.prop or partnode.new.holo, 0, partnode.new.bodygroup or 0)
+	if not submeshes then
+		return
+	end
+
+	local new = partnode.new.submodels
+	local old = partnode.old.submodels
+
+	local node = partnode:AddNode("sub-models", "icon16/bullet_black.png")
+
+	for i = 1, #submeshes do
+		local subnode = node:AddNode("")
+		subnode.ShowIcons = HideIcons
+		subnode:SetDrawLines(false)
+
+		local x = vgui.Create("DCheckBoxLabel", subnode)
+		x:Dock(LEFT)
+		x:DockMargin(24, 0, 4, 0)
+		x.Label:SetDisabled(true)
+
+		if new[i] == nil then new[i] = 0 end
+		if old[i] == nil then old[i] = 0 end
+
+		x.OnChange = function(self, val)
+			if new[i] == val then
+				return
+			end
+
+			new[i] = val and 1 or 0
+
+			if new[i] ~= old[i] then
+				x:SetTextColor((partnode.mod or partnode.set) and theme.colorText_edit or theme.colorText_add)
+				changetable(partnode, "submodels", true)
+			else
+				x:SetTextColor(theme.colorText_default)
+
+				local diff = false
+				for k, v in pairs(new) do
+					if old[k] ~= v then
+						diff = true
+						break
+					end
+				end
+				changetable(partnode, "submodels", diff)
+			end
+			x:SetText(string.format("part %d will be %s", i, val and "ignored" or "generated"))
+		end
+
+		x:SetValue(new[i] == 1)
+		x:SetToolTip(string.format("tris: %d\nmat: %s", #submeshes[i].triangles, submeshes[i].material))
+		x:SetTextColor(theme.colorText_default)
+		x:SetFont(theme.font)
+	end
+end
+
 
 --[[
 
@@ -289,6 +353,7 @@ end
 
 ]]
 local function installEditors(partnode)
+	registerSubmodels(partnode)
 	registerVector(partnode, "pos", "pos")
 	registerVector(partnode, "ang", "ang")
 	registerVector(partnode, "scale", "scale")
@@ -305,29 +370,17 @@ local function installEditors(partnode)
 	partnode.edited = true
 end
 
---[[
-local function partcopy(from)
-	local a = { pos = Vector(), ang = Angle(), scale = Vector(1,1,1), vinvert = 0, vinside = 0, vsmooth = 0 }
-	local b = { pos = Vector(), ang = Angle(), scale = Vector(1,1,1), vinvert = 0, vinside = 0, vsmooth = 0 }
-	for k, v in pairs(from) do
-		if isnumber(v) or isstring(v) then
-			a[k] = v
-			b[k] = v
-		elseif isvector(v) then
-			a[k] = Vector(v)
-			b[k] = Vector(v)
-		elseif isangle(v) then
-			a[k] = Angle(v)
-			b[k] = Angle(v)
-		end
+local function copyclips(clips)
+	local ret = {}
+	for k, clip in ipairs(clips) do
+		ret[k] = {d = clip.d, n = {clip.n.x, clip.n.y, clip.n.z}}
 	end
-	return a, b
+	return ret
 end
-]]
 
 local function partcopy(from)
-	local a = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0 }
-	local b = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0 }
+	local a = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0, submodels = {}, clips = {} }
+	local b = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0, submodels = {}, clips = {} }
 	for k, v in pairs(from) do
 		if isnumber(v) or isstring(v) then
 			a[k] = v
@@ -338,6 +391,14 @@ local function partcopy(from)
 		elseif isangle(v) then
 			a[k] = {v.p, v.y, v.r}
 			b[k] = {v.p, v.y, v.r}
+		else
+			if k == "submodels" then
+				a[k] = table.Copy(v)
+				b[k] = table.Copy(v)
+			elseif k == "clips" then
+				a[k] = copyclips(v)
+				b[k] = copyclips(v)
+			end
 		end
 	end
 	return a, b
@@ -436,15 +497,77 @@ end
 ]]
 local PANEL = {}
 
+local function setEntityActual(self, ent)
+	self.Entity = ent
+	self.Entity:CallOnRemove("prop2mesh_editor_close", function()
+		self:Remove()
+	end)
+	self:SetTitle(tostring(self.Entity))
+	self:RemakeTree()
+end
+
+function PANEL:RequestSetEntity(ent)
+	if IsValid(self.Entity) then
+		local edited
+		for index, updates in pairs(self.updates) do
+			for k, v in pairs(updates) do
+				if next(v) then
+					edited = true
+					break
+				end
+			end
+		end
+		if edited then
+			local pnl = Derma_Query("Unconfirmed changes, are you sure?", "", "Yes", function()
+				self.Entity:RemoveCallOnRemove("prop2mesh_editor_close")
+				setEntityActual(self, ent)
+			end, "No")
+			pnl.Paint = function(_, w, h)
+				surface.SetDrawColor(theme.colorMain)
+				surface.DrawRect(0, 24, w, h - 24)
+				surface.SetDrawColor(0, 0, 0)
+				surface.DrawOutlinedRect(0, 24, w, h - 24)
+			end
+			return
+		else
+			self.Entity:RemoveCallOnRemove("prop2mesh_editor_close")
+		end
+	end
+	setEntityActual(self, ent)
+end
+
 function PANEL:CreateGhost()
 	self.Ghost = ents.CreateClientside("base_anim")
-	self.Ghost:SetMaterial("models/wireframe")
 	self.Ghost:SetNoDraw(true)
-
 	self.Ghost.Draw = function(ent)
+		local clips, prev = ent.clips, nil
+		if clips then
+			prev = render.EnableClipping(true)
+
+			local pos = ent:GetPos()
+			local ang = ent:GetAngles()
+
+			for i = 1, #clips do
+				local clip = clips[i]
+				local norm = Vector(unpack(clip.n))
+				norm:Rotate(ang)
+
+				render.PushCustomClipPlane(norm, norm:Dot(pos + norm * clip.d))
+			end
+		end
+
+		render.ModelMaterialOverride(wireframe)
 		cam.IgnoreZ(true)
 		ent:DrawModel()
 		cam.IgnoreZ(false)
+		render.ModelMaterialOverride(nil)
+
+		if clips then
+			for _ = 1, #clips do
+				render.PopCustomClipPlane()
+			end
+			render.EnableClipping(prev)
+		end
 	end
 
 	self.Ghost:Spawn()
@@ -578,37 +701,35 @@ function PANEL:Think()
 		return
 	end
 
-	if self.Entity.prop2mesh_triggereditor then
-		self.Entity.prop2mesh_triggereditor = nil
-		self:RemakeTree()
-		return
-	end
-
 	if self.Entity:GetNetworkedBool("uploading", false) then
-		if not self.contree:GetDisabled() or not self.disable then
+		if not self.disable or not self.contree:GetDisabled() then
+			self.disable = true
 			self.contree:SetDisabled(true)
 			self.confirm:SetDisabled(true)
-			self.disable = true
 		end
 		self.progress.frac = upstreamProgress()
-		self.progress.text = "uploading..."
+		self.progress.text = "uploading data..."
 	else
-		if self.contree:GetDisabled() or self.disable then
-			if self.Entity:GetAllDataReady() then
+		if self.disable or self.contree:GetDisabled() then
+			local ready, status = self.Entity:GetAllDataReady()
+			if ready then
+				self.progress.frac = nil
+				self.disable = nil
 				self.contree:SetDisabled(false)
 				self.confirm:SetDisabled(false)
-				self.disable = nil
 				self:RemakeTree()
-				self.progress.frac = nil
-			else
-				local frac = self.Entity:GetDownloadProgress()
-
-				self.progress.frac = frac or 1
-				self.progress.text = frac and "downloading..." or "building mesh..."
+			elseif status == 1 then -- no data
+				self.progress.frac = 1
+				self.progress.text = "downloading data..."
+			elseif status == 2 then -- data but no meshes
+				self.progress.frac = 1
+				self.progress.text = "generating mesh..."
 			end
+		elseif self.Entity.prop2mesh_triggereditor then
+			self.Entity.prop2mesh_triggereditor = nil
+			self:RemakeTree()
 		end
 	end
-
 end
 
 local matrix = Matrix()
@@ -623,6 +744,13 @@ local function onPartHover(label)
 		self.contree:SetSelectedItem(partnode)
 
 		if partnode.new and (partnode.new.holo or partnode.new.prop) then
+			if self.Ghost.lastSubmodels then
+				for k in pairs(self.Ghost.lastSubmodels) do
+					self.Ghost:SetSubMaterial(k - 1, nil)
+				end
+				self.Ghost.lastSubmodels = nil
+			end
+
 			self.Ghost:SetNoDraw(false)
 			self.Ghost:SetModel(partnode.new.holo or partnode.new.prop)
 
@@ -634,11 +762,27 @@ local function onPartHover(label)
 			self.Ghost:SetPos(pos)
 			self.Ghost:SetAngles(ang)
 
+			if partnode.new.submodels then
+				self.Ghost.lastSubmodels = {}
+				for k, v in pairs(partnode.new.submodels) do
+					if v == 1 then
+						self.Ghost.lastSubmodels[k] = true
+						self.Ghost:SetSubMaterial(k - 1, "Models/effects/vol_light001")
+					end
+				end
+			end
+
+			if partnode.new.clips and #partnode.new.clips > 0 then
+				self.Ghost.clips = partnode.new.clips
+			else
+				self.Ghost.clips = nil
+			end
+
 			if partnode.new.scale then
 				matrix:SetScale(Vector(unpack(partnode.new.scale))*scale)
 				self.Ghost:EnableMatrix("RenderMultiply", matrix)
 			else
-				self.GHost:DisableMatrix("RenderMultiply")
+				self.Ghost:DisableMatrix("RenderMultiply")
 			end
 		else
 			self.Ghost:SetNoDraw(true)
@@ -649,6 +793,10 @@ local function onPartHover(label)
 end
 
 function PANEL:RemakeTree()
+	if IsValid(self.Ghost) then
+		self.Ghost:SetNoDraw(true)
+	end
+
 	self.contree:Clear()
 	self.updates = {}
 

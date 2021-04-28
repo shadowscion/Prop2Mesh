@@ -413,7 +413,8 @@ models/wingf0x/ethernetsocket.mdl
 models/wingf0x/hdmiplug.mdl
 models/wingf0x/hdmisocket.mdl
 models/wingf0x/isaplug.mdl
-models/wingf0x/isasocket.mdl]]
+models/wingf0x/isasocket.mdl
+models/props_mvm/hologram_projector_closed.mdl]]
 
 
 --[[

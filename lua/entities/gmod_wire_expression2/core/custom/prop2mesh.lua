@@ -167,6 +167,12 @@ e2function void entity:p2mSetParent(entity parent)
 	this:SetParent(parent)
 end
 
+e2function void entity:p2mDeparent()
+	if checkvalid(self, this, _PARENT) then
+		this:SetParent(nil)
+	end
+end
+
 
 --[[
 ]]

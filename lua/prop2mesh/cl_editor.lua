@@ -3,6 +3,8 @@ local table = table
 local math = math
 local net = net
 
+file.CreateDir("p2m")
+
 
 --[[
 
@@ -82,6 +84,68 @@ local function formatOBJ(filestr)
 	end
 
 	return table.concat(condensed)
+end
+
+local function exportOBJ(meshparts)
+	if not meshparts then
+		return
+	end
+
+	local concat  = table.concat
+	local format  = string.format
+
+	local p_verts = "v %f %f %f\n"
+	local p_norms = "vn %f %f %f\n"
+	local p_uvws  = "vt %f %f\n"
+	local p_faces = "f %d/%d/%d %d/%d/%d %d/%d/%d\n"
+	local p_parts = "#PART NUMBER %d\n"
+
+	local function push(tbl, pattern, ...)
+		tbl[#tbl + 1] = format(pattern, ...)
+	end
+
+	local t_output = {}
+	local vnum = 1
+
+	for i = 2, #meshparts do
+		local part = meshparts[i]
+
+		local s_verts = {}
+		local s_norms = {}
+		local s_uvws  = {}
+		local s_faces = {}
+
+		for j = 1, #part, 3 do
+			local v1 = part[j + 0]
+			local v2 = part[j + 1]
+			local v3 = part[j + 2]
+
+			push(s_verts, p_verts, v1.pos.x, v1.pos.y, v1.pos.z)
+			push(s_verts, p_verts, v2.pos.x, v2.pos.y, v2.pos.z)
+			push(s_verts, p_verts, v3.pos.x, v3.pos.y, v3.pos.z)
+
+			push(s_norms, p_norms, v1.normal.x, v1.normal.y, v1.normal.z)
+			push(s_norms, p_norms, v2.normal.x, v2.normal.y, v2.normal.z)
+			push(s_norms, p_norms, v3.normal.x, v3.normal.y, v3.normal.z)
+
+			push(s_uvws, p_uvws, v1.u, v1.v)
+			push(s_uvws, p_uvws, v2.u, v2.v)
+			push(s_uvws, p_uvws, v3.u, v3.v)
+
+			push(s_faces, p_faces, vnum, vnum, vnum, vnum + 2, vnum + 2, vnum + 2, vnum + 1, vnum + 1, vnum + 1)
+			vnum = vnum + 3
+		end
+
+		t_output[#t_output + 1] = concat({
+			format("\no model %d\n", i - 1),
+			concat(s_verts),
+			concat(s_norms),
+			concat(s_uvws),
+			concat(s_faces)
+		})
+	end
+
+	return concat(t_output)
 end
 
 
@@ -486,8 +550,28 @@ local function filemenu(frame, pathnode)
 end
 
 local function conmenu(frame, conroot)
-end
+	local menu = DermaMenu()
 
+	menu:AddOption("export .obj", function()
+		local pnl = Derma_StringRequest("", string.format("Exporting and saving controller %d as:", conroot.num), "default.txt", function(text)
+			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uvs))
+			if filedata then
+				local filename = string.lower(string.StripExtension(string.GetFileFromFilename(text)))
+				file.Write(string.format("p2m/%s.txt", filename), filedata)
+			end
+		end)
+
+		pnl.Paint = function(_, w, h)
+			surface.SetDrawColor(theme.colorMain)
+			surface.DrawRect(0, 24, w, h - 24)
+			surface.SetDrawColor(0, 0, 0)
+			surface.DrawOutlinedRect(0, 24, w, h - 24)
+		end
+	end):SetIcon("icon16/car.png")
+
+	menu:AddOption("cancel"):SetIcon("icon16/cancel.png")
+	menu:Open()
+end
 
 
 --[[
@@ -811,6 +895,7 @@ function PANEL:RemakeTree()
 		local conroot = self.contree:AddNode(string.format("controller %d [%d]", i, #condata), "icon16/image.png")
 
 		conroot.num = i
+		conroot.info = self.Entity.prop2mesh_controllers[i]
 		conroot.menu = conmenu
 
 		local setroot = conroot:AddNode("settings", "icon16/cog.png")

@@ -195,7 +195,7 @@ end
 
 ]]
 local meshmodelcache
-local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs)
+local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 	local modelpath = partnext.prop or partnext.holo
 	if prop2mesh.isBlockedModel(modelpath) then
 		return
@@ -362,7 +362,7 @@ local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs)
 	return partverts
 end
 
-local function getVertsFromOBJ(custom, partnext, meshtex, vmins, vmaxs)
+local function getVertsFromOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
 	local modeluid = tonumber(partnext.objd)
 	local modelobj = custom[modeluid]
 
@@ -446,7 +446,7 @@ local function getVertsFromOBJ(custom, partnext, meshtex, vmins, vmaxs)
 			calcbounds(vmins, vmaxs, vert)
 		end
 
-		coroutine.yield(false)
+		if not direct then coroutine.yield(false) end
 	end
 
 	-- https:--github.com/thegrb93/StarfallEx/blob/b6de9fbe84040e9ebebcbe858c30adb9f7d937b5/lua/starfall/libs_sh/mesh.lua#L229
@@ -488,13 +488,13 @@ end
 --[[
 
 ]]
-local function getMeshFromData(data, uvs)
+local function getMeshFromData(data, uvs, direct, split)
 	if not data or not uvs then
-		coroutine.yield(true)
+		if not direct then coroutine.yield(true) else return end
 	end
 	local partlist = util.JSONToTable(util.Decompress(data))
 	if not partlist then
-		coroutine.yield(true)
+		if not direct then coroutine.yield(true) else return end
 	end
 
 	prop2mesh.loadModelFixer()
@@ -518,9 +518,9 @@ local function getMeshFromData(data, uvs)
 		local partverts
 
 		if partnext.prop or partnext.holo then
-			partverts = getVertsFromMDL(partnext, meshtex, vmins, vmaxs)
+			partverts = getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 		elseif partnext.objd and partlist.custom then
-			local valid, opv = pcall(getVertsFromOBJ, partlist.custom, partnext, meshtex, vmins, vmaxs)
+			local valid, opv = pcall(getVertsFromOBJ, partlist.custom, partnext, meshtex, vmins, vmaxs, direct)
 			if valid and opv then
 				partverts = opv
 			else
@@ -531,29 +531,6 @@ local function getMeshFromData(data, uvs)
 		if partverts then
 			meshpcount = meshpcount + 1
 
-			--[[
-			local nflat = partnext.vsmooth == 0
-			if not partnext.objd and (meshtex or nflat) then
-				for pv = 1, #partverts, 3 do
-					local normal = cross(partverts[pv + 2].pos - partverts[pv].pos, partverts[pv + 1].pos - partverts[pv].pos)
-					normalize(normal)
-
-					if nflat then
-						partverts[pv    ].normal = Vector(normal)
-						partverts[pv + 1].normal = Vector(normal)
-						partverts[pv + 2].normal = Vector(normal)
-					end
-
-					if meshtex then
-						local boxDir = getBoxDir(normal)
-						partverts[pv    ].u, partverts[pv    ].v = getBoxUV(partverts[pv    ].pos, boxDir, meshtex)
-						partverts[pv + 1].u, partverts[pv + 1].v = getBoxUV(partverts[pv + 1].pos, boxDir, meshtex)
-						partverts[pv + 2].u, partverts[pv + 2].v = getBoxUV(partverts[pv + 2].pos, boxDir, meshtex)
-					end
-				end
-			end
-			]]
-
 			if partnext.vinside then
 				for pv = #partverts, 1, -1 do
 					local vdupe = copy(partverts[pv])
@@ -563,7 +540,7 @@ local function getMeshFromData(data, uvs)
 			end
 
 			local partvcount = #partverts
-			if #meshnext + partvcount > 63999 then
+			if #meshnext + partvcount > 63999 or split then
 				meshlist[#meshlist + 1] = {}
 				meshnext = meshlist[#meshlist]
 			end
@@ -573,10 +550,14 @@ local function getMeshFromData(data, uvs)
 			meshvcount = meshvcount + partvcount
 		end
 
-		coroutine.yield(false)
+		if not direct then coroutine.yield(false) end
 	end
 
-	coroutine.yield(true, { meshes = meshlist, vcount = meshvcount, vmins = vmins, vmaxs = vmaxs, pcount = meshpcount })
+	if not direct then
+		coroutine.yield(true, { meshes = meshlist, vcount = meshvcount, vmins = vmins, vmaxs = vmaxs, pcount = meshpcount })
+	else
+		return meshlist
+	end
 end
 
 
@@ -596,6 +577,20 @@ function prop2mesh.getMesh(crc, uvs, data)
 	end
 
 	return false
+end
+
+function prop2mesh.getMeshDirect(crc, uvs)
+	local data = prop2mesh.getMeshData(crc)
+	if not data then
+		return
+	end
+
+	local meshlist = getMeshFromData(data, uvs, true, true)
+
+	prop2mesh.unloadModelFixer()
+	meshmodelcache = nil
+
+	return meshlist
 end
 
 local message

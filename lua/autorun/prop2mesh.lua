@@ -67,3 +67,20 @@ elseif CLIENT then
 	include("prop2mesh/cl_editor.lua")
 
 end
+
+--[[
+	local concat = {}
+	for k, v in SortedPairs(wire_expression2_funcs) do
+		if string.StartWith(k, "p2m") then
+			concat[#concat + 1] = string.format("**%s** | `%s`", "function", v[1])
+			concat[#concat + 1] = "------------ | -------------"
+			concat[#concat + 1] = string.format("**%s** | `%s`", "return", v[2] == "" and "void" or v[2])
+			concat[#concat + 1] = "**args** | "
+			for i = 1, #v.argnames do
+				concat[#concat + 1] = string.format("&nbsp; | `%s`", v.argnames[i])
+			end
+			concat[#concat + 1] = "\n"
+		end
+	end
+	file.Write("test.txt", table.concat(concat, "\n"))
+]]

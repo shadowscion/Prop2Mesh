@@ -12,26 +12,113 @@ local pairs = pairs
 local ipairs = ipairs
 local prop2mesh = prop2mesh
 
-
---[[
-
-]]
 util.AddNetworkString("prop2mesh_sync")
 util.AddNetworkString("prop2mesh_update")
 util.AddNetworkString("prop2mesh_download")
 
-net.Receive("prop2mesh_sync", function(len, pl)
+
+--[[
+
+]]
+--[[
+local download_wait = 0.1
+local download_time = SysTime()
+local download_list
+
+hook.Add("Think", "prop2mesh_download_queue", function()
+	if not download_list or SysTime() - download_time < download_wait then
+		return
+	end
+
+	download_time = SysTime()
+
+	local crc, download = next(download_list)
+	if not crc or not download then
+		download_list = nil
+
+		if prop2mesh.enablelog then
+			prop2mesh.log(string.format("no more downloads"))
+		end
+
+		return
+	end
+
+	if not next(download.players) or not download.data then
+		download_list[crc] = nil
+
+		if prop2mesh.enablelog then
+			prop2mesh.log(string.format("download %s -> no more clients", crc))
+		end
+
+		return
+	end
+
+	local clients = {}
+	for pl, sendme in pairs(download.players) do
+		if IsValid(pl) then
+			if sendme == true then
+				download.players[pl] = false
+				clients[#clients + 1] = pl
+			end
+		else
+			download.players[pl] = nil
+		end
+	end
+
+	if next(clients) then
+		net.Start("prop2mesh_download")
+		net.WriteString(crc)
+		net.WriteStream(download.data, function(client)
+			download.players[client] = nil
+
+			if prop2mesh.enablelog then
+				prop2mesh.log(string.format("download %s -> client %s is finished", crc, client))
+			end
+		end)
+		net.Send(clients)
+
+		if prop2mesh.enablelog then
+			prop2mesh.log(string.format("download %s -> sending to %d clients", crc, #clients))
+		end
+	end
+end)
+
+net.Receive("prop2mesh_download", function(len, pl)
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
 		return
 	end
-	if not self.prop2mesh_syncwith then
-		self.prop2mesh_syncwith = {}
+
+	local crc = net.ReadString()
+	if not crc or not isstring(self.prop2mesh_partlists[crc]) then
+		return
 	end
-	self.prop2mesh_syncwith[pl] = net.ReadString()
+
+	if not download_list then
+		download_list = {}
+	end
+
+	if not download_list[crc] then
+		download_list[crc] = {
+			players = {},
+			data = self.prop2mesh_partlists[crc],
+		}
+	end
+
+	if download_list[crc].players[pl] == nil then
+		download_list[crc].players[pl] = true
+
+		if prop2mesh.enablelog then
+			prop2mesh.log(string.format("adding %s to download queue %s", tostring(pl), crc))
+		end
+	end
 end)
+]]
 
 
+--[[
+
+]]
 net.Receive("prop2mesh_download", function(len, pl)
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
@@ -45,25 +132,21 @@ net.Receive("prop2mesh_download", function(len, pl)
 
 	net.Start("prop2mesh_download")
 	net.WriteString(crc)
-	net.WriteStream(self.prop2mesh_partlists[crc])
+	prop2mesh.WriteStream(self.prop2mesh_partlists[crc])
 	net.Send(pl)
 end)
 
---[[
-net.Receive("prop2mesh_download", function(len, pl)
+net.Receive("prop2mesh_sync", function(len, pl)
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
 		return
 	end
-	local crc = net.ReadString()
-	if self.prop2mesh_partlists[crc] then
-		net.Start("prop2mesh_download")
-		net.WriteString(crc)
-		net.WriteStream(self.prop2mesh_partlists[crc])
-		net.Send(pl)
+	if not self.prop2mesh_syncwith then
+		self.prop2mesh_syncwith = {}
 	end
+	self.prop2mesh_syncwith[pl] = net.ReadString()
 end)
-]]
+
 
 --[[
 

@@ -7,6 +7,11 @@ if not prop2mesh then prop2mesh = {} end
 --[[
 
 ]]
+prop2mesh.enablelog = false
+function prop2mesh.log(msg)
+	MsgC(Color(255,255,0), "prop2mesh> ", Color(255,255,255), msg, "\n")
+end
+
 local validClasses = { ["sent_prop2mesh"] = true, ["sent_prop2mesh_legacy"] = true }
 function prop2mesh.isValid(self)
 	return IsValid(self) and validClasses[self:GetClass()]
@@ -22,7 +27,9 @@ if SERVER then
 	AddCSLuaFile("prop2mesh/cl_meshlab.lua")
 	AddCSLuaFile("prop2mesh/cl_modelfixer.lua")
 	AddCSLuaFile("prop2mesh/cl_editor.lua")
+	AddCSLuaFile("prop2mesh/sh_netstream.lua")
 
+	include("prop2mesh/sh_netstream.lua")
 	include("prop2mesh/sv_entparts.lua")
 	include("prop2mesh/sv_editor.lua")
 
@@ -62,6 +69,7 @@ if SERVER then
 	end, "Data")
 
 elseif CLIENT then
+	include("prop2mesh/sh_netstream.lua")
 	include("prop2mesh/cl_meshlab.lua")
 	include("prop2mesh/cl_modelfixer.lua")
 	include("prop2mesh/cl_editor.lua")

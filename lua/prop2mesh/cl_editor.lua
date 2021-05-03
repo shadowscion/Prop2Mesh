@@ -24,7 +24,7 @@ net.Receive("prop2mesh_upload_start", function(len)
 			net.Start("prop2mesh_upload")
 			net.WriteUInt(eid, 16)
 			net.WriteString(crc)
-			upstreams[crc] = net.WriteStream(filecache_keys[crc].data)
+			upstreams[crc] = prop2mesh.WriteStream(filecache_keys[crc].data)
 			net.SendToServer()
 		end
 	end

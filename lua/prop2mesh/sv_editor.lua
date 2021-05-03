@@ -310,7 +310,7 @@ net.Receive("prop2mesh_upload", function(len, pl)
 
 	local crc = net.ReadString()
 
-	net.ReadStream(pl, function(data)
+	prop2mesh.ReadStream(pl, function(data)
 		if not canUpload(pl, self) then
 			return
 		end

@@ -148,6 +148,87 @@ local function exportOBJ(meshparts)
 	return concat(t_output)
 end
 
+local function formatE2(conroot)
+	local format = string.format
+	local concat = table.concat
+
+	local header = {}
+	header[#header + 1] = "#---- UNCOMMENT IF NECESSARY\n#---- ONLY NEEDED ONCE PER ENTITY\n"
+	header[#header + 1] = "#[\nBase = entity()\nP2M = p2mCreate( put count here, Base:pos(), Base:angles())\nP2M:p2mSetParent(Base)\n]#\n\n"
+	header[#header + 1] = "#---- UNCOMMENT AND PUT AT END OF CODE\n#P2M:p2mBuild()\n\n"
+
+	header[#header + 1] = format("#---- CONTROLLER %d\nlocal Index = %d\n", conroot.num, conroot.num)
+	header[#header + 1] = format("P2M:p2mSetUV(Index, %d)", conroot.info.uvs)
+	header[#header + 1] = format("P2M:p2mSetScale(Index, vec(%g, %g, %g))", conroot.info.scale.x, conroot.info.scale.y, conroot.info.scale.z)
+	header[#header + 1] = format("P2M:p2mSetColor(Index, vec4(%d, %d, %d, %d))", conroot.info.col.r, conroot.info.col.g, conroot.info.col.b, conroot.info.col.a)
+	header[#header + 1] = format("P2M:p2mSetMaterial(Index, \"%s\")\n\n", conroot.info.mat)
+
+	local specialk = {
+		clips = true, vsmooth = true, vinside = true, bodygroup = true, submodels = true
+	}
+
+	local body = {}
+	for k, v in ipairs(prop2mesh.getMeshData(conroot.info.crc, true)) do
+		if not v.prop and not v.holo then
+			goto CONTINUE
+		end
+
+		local special
+		for i, j in pairs(v) do
+			if specialk[i] then
+				special = true
+				break
+			end
+		end
+
+		if special then
+			local push = {}
+
+			push[#push + 1] = format("    \"model\" = \"%s\"", v.prop or v.holo)
+			push[#push + 1] = format("    \"pos\" = vec(%g, %g, %g)", v.pos.x, v.pos.y, v.pos.z)
+			push[#push + 1] = format("    \"ang\" = ang(%g, %g, %g)", v.ang.p, v.ang.y, v.ang.r)
+
+			if v.scale then
+				push[#push + 1] = format("    \"scale\" = vec(%g, %g, %g)", v.scale.x, v.scale.y, v.scale.z)
+			end
+			if v.vsmooth then
+				push[#push + 1] = "    \"flat\" = 1"
+			end
+			if v.vinside then
+				push[#push + 1] = "    \"inside\" = 1"
+			end
+			if v.bodygroup then
+				push[#push + 1] = format("    \"bodygroup\" = %d", v.bodygroup)
+			end
+			if v.submodels then
+				push[#push + 1] = format("    \"submodels\" = array(%s)", concat(table.GetKeys(v.submodels), ","))
+			end
+			if v.clips then
+				local clips = {}
+				for i, clip in ipairs(v.clips) do
+					local pos = clip.n * clip.d
+					clips[#clips + 1] = format("vec(%g, %g, %g), vec(%g, %g, %g)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+				end
+				push[#push + 1] = format("    \"clips\" = array(\n        %s\n    )", concat(clips, ",\n        "))
+			end
+
+			body[#body + 1] = format("P2M:p2mPushModel(Index, table(\n%s\n))", concat(push, ",\n"))
+		else
+			if v.scale then
+				body[#body + 1] = format("P2M:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g), vec(%g, %g, %g))",
+					v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r, v.scale.x, v.scale.y, v.scale.z)
+			else
+				body[#body + 1] = format("P2M:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g))",
+					v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r)
+			end
+		end
+
+		::CONTINUE::
+	end
+
+	return concat({ concat(header, "\n"), concat(body, "\n") })
+end
+
 
 --[[
 
@@ -192,7 +273,6 @@ local function HideIcons() return false end
 
 ]]
 local function changetable(partnode, key, diff)
-	print(key, diff)
 	if not partnode.mod then
 		if partnode.set then
 			partnode.set[key] = diff and partnode.new[key] or nil
@@ -561,7 +641,7 @@ end
 local function conmenu(frame, conroot)
 	local menu = DermaMenu()
 
-	menu:AddOption("export .obj", function()
+	menu:AddOption("export as .obj", function()
 		local pnl = Derma_StringRequest("", string.format("Exporting and saving controller %d as:", conroot.num), "default.txt", function(text)
 			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uvs))
 			if filedata then
@@ -577,6 +657,21 @@ local function conmenu(frame, conroot)
 			surface.DrawOutlinedRect(0, 24, w, h - 24)
 		end
 	end):SetIcon("icon16/car.png")
+
+	if E2Lib and openE2Editor then
+		local opt = menu:AddOption("export to expression2", function()
+			openE2Editor()
+			if wire_expression2_editor then
+				local e2code = formatE2(conroot)
+
+				wire_expression2_editor:NewTab()
+				wire_expression2_editor:SetCode(e2code)
+				spawnmenu.ActivateTool("wire_expression2")
+			end
+		end)
+		opt:SetIcon("icon16/cog.png")
+		opt.m_Image:SetImageColor(Color(255, 125, 125))
+	end
 
 	menu:AddOption("cancel"):SetIcon("icon16/cancel.png")
 	menu:Open()

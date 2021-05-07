@@ -161,7 +161,7 @@ surface.CreateFont(theme.font, { size = 15, weight = 400, font = "Roboto Mono" }
 theme.colorText_add = Color(100, 200, 100)
 theme.colorText_edit = Color(100, 100, 255)
 theme.colorText_kill = Color(255, 100, 100)
-theme.colorText_default = Color(100, 100, 100)
+theme.colorText_default = Color(75, 75, 75)
 theme.colorMain = Color(75, 75, 75)
 theme.colorTree = Color(245, 245, 245)
 
@@ -192,6 +192,7 @@ local function HideIcons() return false end
 
 ]]
 local function changetable(partnode, key, diff)
+	print(key, diff)
 	if not partnode.mod then
 		if partnode.set then
 			partnode.set[key] = diff and partnode.new[key] or nil
@@ -221,11 +222,11 @@ local function changetable(partnode, key, diff)
 end
 
 local function callbackVector(partnode, name, text, key, i, val)
-	if partnode.new[key][i] == val then
+	if not tonumber(val) or partnode.new[key][i] == val then
 		return
 	end
 
-	partnode.new[key][i] = val
+	partnode.new[key][i] = tonumber(val)
 
 	if partnode.new[key][i] ~= partnode.old[key][i] then
 		name.Label:SetTextColor((partnode.mod or partnode.set) and theme.colorText_edit or theme.colorText_add)
@@ -236,7 +237,15 @@ local function callbackVector(partnode, name, text, key, i, val)
 		name.Label:SetTextColor(theme.colorText_default)
 		text:SetTextColor(theme.colorText_default)
 
-		changetable(partnode, key, partnode.new[key] ~= partnode.old[key])
+		local diff = false
+		for j = 1, 3 do
+			if partnode.new[key][j] ~= partnode.old[key][j] then
+				diff = true
+				break
+			end
+		end
+
+		changetable(partnode, key, diff)
 	end
 end
 

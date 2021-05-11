@@ -414,7 +414,12 @@ models/wingf0x/hdmiplug.mdl
 models/wingf0x/hdmisocket.mdl
 models/wingf0x/isaplug.mdl
 models/wingf0x/isasocket.mdl
-models/props_mvm/hologram_projector_closed.mdl]]
+models/props_mvm/hologram_projector_closed.mdl
+models/daktanks/shortcannon100mm2.mdl
+models/daktanks/longcannon100mm2.mdl
+models/daktanks/howitzer100mm2.mdl
+models/daktanks/hmg100mm2.mdl
+models/daktanks/cannon100mm2.mdl]]
 
 
 --[[

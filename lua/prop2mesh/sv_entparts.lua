@@ -84,18 +84,7 @@ end
 --[[
 
 ]]
-local function getBodygroupMask(ent)
-	local mask = 0
-	local offset = 1
-
-	for index = 0, ent:GetNumBodyGroups() - 1 do
-		local bg = ent:GetBodygroup(index)
-		mask = mask + offset * bg
-		offset = offset * ent:GetBodygroupCount(index)
-	end
-
-	return mask
-end
+local getBodygroupMask = prop2mesh.getBodygroupMask
 
 entclass.prop_physics = function(partlist, ent, worldpos, worldang)
 	local part = { prop = ent:GetModel() }

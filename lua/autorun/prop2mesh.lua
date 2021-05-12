@@ -7,6 +7,8 @@ if not prop2mesh then prop2mesh = {} end
 --[[
 
 ]]
+prop2mesh.defaultmat = "hunter/myplastic"
+
 prop2mesh.enablelog = false
 function prop2mesh.log(msg)
 	MsgC(Color(255,255,0), "prop2mesh> ", Color(255,255,255), msg, "\n")
@@ -17,7 +19,18 @@ function prop2mesh.isValid(self)
 	return IsValid(self) and validClasses[self:GetClass()]
 end
 
-prop2mesh.defaultmat = "hunter/myplastic"
+function prop2mesh.getBodygroupMask(ent)
+	local mask = 0
+	local offset = 1
+
+	for index = 0, ent:GetNumBodyGroups() - 1 do
+		local bg = ent:GetBodygroup(index)
+		mask = mask + offset * bg
+		offset = offset * ent:GetBodygroupCount(index)
+	end
+
+	return mask
+end
 
 
 --[[
@@ -73,6 +86,15 @@ elseif CLIENT then
 	include("prop2mesh/cl_meshlab.lua")
 	include("prop2mesh/cl_modelfixer.lua")
 	include("prop2mesh/cl_editor.lua")
+
+	concommand.Add("prop2mesh_debug_bodygroups", function(ply, cmd, args)
+		local eid = tonumber(args[1])
+		local ent = eid and Entity(eid) or ply:GetEyeTrace().Entity
+		if ent and IsValid(ent) then
+			if ent:IsPlayer() then return end
+			chat.AddText(Color(155, 255, 155), string.format("model: %s\nmask: %s", ent:GetModel(), prop2mesh.getBodygroupMask(ent)))
+		end
+	end)
 
 end
 

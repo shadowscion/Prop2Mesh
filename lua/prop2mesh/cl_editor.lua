@@ -572,6 +572,7 @@ local function partmenu(frame, partnode)
 		partnode:SetExpanded(false, true)
 	end):SetIcon("icon16/brick_delete.png")
 
+	menu:AddSpacer()
 	menu:AddOption("cancel"):SetIcon("icon16/cancel.png")
 	menu:Open()
 end
@@ -584,6 +585,7 @@ local function objmenu(frame, objnode)
 		objnode = nil
 	end):SetIcon("icon16/brick_delete.png")
 
+	menu:AddSpacer()
 	menu:AddOption("cancel"):SetIcon("icon16/cancel.png")
 	menu:Open()
 end
@@ -634,8 +636,40 @@ local function filemenu(frame, pathnode)
 		attach(pathnode)
 	end):SetIcon("icon16/brick_add.png")
 
+	menu:AddSpacer()
 	menu:AddOption("cancel"):SetIcon("icon16/cancel.png")
 	menu:Open()
+end
+
+local function setGlobalValue(frame, conroot, mod, key, value, name, force)
+	if force then
+		for i = 1, conroot.count do
+			if not mod[i] then
+				mod[i] = {}
+			end
+			mod[i][key] = value
+		end
+
+		frame.confirm:DoClick()
+	else
+		local pnl = Derma_Query(string.format("Set %s to %s on all parts?", name or key, tostring(value)), "", "Yes", function()
+			for i = 1, conroot.count do
+				if not mod[i] then
+					mod[i] = {}
+				end
+				mod[i][key] = value
+			end
+
+			frame.confirm:DoClick()
+		end, "No")
+
+		pnl.Paint = function(_, w, h)
+			surface.SetDrawColor(theme.colorMain)
+			surface.DrawRect(0, 24, w, h - 24)
+			surface.SetDrawColor(0, 0, 0)
+			surface.DrawOutlinedRect(0, 24, w, h - 24)
+		end
+	end
 end
 
 local function conmenu(frame, conroot)
@@ -673,6 +707,24 @@ local function conmenu(frame, conroot)
 		opt.m_Image:SetImageColor(Color(255, 125, 125))
 	end
 
+	local updates = frame.updates and frame.updates[conroot.num]
+	if updates and updates.mod then
+		menu:AddSpacer()
+		local sub, opt = menu:AddSubMenu("flags")
+		opt:SetIcon("icon16/flag_yellow.png")
+
+		for k, v in SortedPairsByValue({ ["vsmooth"] = "render_flat", ["vinside"] = "render_inside" }) do
+			sub:AddSpacer()
+			local opt = sub:AddOption("set all " .. v, function()
+				setGlobalValue(frame, conroot, updates.mod, k, 1, v)
+			end):SetIcon("icon16/flag_blue.png")
+			local opt = sub:AddOption("unset all " .. v, function()
+				setGlobalValue(frame, conroot, updates.mod, k, 0, v)
+			end):SetIcon("icon16/flag_red.png")
+		end
+	end
+
+	menu:AddSpacer()
 	menu:AddOption("cancel"):SetIcon("icon16/cancel.png")
 	menu:Open()
 end
@@ -1001,6 +1053,7 @@ function PANEL:RemakeTree()
 		conroot.num = i
 		conroot.info = self.Entity.prop2mesh_controllers[i]
 		conroot.menu = conmenu
+		conroot.count = #condata
 
 		local setroot = conroot:AddNode("settings", "icon16/cog.png")
 

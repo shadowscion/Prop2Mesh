@@ -221,7 +221,7 @@ local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 	local partang = partnext.ang
 	local partscale = partnext.scale
 	local partclips = partnext.clips
-	local partsubmodels = partnext.submodels
+	--local partsubmodels = partnext.submodels
 
 	local submeshfixlookup
 	if submeshes.modelfixer then
@@ -264,9 +264,24 @@ local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 	local partverts = {}
 	local modeluv = not meshtex
 
+	local submodels_whitelist, submodels_blacklist
+	if partnext.submodels then
+		if partnext.submodelswl then
+			submodels_whitelist = partnext.submodels
+		else
+			submodels_blacklist = partnext.submodels
+		end
+	end
+
 	for submeshid = 1, #submeshes do
-		if partsubmodels and partsubmodels[submeshid] then
-			goto CONTINUE
+		if submodels_blacklist then
+			if submodels_blacklist[submeshid] then
+				goto CONTINUE
+			end
+		elseif submodels_whitelist then
+			if not submodels_whitelist[submeshid] then
+				goto CONTINUE
+			end
 		end
 
 		local submeshdata   = submeshes[submeshid].triangles

@@ -78,6 +78,12 @@ kvpass.submodels = function(data, index, val)
 	end
 end
 
+-- kvpass.submodelswl = function(data, index, val)
+-- 	if isnumber(val) then
+-- 		data[index].submodelswl = val ~= 0 and 1 or nil
+-- 	end
+-- end
+
 
 --[[
 

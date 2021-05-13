@@ -329,7 +329,7 @@ local function checkSubmodels(submodels)
 	return next(swap) and swap
 end
 
-local function p2mPushModel(context, self, index, model, pos, ang, scale, clips, vinside, vsmooth, bodygroup, submodels)
+local function p2mPushModel(context, self, index, model, pos, ang, scale, clips, vinside, vsmooth, bodygroup, submodels, submodelswl)
 	errorcheck(context, self, index)
 
 	if scale then
@@ -359,6 +359,7 @@ local function p2mPushModel(context, self, index, model, pos, ang, scale, clips,
 		vsmooth = tobool(vsmooth) and 1 or nil,
 		bodygroup = bodygroup,
 		submodels = submodels,
+		submodelswl = tobool(submodelswl) and 1 or nil,
 	}
 
 	return #self.prop2mesh_e2_resevoir[index]
@@ -375,17 +376,18 @@ local stypes = {
 	bodygroup = "n",
 	clips     = "r",
 	submodels = "r",
+	submodelswl = "n",
 }
 
 e2function void entity:p2mPushModel(index, table data)
 	if checkvalid(self, this, nil, index, true) then
 		local real = {}
 		for k, v in pairs(data.stypes) do
-			if stypes[k] == v then
+			if stypes[k] == v then -- add aliases
 				real[k] = data.s[k]
 			end
 		end
-		p2mPushModel(self, this, index, real.model, real.pos, real.ang, real.scale, real.clips, real.inside, real.flat, real.bodygroup, real.submodels)
+		p2mPushModel(self, this, index, real.model, real.pos, real.ang, real.scale, real.clips, real.inside, real.flat, real.bodygroup, real.submodels, real.submodelswl)
 	end
 end
 

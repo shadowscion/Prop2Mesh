@@ -92,7 +92,13 @@ elseif CLIENT then
 		local ent = eid and Entity(eid) or ply:GetEyeTrace().Entity
 		if ent and IsValid(ent) then
 			if ent:IsPlayer() then return end
-			chat.AddText(Color(155, 255, 155), string.format("model: %s\nmask: %s", ent:GetModel(), prop2mesh.getBodygroupMask(ent)))
+				local mask = prop2mesh.getBodygroupMask(ent)
+				local submeshes = util.GetModelMeshes(ent:GetModel(), 0, mask or 0)
+
+				chat.AddText(
+					Color(225, 255, 155), "model: ", color_white, ent:GetModel() .. "\n",
+					Color(225, 255, 155), "bodygroup-mask: ", color_white, mask .. "\n",
+					Color(225, 255, 155), "submesh-count: ", color_white, (submeshes and #submeshes or 0) .. "")
 		end
 	end)
 

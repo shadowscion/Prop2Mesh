@@ -464,6 +464,9 @@ function ENT:SetControllerData(index, partlist, uvs, addTo)
 				partlist[#partlist + 1] = currentData[i]
 			end
 			if currentData.custom then
+				if not partlist.custom then
+					partlist.custom = {}
+				end
 				for crc, data in pairs(currentData.custom) do
 					partlist.custom[crc] = data
 				end

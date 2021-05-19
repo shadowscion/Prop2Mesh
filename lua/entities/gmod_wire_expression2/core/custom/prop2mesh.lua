@@ -12,11 +12,11 @@ local _POS    = -3
 local _ANG    = -4
 local _SCALE  = -5
 local _UVS    = -6
-
 local _PARENT = -7
 local _MODEL  = -8
 local _NODRAW = -9
 local _BUILD  = -10
+local _ALP    = -11
 
 local cooldowns = {}
 cooldowns[_BUILD] = 10
@@ -88,6 +88,11 @@ end
 ]]
 __e2setcost(10)
 
+e2function void entity:p2mSetAlpha(number index, number alpha)
+	if checkvalid(self, this, _ALP, index) then
+		this:SetControllerAlpha(index, alpha)
+	end
+end
 e2function void entity:p2mSetColor(number index, vector color)
 	if checkvalid(self, this, _COL, index) then
 		this:SetControllerCol(index, Color(color[1], color[2], color[3]))

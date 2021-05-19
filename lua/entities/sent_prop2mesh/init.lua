@@ -363,6 +363,14 @@ function ENT:AddControllerUpdate(index, key)
 	self.prop2mesh_updates[index][key] = true
 end
 
+function ENT:SetControllerAlpha(index, val)
+	local info = self.prop2mesh_controllers[index]
+	if (info and isnumber(val)) and (info.col.a ~= val) then
+		info.col.a = val
+		self:AddControllerUpdate(index, "col")
+	end
+end
+
 function ENT:SetControllerCol(index, val)
 	local info = self.prop2mesh_controllers[index]
 	if (info and IsColor(val) or istable(val)) and (info.col.r ~= val.r or info.col.g ~= val.g or info.col.b ~= val.b or info.col.a ~= val.a) then

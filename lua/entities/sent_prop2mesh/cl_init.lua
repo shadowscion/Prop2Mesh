@@ -285,9 +285,15 @@ local function refresh(self, info)
 		info.ent:Activate()
 	end
 
-	info.ent:SetParent(self)
+	if IsValid(info.linkent) then
+		info.ent:SetParent(info.linkent)
+		info.ent:SetAngles(info.linkent:GetAngles())
+	else
+		info.ent:SetParent(self)
+		info.ent:SetAngles(self:GetAngles())
+	end
+
 	info.ent:SetPos(self:GetPos())
-	info.ent:SetAngles(self:GetAngles())
 	info.ent:SetMaterial(info.mat)
 	info.ent:SetColor(info.col)
 	info.ent:SetRenderMode(info.col.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSCOLOR)
@@ -525,6 +531,43 @@ kvpass.clips = function(self, info, val)
 	end
 end
 
+local function LinkEntRemoved(linkent)
+	local snapshot = linkent.prop2mesh_links
+
+	if not snapshot or next(snapshot) == nil then
+		return
+	end
+
+	timer.Simple(0, function()
+		if IsValid(linkent) then
+			return
+		end
+
+		for info, self in pairs(snapshot) do
+			info.linkent = nil
+
+			if IsValid(self) and IsValid(info.ent) then
+				info.ent:SetParent(self)
+				info.ent:SetPos(self:GetPos())
+				info.ent:SetAngles(self:GetAngles())
+			end
+		end
+	end)
+end
+
+kvpass.linkent = function(self, info, val)
+	if IsValid(val) then
+		if not val.prop2mesh_links then
+			val.prop2mesh_links = {}
+		end
+		val.prop2mesh_links[info] = self
+		info.linkent = val
+		info.linkent:CallOnRemove("prop2mesh_linkent_removed", LinkEntRemoved)
+	else
+		info.linkent = nil
+	end
+end
+
 
 --[[
 
@@ -581,6 +624,13 @@ net.Receive("prop2mesh_sync", function(len)
 			for j = 1, clipnum do
 				info.clips[#info.clips + 1] = { n = Vector(net.ReadFloat(), net.ReadFloat(), net.ReadFloat()), d = net.ReadFloat() }
 			end
+		end
+
+		if net.ReadBool() then
+			local linkent = net.ReadEntity()
+			info.linkent = IsValid(linkent) and linkent or nil
+		else
+			info.linkent = nil
 		end
 
 		self.prop2mesh_controllers[i] = info

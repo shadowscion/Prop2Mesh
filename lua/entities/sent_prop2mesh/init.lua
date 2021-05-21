@@ -345,6 +345,13 @@ function ENT:SendControllers(syncwith)
 			net.WriteFloat(clip[3])
 			net.WriteFloat(clip[4])
 		end
+
+		if info.linkent and IsValid(info.linkent) then
+			net.WriteBool(true)
+			net.WriteEntity(info.linkent)
+		else
+			net.WriteBool(false)
+		end
 	end
 
 	if syncwith then
@@ -362,6 +369,33 @@ function ENT:AddControllerUpdate(index, key)
 	if not self.prop2mesh_updates[index] then self.prop2mesh_updates[index] = {} end
 	self.prop2mesh_updates[index][key] = true
 end
+
+function ENT:SetControllerLinkEnt(index, val)
+	local info = self.prop2mesh_controllers[index]
+	if (info and isentity(val)) then
+		if not IsValid(val) then
+			return
+		end
+		info.linkent = val
+		self:AddControllerUpdate(index, "linkent")
+	end
+end
+
+-- function ENT:SetControllerLinkPos(index, val)
+-- 	local info = self.prop2mesh_controllers[index]
+-- 	if (info and isvector(val)) then
+-- 		if not info.linkpos then
+-- 			info.linkpos = Vector()
+-- 		end
+-- 		if (info.linkpos.x ~= val.x or info.linkpos.y ~= val.y or info.linkpos.z ~= val.z) then
+-- 			info.linkpos.x = val.x
+-- 			info.linkpos.y = val.y
+-- 			info.linkpos.z = val.z
+-- 			self:AddControllerUpdate(index, "linkpos")
+-- 		end
+-- 	end
+-- end
+
 
 function ENT:SetControllerAlpha(index, val)
 	local info = self.prop2mesh_controllers[index]

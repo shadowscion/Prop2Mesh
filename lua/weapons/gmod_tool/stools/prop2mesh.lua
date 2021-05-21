@@ -1268,10 +1268,10 @@ local lang_tmp2 = "controller [%d] [%d %d %d %d]"
 
 function mode:getLines()
 	local col = multitool.entity:GetColor()
-	multitool.lines = { string.format(lang_tmp1, col.r, col.b, col.g, col.a) }
+	multitool.lines = { string.format(lang_tmp1, col.r, col.g, col.b, col.a) }
 	for i = 1, #multitool.entity.prop2mesh_controllers do
 		col = multitool.entity.prop2mesh_controllers[i].col
-		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, col.r, col.b, col.g, col.a)
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, col.r, col.g, col.b, col.a)
 	end
 end
 
@@ -1292,10 +1292,10 @@ local lang_tmp2 = "controller [%d] [%d %d %d %d] [%s]"
 
 function mode:getLines()
 	local col = multitool.entity:GetColor()
-	multitool.lines = { string.format(lang_tmp1, col.r, col.b, col.g, col.a, multitool.entity:GetMaterial()) }
+	multitool.lines = { string.format(lang_tmp1, col.r, col.g, col.b, col.a, multitool.entity:GetMaterial()) }
 	for i = 1, #multitool.entity.prop2mesh_controllers do
 		col = multitool.entity.prop2mesh_controllers[i].col
-		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, col.r, col.b, col.g, col.a, multitool.entity.prop2mesh_controllers[i].mat)
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, col.r, col.g, col.b, col.a, multitool.entity.prop2mesh_controllers[i].mat)
 	end
 end
 

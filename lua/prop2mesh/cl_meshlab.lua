@@ -646,6 +646,10 @@ local function pluralf(pattern, number)
 end
 
 hook.Add("Think", "prop2mesh_meshlab", function()
+	if not prop2mesh then
+		return
+	end
+
 	if prop2mesh.downloads > 0 then
 		setmessage(pluralf("prop2mesh %d server download%s remaining", prop2mesh.downloads))
 	end

@@ -16,8 +16,8 @@ local _PARENT = -7
 local _MODEL  = -8
 local _NODRAW = -9
 local _BUILD  = -10
-local _ALPHA   = -11
-local _LINKENT = -12
+local _ALPHA  = -11
+local _LINK   = -12
 -- local _LINKPOS = -13
 -- local _LINKANG = -14
 
@@ -121,24 +121,16 @@ e2function void entity:p2mSetUV(number index, number uvs)
 		this:SetControllerUVS(index, math.Clamp(math.floor(math.abs(uvs)), 0, 512))
 	end
 end
-e2function void entity:p2mSetLinkEnt(number index, entity ent)
+e2function void entity:p2mSetLink(number index, entity ent, vector pos, angle ang)
 	if ent == this or not IsValid(ent) or not E2Lib.isOwner(self, ent) then
 		return
 	end
-	if checkvalid(self, this, _LINKENT, index) then
+	if checkvalid(self, this, _LINK, index) then
 		this:SetControllerLinkEnt(index, ent)
+		this:SetControllerLinkPos(index, Vector(pos[1], pos[2], pos[3]))
+		this:SetControllerLinkAng(index, Angle(ang[1], ang[2], ang[3]))
 	end
 end
--- e2function void entity:p2mSetLinkPos(number index, vector pos)
--- 	if checkvalid(self, this, _LINKPOS, index) then
--- 		this:SetControllerLinkPos(index, pos)
--- 	end
--- end
--- e2function void entity:p2mSetLinkAng(number index, angle ang)
--- 	if checkvalid(self, this, _LINKANG, index) then
--- 		this:SetControllerLinkAng(index, ang)
--- 	end
--- end
 
 
 --[[

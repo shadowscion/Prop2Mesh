@@ -646,7 +646,7 @@ local function pluralf(pattern, number)
 end
 
 hook.Add("Think", "prop2mesh_meshlab", function()
-	if not prop2mesh then
+	if not prop2mesh or not prop2mesh.downloads then
 		return
 	end
 

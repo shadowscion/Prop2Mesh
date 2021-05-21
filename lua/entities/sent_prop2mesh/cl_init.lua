@@ -285,15 +285,19 @@ local function refresh(self, info)
 		info.ent:Activate()
 	end
 
+	local parent, pos, ang
 	if IsValid(info.linkent) then
-		info.ent:SetParent(info.linkent)
-		info.ent:SetAngles(info.linkent:GetAngles())
+		parent = info.linkent
+		pos, ang = LocalToWorld(info.linkpos or Vector(), info.linkang or Angle(), parent:GetPos(), parent:GetAngles())
 	else
-		info.ent:SetParent(self)
-		info.ent:SetAngles(self:GetAngles())
+		parent = self
+		pos, ang = LocalToWorld(Vector(), Angle(), parent:GetPos(), parent:GetAngles())
 	end
 
-	info.ent:SetPos(self:GetPos())
+	info.ent:SetParent(parent)
+	info.ent:SetAngles(ang)
+	info.ent:SetPos(pos)
+
 	info.ent:SetMaterial(info.mat)
 	info.ent:SetColor(info.col)
 	info.ent:SetRenderMode(info.col.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSCOLOR)
@@ -323,7 +327,6 @@ local function refresh(self, info)
 		local mdata = checkmesh(info.crc, info.uvs)
 		if mdata and mdata.ready then
 			setRenderBounds(info.ent, mdata.vmins, mdata.vmaxs, info.scale)
-			--info.ent:SetRenderBounds(mdata.vmins, mdata.vmaxs)
 		end
 	end
 
@@ -568,6 +571,14 @@ kvpass.linkent = function(self, info, val)
 	end
 end
 
+kvpass.linkpos = function(self, info, val)
+	info.linkpos = val
+end
+
+kvpass.linkang = function(self, info, val)
+	info.linkang = val
+end
+
 
 --[[
 
@@ -629,8 +640,12 @@ net.Receive("prop2mesh_sync", function(len)
 		if net.ReadBool() then
 			local linkent = net.ReadEntity()
 			info.linkent = IsValid(linkent) and linkent or nil
+			info.linkpos = net.ReadBool() and net.ReadVector() or nil
+			info.linkang = net.ReadBool() and net.ReadAngle() or nil
 		else
 			info.linkent = nil
+			info.linkpos = nil
+			info.linkang = nil
 		end
 
 		self.prop2mesh_controllers[i] = info

@@ -349,6 +349,20 @@ function ENT:SendControllers(syncwith)
 		if info.linkent and IsValid(info.linkent) then
 			net.WriteBool(true)
 			net.WriteEntity(info.linkent)
+
+			if info.linkpos then
+				net.WriteBool(true)
+				net.WriteVector(info.linkpos)
+			else
+				net.WriteBool(false)
+			end
+
+			if info.linkang then
+				net.WriteBool(true)
+				net.WriteAngle(info.linkang)
+			else
+				net.WriteBool(false)
+			end
 		else
 			net.WriteBool(false)
 		end
@@ -373,7 +387,7 @@ end
 function ENT:SetControllerLinkEnt(index, val)
 	local info = self.prop2mesh_controllers[index]
 	if (info and isentity(val)) then
-		if not IsValid(val) then
+		if not IsValid(val) or info.linkent == val then
 			return
 		end
 		info.linkent = val
@@ -381,21 +395,35 @@ function ENT:SetControllerLinkEnt(index, val)
 	end
 end
 
--- function ENT:SetControllerLinkPos(index, val)
--- 	local info = self.prop2mesh_controllers[index]
--- 	if (info and isvector(val)) then
--- 		if not info.linkpos then
--- 			info.linkpos = Vector()
--- 		end
--- 		if (info.linkpos.x ~= val.x or info.linkpos.y ~= val.y or info.linkpos.z ~= val.z) then
--- 			info.linkpos.x = val.x
--- 			info.linkpos.y = val.y
--- 			info.linkpos.z = val.z
--- 			self:AddControllerUpdate(index, "linkpos")
--- 		end
--- 	end
--- end
+function ENT:SetControllerLinkPos(index, val)
+	local info = self.prop2mesh_controllers[index]
+	if (info and isvector(val)) then
+		if not info.linkpos then
+			info.linkpos = Vector()
+		end
+		if (info.linkpos.x ~= val.x or info.linkpos.y ~= val.y or info.linkpos.z ~= val.z) then
+			info.linkpos.x = val.x
+			info.linkpos.y = val.y
+			info.linkpos.z = val.z
+			self:AddControllerUpdate(index, "linkpos")
+		end
+	end
+end
 
+function ENT:SetControllerLinkAng(index, val)
+	local info = self.prop2mesh_controllers[index]
+	if (info and isvector(val)) then
+		if not info.linkang then
+			info.linkang = Angle()
+		end
+		if (info.linkang.p ~= val.p or info.linkang.y ~= val.y or info.linkang.r ~= val.r) then
+			info.linkang.p = val.p
+			info.linkang.y = val.y
+			info.linkang.r = val.r
+			self:AddControllerUpdate(index, "linkang")
+		end
+	end
+end
 
 function ENT:SetControllerAlpha(index, val)
 	local info = self.prop2mesh_controllers[index]

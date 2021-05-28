@@ -68,6 +68,7 @@ if SERVER then
 		ent:SetPos(tr.HitPos - ent:LocalToWorld(Vector(0, 0, ent:OBBMins().z)))
 		ent:Spawn()
 		ent:Activate()
+		ent:SetPlayer(self:GetOwner())
 
 		if CPPI and ent.CPPISetOwner then
 			ent:CPPISetOwner(self:GetOwner())

@@ -134,6 +134,7 @@ net.Receive("prop2mesh_download", function(len, pl)
 	net.WriteString(crc)
 	prop2mesh.WriteStream(self.prop2mesh_partlists[crc])
 	net.Send(pl)
+	--print("download", pl)
 end)
 
 net.Receive("prop2mesh_sync", function(len, pl)
@@ -145,6 +146,7 @@ net.Receive("prop2mesh_sync", function(len, pl)
 		self.prop2mesh_syncwith = {}
 	end
 	self.prop2mesh_syncwith[pl] = net.ReadString()
+	--print("sync", pl)
 end)
 
 
@@ -412,7 +414,7 @@ end
 
 function ENT:SetControllerLinkAng(index, val)
 	local info = self.prop2mesh_controllers[index]
-	if (info and isvector(val)) then
+	if (info and isangle(val)) then
 		if not info.linkang then
 			info.linkang = Angle()
 		end

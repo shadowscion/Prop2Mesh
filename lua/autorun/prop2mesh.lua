@@ -68,6 +68,7 @@ if SERVER then
 		end
 		self:Spawn()
 		self:Activate()
+		self:SetPlayer(pl)
 
 		return self
 	end

@@ -149,6 +149,8 @@ duplicator.RegisterEntityClass("gmod_ent_p2m", function(ply, data)
 		compat:CPPISetOwner(ply)
 	end
 
+	compat:SetPlayer(ply)
+
 	local uvs, scale, parts = getLegacyInfo(data.EntityMods)
 
 	compat:AddController(uvs, scale)

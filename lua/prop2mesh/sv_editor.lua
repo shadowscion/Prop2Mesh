@@ -32,6 +32,9 @@ local safeControllerValues = {
 	end,
 	scale = function(val)
 		return (istable(val) and #val == 3) and Vector(unpack(val)) or nil
+	end,
+	name = function(val)
+		return isstring(val) and string.sub(val, 1, 64) or nil
 	end
 }
 
@@ -100,6 +103,9 @@ local function applyUpdate(self, pl, updateHandler)
 			end
 			if edits.scale then
 				self:SetControllerScale(controllerID, edits.scale)
+			end
+			if edits.name then
+				self:SetControllerName(controllerID, edits.name)
 			end
 		end
 	end

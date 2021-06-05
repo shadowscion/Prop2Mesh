@@ -1174,8 +1174,8 @@ mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 local lang_tmp0 = "[Right] click to select this p2m entity"
 local lang_tmp1 = "[-Left] click to automatically add controllers"
 local lang_tmp2 = "[+Left] click to add controller"
-local lang_tmp3 = "[+Right] click to SET models on controller [%d]"
-local lang_tmp4 = "[-Right] click to ADD models to controller [%d]"
+local lang_tmp3 = "[+Right] click to SET models on controller [%s]"
+local lang_tmp4 = "[-Right] click to ADD models to controller [%s]"
 
 function mode:getLines()
 	if multitool.stage == 0 then
@@ -1185,7 +1185,7 @@ function mode:getLines()
 	if multitool.stage == 1 then
 		multitool.lines = { multitool.shift and lang_tmp1 or lang_tmp2 }
 		for i = 1, #multitool.entity.prop2mesh_controllers do
-			multitool.lines[#multitool.lines + 1] = string.format(multitool.shift and lang_tmp4 or lang_tmp3, i)
+			multitool.lines[#multitool.lines + 1] = string.format(multitool.shift and lang_tmp4 or lang_tmp3, multitool.entity.prop2mesh_controllers[i].name or i)
 		end
 	end
 end
@@ -1221,12 +1221,12 @@ mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 mode.lines_color_hbg = Color(255, 0, 0, 255)
 
 local lang_tmp1 = "Remove entity"
-local lang_tmp2 = "Remove controller [%d]"
+local lang_tmp2 = "Remove controller [%s]"
 
 function mode:getLines()
 	multitool.lines = { lang_tmp1 }
 	for i = 1, #multitool.entity.prop2mesh_controllers do
-		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i)
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, multitool.entity.prop2mesh_controllers[i].name or i)
 	end
 end
 
@@ -1243,12 +1243,12 @@ surface.SetFont(multitool.title_font)
 mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 
 local lang_tmp1 = "entity [%s]"
-local lang_tmp2 = "controller [%d] [%s]"
+local lang_tmp2 = "controller [%s] [%s]"
 
 function mode:getLines()
 	multitool.lines = { string.format(lang_tmp1, multitool.entity:GetMaterial()) }
 	for i = 1, #multitool.entity.prop2mesh_controllers do
-		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, multitool.entity.prop2mesh_controllers[i].mat)
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, multitool.entity.prop2mesh_controllers[i].name or i, multitool.entity.prop2mesh_controllers[i].mat)
 	end
 end
 
@@ -1265,14 +1265,14 @@ surface.SetFont(multitool.title_font)
 mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 
 local lang_tmp1 = "entity [%d %d %d %d]"
-local lang_tmp2 = "controller [%d] [%d %d %d %d]"
+local lang_tmp2 = "controller [%s] [%d %d %d %d]"
 
 function mode:getLines()
 	local col = multitool.entity:GetColor()
 	multitool.lines = { string.format(lang_tmp1, col.r, col.g, col.b, col.a) }
 	for i = 1, #multitool.entity.prop2mesh_controllers do
 		col = multitool.entity.prop2mesh_controllers[i].col
-		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, col.r, col.g, col.b, col.a)
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, multitool.entity.prop2mesh_controllers[i].name or i, col.r, col.g, col.b, col.a)
 	end
 end
 
@@ -1289,14 +1289,15 @@ surface.SetFont(multitool.title_font)
 mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 
 local lang_tmp1 = "entity [%d %d %d %d] [%s]"
-local lang_tmp2 = "controller [%d] [%d %d %d %d] [%s]"
+local lang_tmp2 = "controller [%s] [%d %d %d %d] [%s]"
 
 function mode:getLines()
 	local col = multitool.entity:GetColor()
 	multitool.lines = { string.format(lang_tmp1, col.r, col.g, col.b, col.a, multitool.entity:GetMaterial()) }
 	for i = 1, #multitool.entity.prop2mesh_controllers do
 		col = multitool.entity.prop2mesh_controllers[i].col
-		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, col.r, col.g, col.b, col.a, multitool.entity.prop2mesh_controllers[i].mat)
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2,
+			multitool.entity.prop2mesh_controllers[i].name or i, col.r, col.g, col.b, col.a, multitool.entity.prop2mesh_controllers[i].mat)
 	end
 end
 
@@ -1305,14 +1306,14 @@ end
 	clipping tools
 ]]
 local lang_tmp1 = "Clip entity"
-local lang_tmp2 = "Clip controller [%d] [%d clips]"
+local lang_tmp2 = "Clip controller [%s] [%d clips]"
 
 local cliptext = function(self)
 	multitool.lines = { lang_tmp1 }
 	local controllers = multitool.entity.prop2mesh_controllers
 	for i = 1, #controllers do
 		local num = controllers[i].clips and #controllers[i].clips or 0
-		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, i, num)
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, multitool.entity.prop2mesh_controllers[i].name or i, num)
 	end
 end
 

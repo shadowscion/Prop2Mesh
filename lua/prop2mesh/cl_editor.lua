@@ -675,6 +675,40 @@ end
 local function conmenu(frame, conroot)
 	local menu = DermaMenu()
 
+	local updates = frame.updates and frame.updates[conroot.num]
+	if updates and updates.mod and updates.set then
+		menu:AddOption("set controller name", function()
+			local pnl = Derma_StringRequest("", string.format("Setting controller [%s] name to:", conroot.info.name or conroot.num), conroot.info.name or "", function(text)
+				if text == "" or conroot.info.name == text then
+					return
+				end
+				updates.set.name = text
+				frame.confirm:DoClick()
+			end)
+
+			pnl.Paint = function(_, w, h)
+				surface.SetDrawColor(theme.colorMain)
+				surface.DrawRect(0, 24, w, h - 24)
+				surface.SetDrawColor(0, 0, 0)
+				surface.DrawOutlinedRect(0, 24, w, h - 24)
+			end
+		end):SetIcon("icon16/text_signature.png")
+
+		local sub, opt = menu:AddSubMenu("set controller flags")
+		opt:SetIcon("icon16/flag_yellow.png")
+
+		for k, v in SortedPairsByValue({ ["vsmooth"] = "render_flat", ["vinside"] = "render_inside" }) do
+			sub:AddSpacer()
+			local opt = sub:AddOption("set all " .. v, function()
+				setGlobalValue(frame, conroot, updates.mod, k, 1, v)
+			end):SetIcon("icon16/flag_blue.png")
+			local opt = sub:AddOption("unset all " .. v, function()
+				setGlobalValue(frame, conroot, updates.mod, k, 0, v)
+			end):SetIcon("icon16/flag_red.png")
+		end
+	end
+
+	menu:AddSpacer()
 	menu:AddOption("export as .obj", function()
 		local pnl = Derma_StringRequest("", string.format("Exporting and saving controller %d as:", conroot.num), "default.txt", function(text)
 			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uvs))
@@ -705,23 +739,6 @@ local function conmenu(frame, conroot)
 		end)
 		opt:SetIcon("icon16/cog.png")
 		opt.m_Image:SetImageColor(Color(255, 125, 125))
-	end
-
-	local updates = frame.updates and frame.updates[conroot.num]
-	if updates and updates.mod then
-		menu:AddSpacer()
-		local sub, opt = menu:AddSubMenu("flags")
-		opt:SetIcon("icon16/flag_yellow.png")
-
-		for k, v in SortedPairsByValue({ ["vsmooth"] = "render_flat", ["vinside"] = "render_inside" }) do
-			sub:AddSpacer()
-			local opt = sub:AddOption("set all " .. v, function()
-				setGlobalValue(frame, conroot, updates.mod, k, 1, v)
-			end):SetIcon("icon16/flag_blue.png")
-			local opt = sub:AddOption("unset all " .. v, function()
-				setGlobalValue(frame, conroot, updates.mod, k, 0, v)
-			end):SetIcon("icon16/flag_red.png")
-		end
 	end
 
 	menu:AddSpacer()
@@ -981,6 +998,8 @@ local function onPartHover(label)
 
 	local partnode = label:GetParent()
 	if self.contree:GetSelectedItem() ~= partnode then
+		CloseDermaMenus()
+
 		self.contree:SetSelectedItem(partnode)
 
 		if partnode.new and (partnode.new.holo or partnode.new.prop) then
@@ -1047,21 +1066,23 @@ function PANEL:RemakeTree()
 	for i = 1, #self.Entity.prop2mesh_controllers do
 		self.updates[i] = { mod = {}, add = {}, set = {} }
 
-		local condata = prop2mesh.getMeshData(self.Entity.prop2mesh_controllers[i].crc, true) or {}
-		local conroot = self.contree:AddNode(string.format("controller %d [%d]", i, #condata), "icon16/image.png")
+		local info = self.Entity.prop2mesh_controllers[i]
+		local condata = prop2mesh.getMeshData(info.crc, true) or {}
+		local conroot = self.contree:AddNode(string.format("controller [%s] [%d]", info.name or i, #condata), "icon16/image.png")
 
 		conroot.num = i
-		conroot.info = self.Entity.prop2mesh_controllers[i]
+		conroot.info = info
 		conroot.menu = conmenu
 		conroot.count = #condata
+		conroot.Label.OnCursorEntered = onPartHover
 
 		local setroot = conroot:AddNode("settings", "icon16/cog.png")
 
 		setroot.set = self.updates[i].set
 
-		local setscale = self.Entity.prop2mesh_controllers[i].scale
-		setroot.old = { uvs = self.Entity.prop2mesh_controllers[i].uvs, scale = {setscale.x,setscale.y,setscale.z} }
-		setroot.new = { uvs = self.Entity.prop2mesh_controllers[i].uvs, scale = {setscale.x,setscale.y,setscale.z} }
+		local setscale = info.scale
+		setroot.old = { uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
+		setroot.new = { uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
 
 		registerVector(setroot, "mesh scale", "scale")
 		registerFloat(setroot, "texture size", "uvs", 0, 512)
@@ -1099,6 +1120,7 @@ function PANEL:RemakeTree()
 			local pathnode = filenode:AddNode(path, "icon16/page_white_text.png")
 			pathnode.menu = filemenu
 			pathnode.path = path
+			pathnode.Label.OnCursorEntered = onPartHover
 		end
 	end
 end

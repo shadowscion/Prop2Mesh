@@ -648,6 +648,13 @@ net.Receive("prop2mesh_sync", function(len)
 			info.linkang = nil
 		end
 
+		if net.ReadBool() then
+			info.name = net.ReadString()
+			if info.name == "" then
+				info.name = nil
+			end
+		end
+
 		self.prop2mesh_controllers[i] = info
 	end
 

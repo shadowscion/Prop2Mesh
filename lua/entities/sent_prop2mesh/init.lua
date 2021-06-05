@@ -278,6 +278,10 @@ duplicator.RegisterEntityModifier("prop2mesh", function(ply, self, dupe)
 				dupe_lookup[v.crc] = true
 				info.crc = v.crc
 			end
+
+			if v.name then
+				self:SetControllerName(k, v.name)
+			end
 		end
 
 		self.prop2mesh_partlists = {}
@@ -368,6 +372,13 @@ function ENT:SendControllers(syncwith)
 		else
 			net.WriteBool(false)
 		end
+
+		if info.name then
+			net.WriteBool(true)
+			net.WriteString(info.name)
+		else
+			net.WriteBool(false)
+		end
 	end
 
 	if syncwith then
@@ -424,6 +435,14 @@ function ENT:SetControllerLinkAng(index, val)
 			info.linkang.r = val.r
 			self:AddControllerUpdate(index, "linkang")
 		end
+	end
+end
+
+function ENT:SetControllerName(index, val)
+	local info = self.prop2mesh_controllers[index]
+	if (info and isstring(val)) and (info.name ~= val) then
+		info.name = val
+		self:AddControllerUpdate(index, "name")
 	end
 end
 

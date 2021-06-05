@@ -291,9 +291,12 @@ duplicator.RegisterEntityModifier("prop2mesh", function(ply, self, dupe)
 	end
 end)
 
-function ENT:AddController()
+function ENT:AddController(uvs)
 	table.insert(self.prop2mesh_controllers, prop2mesh.getEmpty())
 	self.prop2mesh_sync = true
+	if uvs then
+		self:SetControllerUVS(#self.prop2mesh_controllers, uvs)
+	end
 	return self.prop2mesh_controllers[#self.prop2mesh_controllers]
 end
 
@@ -635,7 +638,12 @@ function ENT:ToolDataByINDEX(index, tool, addTo)
 		pos = pos * (1 / num)
 	end
 
-	self:SetControllerData(index, prop2mesh.partsFromEnts(tool.selection, pos, ang), tool:GetClientNumber("tool_setuvsize"), addTo)
+	-- local uvsize
+	-- if not addTo then
+	-- 	uvsize = tool:GetClientNumber("tool_setuvsize")
+	-- end
+
+	self:SetControllerData(index, prop2mesh.partsFromEnts(tool.selection, pos, ang), nil, addTo)
 end
 
 function ENT:ToolDataAUTO(tool)

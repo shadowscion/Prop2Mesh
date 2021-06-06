@@ -89,111 +89,6 @@ end
 
 --[[
 ]]
-__e2setcost(10)
-
-e2function void entity:p2mSetAlpha(number index, number alpha)
-	if checkvalid(self, this, _ALPHA, index) then
-		this:SetControllerAlpha(index, alpha)
-	end
-end
-e2function void entity:p2mSetColor(number index, vector color)
-	if checkvalid(self, this, _COL, index) then
-		this:SetControllerCol(index, Color(color[1], color[2], color[3]))
-	end
-end
-e2function void entity:p2mSetColor(number index, vector4 color)
-	if checkvalid(self, this, _COL, index) then
-		this:SetControllerCol(index, Color(color[1], color[2], color[3], color[4]))
-	end
-end
-e2function void entity:p2mSetMaterial(number index, string material)
-	if checkvalid(self, this, _MAT, index) then
-		this:SetControllerMat(index, WireLib.IsValidMaterial(material))
-	end
-end
-e2function void entity:p2mSetScale(number index, vector scale)
-	if checkvalid(self, this, _SCALE, index) then
-		this:SetControllerScale(index, Vector(scale[1], scale[2], scale[3]))
-	end
-end
-e2function void entity:p2mSetUV(number index, number uvs)
-	if checkvalid(self, this, _UVS, index) then
-		this:SetControllerUVS(index, math.Clamp(math.floor(math.abs(uvs)), 0, 512))
-	end
-end
-e2function void entity:p2mSetLink(number index, entity ent, vector pos, angle ang)
-	if ent == this or not IsValid(ent) or not E2Lib.isOwner(self, ent) then
-		return
-	end
-	if checkvalid(self, this, _LINK, index) then
-		this:SetControllerLinkEnt(index, ent)
-		this:SetControllerLinkPos(index, Vector(pos[1], pos[2], pos[3]))
-		this:SetControllerLinkAng(index, Angle(ang[1], ang[2], ang[3]))
-	end
-end
-
-
---[[
-]]
-e2function void entity:p2mSetPos(vector pos)
-	if checkvalid(self, this, _POS) then
-		WireLib.setPos(this, Vector(pos[1], pos[2], pos[3]))
-	end
-end
-e2function void entity:p2mSetAng(angle ang)
-	if checkvalid(self, this, _ANG) then
-		WireLib.setAng(this, Angle(ang[1], ang[2], ang[3]))
-	end
-end
-e2function void entity:p2mSetNodraw(number bool)
-	if checkvalid(self, this, _NODRAW) then
-		this:SetNoDraw(tobool(bool))
-	end
-end
-e2function void entity:p2mSetModel(string model)
-	if checkvalid(self, this, _MODEL, nil, true) then
-		this:SetModel(model)
-	end
-end
-
-
---[[
-]]
-__e2setcost(25)
-
-local function Check_Parents(child, parent)
-	while IsValid(parent:GetParent()) do
-		parent = parent:GetParent()
-		if parent == child then
-			return false
-		end
-	end
-
-	return true
-end
-
-e2function void entity:p2mSetParent(entity parent)
-	if not IsValid(parent) or not E2Lib.isOwner(self, parent) or not checkvalid(self, this, _PARENT) then
-		return
-	end
-	if not Check_Parents(this, parent) then
-		return
-	end
-	if parent:GetParent() and parent:GetParent():IsValid() and parent:GetParent() == this then
-		return
-	end
-	this:SetParent(parent)
-end
-
-e2function void entity:p2mDeparent()
-	if checkvalid(self, this, _PARENT) then
-		this:SetParent(nil)
-	end
-end
-
-
---[[
-]]
 registerCallback("construct", function(self)
 	self.data.prop2mesh = {}
 end)
@@ -494,5 +389,146 @@ end
 e2function void entity:p2mPushModel(index, string model, array hidesubmodels, vector pos, angle ang, vector scale, number renderinside, number renderflat, number bodygroup, array clips)
 	if checkvalid(self, this, nil, index, true) then
 		p2mPushModel(self, this, index, model, pos, ang, scale, clips, renderinside, renderflat, bodygroup, hidesubmodels)
+	end
+end
+
+
+--[[
+	controller getters
+]]
+__e2setcost(5)
+
+e2function vector4 entity:p2mGetColor(index)
+	if not checkvalid(self, this, nil, index, nil) then
+		return {255,255,255,255}
+	end
+	local info = this.prop2mesh_controllers[index]
+	return {info.col.r, info.col.g, info.col.b, info.col.a}
+end
+e2function string entity:p2mGetMaterial(index)
+	if not checkvalid(self, this, nil, index, nil) then
+		return ""
+	end
+	return this.prop2mesh_controllers[index].mat
+end
+e2function string entity:p2mGetName(index)
+	if not checkvalid(self, this, nil, index, nil) then
+		return ""
+	end
+	return this.prop2mesh_controllers[index].name or ""
+end
+
+
+--[[
+	entity getters
+]]
+e2function number entity:p2mGetCount()
+	if not checkvalid(self, this, nil, nil, nil) then
+		return 0
+	end
+	return #this.prop2mesh_controllers
+end
+
+
+--[[
+	controller setters
+]]
+__e2setcost(10)
+
+e2function void entity:p2mSetAlpha(number index, number alpha)
+	if checkvalid(self, this, _ALPHA, index) then
+		this:SetControllerAlpha(index, alpha)
+	end
+end
+e2function void entity:p2mSetColor(number index, vector color)
+	if checkvalid(self, this, _COL, index) then
+		this:SetControllerCol(index, Color(color[1], color[2], color[3]))
+	end
+end
+e2function void entity:p2mSetColor(number index, vector4 color)
+	if checkvalid(self, this, _COL, index) then
+		this:SetControllerCol(index, Color(color[1], color[2], color[3], color[4]))
+	end
+end
+e2function void entity:p2mSetMaterial(number index, string material)
+	if checkvalid(self, this, _MAT, index) then
+		this:SetControllerMat(index, WireLib.IsValidMaterial(material))
+	end
+end
+e2function void entity:p2mSetScale(number index, vector scale)
+	if checkvalid(self, this, _SCALE, index) then
+		this:SetControllerScale(index, Vector(scale[1], scale[2], scale[3]))
+	end
+end
+e2function void entity:p2mSetUV(number index, number uvs)
+	if checkvalid(self, this, _UVS, index) then
+		this:SetControllerUVS(index, math.Clamp(math.floor(math.abs(uvs)), 0, 512))
+	end
+end
+e2function void entity:p2mSetLink(number index, entity ent, vector pos, angle ang)
+	if ent == this or not IsValid(ent) or not E2Lib.isOwner(self, ent) then
+		return
+	end
+	if checkvalid(self, this, _LINK, index) then
+		this:SetControllerLinkEnt(index, ent)
+		this:SetControllerLinkPos(index, Vector(pos[1], pos[2], pos[3]))
+		this:SetControllerLinkAng(index, Angle(ang[1], ang[2], ang[3]))
+	end
+end
+
+
+--[[
+	entity setters
+]]
+e2function void entity:p2mSetPos(vector pos)
+	if checkvalid(self, this, _POS) then
+		WireLib.setPos(this, Vector(pos[1], pos[2], pos[3]))
+	end
+end
+e2function void entity:p2mSetAng(angle ang)
+	if checkvalid(self, this, _ANG) then
+		WireLib.setAng(this, Angle(ang[1], ang[2], ang[3]))
+	end
+end
+e2function void entity:p2mSetNodraw(number bool)
+	if checkvalid(self, this, _NODRAW) then
+		this:SetNoDraw(tobool(bool))
+	end
+end
+e2function void entity:p2mSetModel(string model)
+	if checkvalid(self, this, _MODEL, nil, true) then
+		this:SetModel(model)
+	end
+end
+
+__e2setcost(25)
+
+local function Check_Parents(child, parent)
+	while IsValid(parent:GetParent()) do
+		parent = parent:GetParent()
+		if parent == child then
+			return false
+		end
+	end
+
+	return true
+end
+
+e2function void entity:p2mSetParent(entity parent)
+	if not IsValid(parent) or not E2Lib.isOwner(self, parent) or not checkvalid(self, this, _PARENT) then
+		return
+	end
+	if not Check_Parents(this, parent) then
+		return
+	end
+	if parent:GetParent() and parent:GetParent():IsValid() and parent:GetParent() == this then
+		return
+	end
+	this:SetParent(parent)
+end
+
+e2function void entity:p2mDeparent()
+	if checkvalid(self, this, _PARENT) then
+		this:SetParent(nil)
 	end
 end

@@ -14,9 +14,9 @@ function prop2mesh.log(msg)
 	MsgC(Color(255,255,0), "prop2mesh> ", Color(255,255,255), msg, "\n")
 end
 
-local validClasses = { ["sent_prop2mesh"] = true, ["sent_prop2mesh_legacy"] = true }
+prop2mesh.validClasses = { ["sent_prop2mesh"] = true, ["sent_prop2mesh_legacy"] = true }
 function prop2mesh.isValid(self)
-	return IsValid(self) and validClasses[self:GetClass()]
+	return IsValid(self) and prop2mesh.validClasses[self:GetClass()] or false
 end
 
 function prop2mesh.getBodygroupMask(ent)

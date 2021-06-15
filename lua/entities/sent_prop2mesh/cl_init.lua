@@ -6,7 +6,7 @@ include("shared.lua")
 local prop2mesh = prop2mesh
 
 local defaultmat = Material(prop2mesh.defaultmat)
-local wireframe = Material("models/wireframe")
+local wireframe = Material("models/debug/debugwhite")
 
 local net = net
 local cam = cam
@@ -245,10 +245,13 @@ local function drawModel(self)
 	end
 
 	if draw_wireframe and self.isowner then
-		render.SetBlend(1)
+		render.SetBlend(0.025)
 		render.SetColorModulation(1, 1, 1)
+		render.SuppressEngineLighting(true)
 		render.ModelMaterialOverride(wireframe)
 		self:DrawModel()
+		render.SetBlend(1)
+		render.SuppressEngineLighting(false)
 		render.ModelMaterialOverride()
 	else
 		self:DrawModel()
@@ -365,14 +368,17 @@ function ENT:Draw()
 	self:DrawModel()
 end
 
+local function SyncOwner(self)
+	if not CPPI or game.SinglePlayer() then
+		self.isowner = true
+		return
+	end
+	self.isowner = self:CPPIGetOwner() == LocalPlayer()
+end
+
 function ENT:Think()
 	if not self.prop2mesh_sync then
-		if CPPI then
-			self.isowner = self:CPPIGetOwner() == LocalPlayer()
-		else
-			self.isowner = true
-		end
-
+		SyncOwner(self)
 		refreshAll(self, self.prop2mesh_controllers)
 
 		net.Start("prop2mesh_sync")
@@ -385,8 +391,8 @@ function ENT:Think()
 	end
 
 	if self.prop2mesh_refresh then
+		SyncOwner(self)
 		refreshAll(self, self.prop2mesh_controllers)
-
 		self.prop2mesh_refresh = nil
 	end
 end

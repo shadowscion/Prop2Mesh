@@ -103,6 +103,26 @@ elseif CLIENT then
 		end
 	end)
 
+	timer.Simple(0.1, function()
+		if not E2Helper then return end
+		local backcompat = "Defaults to index 1, included for legacy support"
+		E2Helper.Descriptions["p2mCreate(va)"] = backcompat
+		E2Helper.Descriptions["p2mCreate(van)"] = backcompat
+		E2Helper.Descriptions["p2mCreate(vann)"] = backcompat
+		E2Helper.Descriptions["p2mHideModel(e:n)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:sva)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:svann)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:svannr)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:svanr)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:svav)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:svavnn)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:svavnnr)"] = backcompat
+		E2Helper.Descriptions["p2mPushModel(e:svavnr)"] = backcompat
+		E2Helper.Descriptions["p2mSetColor(e:v)"] = backcompat
+		E2Helper.Descriptions["p2mSetColor(e:xv4)"] = backcompat
+		E2Helper.Descriptions["p2mSetMaterial(e:s)"] = backcompat
+		E2Helper.Descriptions["p2mSetMeshScale(e:n)"] = backcompat
+	end)
 end
 
 --[[

@@ -101,7 +101,7 @@ registerCallback("destruct", function(self)
 	end
 end)
 
-local function p2mCreate(context, pos, ang, count)
+local function p2mCreate(context, count, pos, ang, uvs, scale)
 	if not count then
 		count = 1
 	end
@@ -144,6 +144,8 @@ local function p2mCreate(context, pos, ang, count)
 
 	for i = 1, count do
 		self:AddController()
+		if uvs then self:SetControllerUVS(i, uvs) end
+		if scale then self:SetControllerScale(i, scale) end
 	end
 
 	return self
@@ -152,7 +154,7 @@ end
 __e2setcost(50)
 
 e2function entity p2mCreate(number count, vector pos, angle ang)
-	return p2mCreate(self, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), count)
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]))
 end
 
 
@@ -244,6 +246,8 @@ end
 
 local function p2mPushModel(context, self, index, model, pos, ang, scale, clips, vinside, vsmooth, bodygroup, submodels, submodelswl)
 	errorcheck(context, self, index)
+
+	context.prf = context.prf + #self.prop2mesh_e2_resevoir[index] -- EXPERIMENTAL
 
 	if scale then
 		scale = toVec(scale)
@@ -530,5 +534,92 @@ end
 e2function void entity:p2mDeparent()
 	if checkvalid(self, this, _PARENT) then
 		this:SetParent(nil)
+	end
+end
+
+
+
+--[[
+	BACK COMPAT
+]]
+__e2setcost(50)
+e2function entity p2mCreate(vector pos, angle ang)
+	return p2mCreate(self, 1, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]))
+end
+
+e2function entity p2mCreate(vector pos, angle ang, number uvs)
+	return p2mCreate(self, 1, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs)
+end
+
+e2function entity p2mCreate(vector pos, angle ang, number uvs, number scale)
+	return p2mCreate(self, 1, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, Vector(scale, scale, scale))
+end
+
+__e2setcost(10)
+e2function void entity:p2mSetColor(vector color)
+	if checkvalid(self, this, _COL, 1) then
+		this:SetControllerCol(1, Color(color[1], color[2], color[3]))
+	end
+end
+e2function void entity:p2mSetColor(vector4 color)
+	if checkvalid(self, this, _COL, 1) then
+		this:SetControllerCol(1, Color(color[1], color[2], color[3], color[4]))
+	end
+end
+e2function void entity:p2mSetMaterial(string material)
+	if checkvalid(self, this, _MAT, 1) then
+		this:SetControllerMat(1, WireLib.IsValidMaterial(material))
+	end
+end
+e2function void entity:p2mSetMeshScale(number scale)
+	if checkvalid(self, this, _SCALE, 1) then
+		this:SetControllerScale(1, Vector(scale, scale, scale))
+	end
+end
+e2function void entity:p2mHideModel(number bool)
+	if checkvalid(self, this, _NODRAW) then
+		this:SetNoDraw(tobool(bool))
+	end
+end
+
+__e2setcost(5)
+e2function void entity:p2mPushModel(string model, vector pos, angle ang)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang)
+	end
+end
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, number renderinside, number renderflat)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang, nil, nil, renderinside, renderflat)
+	end
+end
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, number renderinside, array clips)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang, nil, clips, renderinside, nil)
+	end
+end
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, number renderinside, number renderflat, array clips)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang, nil, clips, renderinside, renderflat)
+	end
+end
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang, scale)
+	end
+end
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number renderinside, number renderflat)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang, scale, nil, renderinside, renderflat)
+	end
+end
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number renderinside, array clips)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang, scale, clips, renderinside, nil)
+	end
+end
+e2function void entity:p2mPushModel(string model, vector pos, angle ang, vector scale, number renderinside, number renderflat, array clips)
+	if checkvalid(self, this, nil, 1, true) then
+		p2mPushModel(self, this, 1, model, pos, ang, scale, clips, renderinside, renderflat)
 	end
 end

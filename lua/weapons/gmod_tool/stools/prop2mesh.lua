@@ -211,9 +211,12 @@ if SERVER then
 		return true
 	end
 
-	function TOOL:DeselectEntity(ent)
+	function TOOL:DeselectEntity(ent, modify)
 		if not self.selection[ent] then
 			return false
+		end
+		if modify then
+			duplicator.StoreEntityModifier(ent, "colour", { Color = self.selection[ent].col, RenderMode = self.selection[ent].mode })
 		end
 		ent:SetColor(self.selection[ent].col)
 		ent:SetRenderMode(self.selection[ent].mode)
@@ -270,8 +273,13 @@ if SERVER then
 		if legacy or index ~= 1 then
 			self.p2m.ent:ToolDataByINDEX(legacy and 1 or (index - 1), self, add)
 			local rmv = self:GetClientNumber("tool_setautoremove") ~= 0
+			local alp = not rmv and self:GetClientNumber("tool_setalphazero") ~= 0
 			for k, v in pairs(self.selection) do
-				self:DeselectEntity(k)
+				if alp then
+					v.col.a = 0
+					v.mode = RENDERMODE_TRANSALPHA
+				end
+				self:DeselectEntity(k, alp)
 				if rmv and select_candelete[k:GetClass()] then
 					SafeRemoveEntity(k)
 				end
@@ -348,8 +356,13 @@ if SERVER then
 						if next(self.selection) ~= nil then
 							self.p2m.ent:ToolDataAUTO(self)
 							local rmv = self:GetClientNumber("tool_setautoremove") ~= 0
+							local alp = not rmv and self:GetClientNumber("tool_setalphazero") ~= 0
 							for k, v in pairs(self.selection) do
-								self:DeselectEntity(k)
+								if alp then
+									v.col.a = 0
+									v.mode = RENDERMODE_TRANSALPHA
+								end
+								self:DeselectEntity(k, alp)
 								if rmv and select_candelete[k:GetClass()] then
 									SafeRemoveEntity(k)
 								end
@@ -590,6 +603,7 @@ local ConVars = {
 	["tool_setmodel"]        = "models/p2m/cube.mdl",
 	["tool_setautocenter"]   = 0,
 	["tool_setautoremove"]   = 0,
+	["tool_setalphazero"]    = 0,
 	["tool_setuvsize"]       = 0,
 	["tool_filter_radius"]   = 512,
 	["tool_filter_mcolor"]   = 0,
@@ -626,6 +640,11 @@ local function BuildPanel_ToolSettings(self)
 	help.Paint = function(_, w, h)
 		surface.SetDrawColor(0, 0, 0, 255)
 		surface.DrawLine(0, h - 1, w, h - 1)
+	end
+
+	local cbox = pnl:CheckBox("Set selection alpha to 0 when done", "prop2mesh_tool_setalphazero")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
 	end
 
 	local cbox = pnl:CheckBox("Remove selected props when done", "prop2mesh_tool_setautoremove")

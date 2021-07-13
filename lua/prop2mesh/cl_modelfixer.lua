@@ -109,7 +109,10 @@ specialmodel["models/props/de_nuke/hr_nuke/nuke_vent_bombsite/nuke_vent_bombsite
 	GENERIC MODELS
 ]]
 genericmodellist =
-[[models/autocannon/semiautocannon_25mm.mdl
+[[models/sprops/trans/miscwheels/wt1spr_12.mdl
+models/sprops/trans/miscwheels/wt1_12.mdl
+models/sprops/trans/miscwheels/wt1s_12.mdl
+models/autocannon/semiautocannon_25mm.mdl
 models/autocannon/semiautocannon_37mm.mdl
 models/autocannon/semiautocannon_45mm.mdl
 models/autocannon/semiautocannon_57mm.mdl

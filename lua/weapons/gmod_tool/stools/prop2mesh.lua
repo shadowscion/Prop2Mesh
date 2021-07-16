@@ -414,7 +414,7 @@ if SERVER then
 		end
 	end
 
-	local multitool = { modes = {}, legacyoverride = {} }
+	local multitool = { modes = {}, legacyoverride = {}, entityoverride = {} }
 	multitool.modes.material = function(ply, tr, index)
 		if ply:KeyDown(IN_ATTACK2) then
 			local mat = tr.Entity:GetControllerMat(index - 1)
@@ -538,6 +538,28 @@ if SERVER then
 		end
 	end
 
+	multitool.legacyoverride.resizer = true
+	multitool.entityoverride.resizer = function(ply, tr, index)
+		local scale
+		if ply:KeyDown(IN_ATTACK) then
+			scale = Vector(tonumber(ply:GetInfo("resizer_xsize")), tonumber(ply:GetInfo("resizer_ysize")), tonumber(ply:GetInfo("resizer_zsize")))
+		elseif ply:KeyDown(IN_ATTACK2) then
+			scale = Vector(1, 1, 1)
+		end
+		if scale then
+			for i = 1, #tr.Entity.prop2mesh_controllers do
+				tr.Entity:SetControllerScale(i, scale)
+			end
+		end
+	end
+	multitool.modes.resizer = function(ply, tr, index)
+		if ply:KeyDown(IN_ATTACK) then
+			tr.Entity:SetControllerScale(index - 1, Vector(tonumber(ply:GetInfo("resizer_xsize")), tonumber(ply:GetInfo("resizer_ysize")), tonumber(ply:GetInfo("resizer_zsize"))))
+		elseif ply:KeyDown(IN_ATTACK2) then
+			tr.Entity:SetControllerScale(index - 1, Vector(1, 1, 1))
+		end
+	end
+
 	hook.Add("CanTool", "prop2mesh_multitool", function(ply, tr, tool)
 		if not multitool.modes[tool] or not IsValid(tr.Entity) or not checkOwner(ply, tr.Entity) then
 			return
@@ -554,8 +576,15 @@ if SERVER then
 			index = ply:GetInfoNum("prop2mesh_multitool_index", 1)
 		end
 
+		local toolfunc
 		if index ~= 1 then
-			multitool.modes[tool](ply, tr, index)
+			toolfunc = multitool.modes[tool]
+		elseif multitool.entityoverride[tool] then
+			toolfunc = multitool.entityoverride[tool]
+		end
+
+		if toolfunc then
+			toolfunc(ply, tr, index)
 			if game.SinglePlayer() then
 				local swep = ply:GetActiveWeapon()
 				if swep and swep.DoShootEffect then
@@ -564,6 +593,18 @@ if SERVER then
 			end
 			return false
 		end
+
+		-- if index ~= 1 then
+		-- 	multitool.modes[tool](ply, tr, index)
+		-- 	if game.SinglePlayer() then
+		-- 		local swep = ply:GetActiveWeapon()
+		-- 		if swep and swep.DoShootEffect then
+		-- 			swep:DoShootEffect(tr.HitPos, tr.HitNormal, tr.Entity, tr.PhysicsBone, IsFirstTimePredicted())
+		-- 		end
+		-- 	end
+		-- 	return false
+		-- end
+
 	end)
 
 	return
@@ -1239,8 +1280,8 @@ mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 
 mode.lines_color_hbg = Color(255, 0, 0, 255)
 
-local lang_tmp1 = "Remove entity"
-local lang_tmp2 = "Remove controller [%s]"
+local lang_tmp1 = "remove entity"
+local lang_tmp2 = "remove controller [%s]"
 
 function mode:getLines()
 	multitool.lines = { lang_tmp1 }
@@ -1324,8 +1365,8 @@ end
 --[[
 	clipping tools
 ]]
-local lang_tmp1 = "Clip entity"
-local lang_tmp2 = "Clip controller [%s] [%d clips]"
+local lang_tmp1 = "clip entity"
+local lang_tmp2 = "clip controller [%s] [%d clips]"
 
 local cliptext = function(self)
 	multitool.lines = { lang_tmp1 }
@@ -1359,6 +1400,30 @@ surface.SetFont(multitool.title_font)
 mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
 
 mode.getLines = cliptext
+
+
+--[[
+
+]]
+local mode = {}
+multitool.modes.resizer = mode
+
+mode.title_text = "RESIZER TOOL"
+
+surface.SetFont(multitool.title_font)
+mode.title_w, mode.title_h = surface.GetTextSize(mode.title_text)
+
+local lang_tmp1 = "apply scale to all controllers"
+local lang_tmp2 = "controller [%s] [%d %d %d]"
+
+function mode:getLines()
+	multitool.lines = { lang_tmp1 }
+	for i = 1, #multitool.entity.prop2mesh_controllers do
+		local scale = multitool.entity.prop2mesh_controllers[i].scale
+		multitool.lines[#multitool.lines + 1] = string.format(lang_tmp2, multitool.entity.prop2mesh_controllers[i].name or i, scale.x, scale.y, scale.z)
+	end
+end
+
 
 --[[
 function mode:hud()

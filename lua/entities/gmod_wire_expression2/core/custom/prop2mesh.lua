@@ -165,6 +165,15 @@ e2function entity p2mCreate(number count, vector pos, angle ang, number uvs, vec
 	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, Vector(scale[1], scale[2], scale[3]))
 end
 
+__e2setcost(5)
+
+e2function void entity:p2mRemove()
+	if checkvalid(self, this, nil, nil, true) then
+		self.data.prop2mesh[this] = nil
+		SafeRemoveEntity(this)
+	end
+end
+
 
 --[[
 ]]

@@ -107,8 +107,8 @@ local function p2mCreate(context, count, pos, ang, uvs, scale)
 	end
 	count = math.abs(math.ceil(count))
 
-	if count > 16 then
-		error("controller limit is 16 per entity")
+	if count > 64 then
+		error("controller limit is 64 per entity")
 	end
 
 	local self = ents.Create("sent_prop2mesh")
@@ -157,6 +157,14 @@ e2function entity p2mCreate(number count, vector pos, angle ang)
 	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]))
 end
 
+e2function entity p2mCreate(number count, vector pos, angle ang, number uvs)
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs)
+end
+
+e2function entity p2mCreate(number count, vector pos, angle ang, number uvs, vector scale)
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, Vector(scale[1], scale[2], scale[3]))
+end
+
 
 --[[
 ]]
@@ -202,8 +210,8 @@ local function errorcheck(context, self, index)
 	if not self.prop2mesh_e2_resevoir[index] then
 		self.prop2mesh_e2_resevoir[index] = {}
 	end
-	if #self.prop2mesh_e2_resevoir[index] + 1 > 250 then
-		error("model limit is 250 per controller")
+	if #self.prop2mesh_e2_resevoir[index] + 1 > 500 then
+		error("model limit is 500 per controller")
 	end
 end
 

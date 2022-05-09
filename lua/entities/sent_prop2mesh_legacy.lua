@@ -11,6 +11,20 @@ ENT.RenderGroup = RENDERGROUP_BOTH
 cleanup.Register("sent_prop2mesh_legacy")
 
 if CLIENT then
+	local cvar = CreateClientConVar("prop2mesh_legacy_hide", 0, true, false)
+	local draw_disable = cvar:GetBool()
+
+	cvars.AddChangeCallback("prop2mesh_legacy_hide", function(cvar, old, new)
+	    draw_disable = tobool(new)
+	end, "swaplegacyhide")
+
+	function ENT:Draw()
+		if draw_disable then
+			return
+		end
+		self:DrawModel()
+	end
+
 	return
 end
 

@@ -698,6 +698,12 @@ local function BuildPanel_ToolSettings(self)
 		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
 	end
 
+	local cbox = pnl:CheckBox("Hide legacy cubes", "prop2mesh_legacy_hide")
+	cbox:SetTooltip("toggles 'prop2mesh_legacy_hide' convar")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
+
 	local cbox = pnl:CheckBox("Disable rendering", "prop2mesh_render_disable")
 	cbox.OnChange = function(_, value)
 		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)

@@ -48,6 +48,9 @@ local safeControllerValues = {
 	linkang = function(val)
 		return (istable(val) and #val == 3) and Angle(unpack(val)) or nil
 	end,
+	remove = function(val)
+		return tobool(val)
+	end,
 }
 
 local safePartValues = {
@@ -110,26 +113,30 @@ local safePartValues = {
 local function applyUpdate(self, pl, updateHandler)
 	if updateHandler.controllerAltered then
 		for controllerID, edits in pairs(updateHandler.controllerAltered) do
-			if edits.uvs then
-				self:SetControllerUVS(controllerID, edits.uvs)
-			end
-			if edits.scale then
-				self:SetControllerScale(controllerID, edits.scale)
-			end
-			if edits.name then
-				self:SetControllerName(controllerID, edits.name)
-			end
-			if edits.col then
-				self:SetControllerCol(controllerID, edits.col)
-			end
-			if edits.mat then
-				self:SetControllerMat(controllerID, edits.mat)
-			end
-			if edits.linkpos then
-				self:SetControllerLinkPos(controllerID, edits.linkpos)
-			end
-			if edits.linkang then
-				self:SetControllerLinkAng(controllerID, edits.linkang)
+			if edits.remove then
+				self:RemoveController(controllerID)
+			else
+				if edits.uvs then
+					self:SetControllerUVS(controllerID, edits.uvs)
+				end
+				if edits.scale then
+					self:SetControllerScale(controllerID, edits.scale)
+				end
+				if edits.name then
+					self:SetControllerName(controllerID, edits.name)
+				end
+				if edits.col then
+					self:SetControllerCol(controllerID, edits.col)
+				end
+				if edits.mat then
+					self:SetControllerMat(controllerID, edits.mat)
+				end
+				if edits.linkpos then
+					self:SetControllerLinkPos(controllerID, edits.linkpos)
+				end
+				if edits.linkang then
+					self:SetControllerLinkAng(controllerID, edits.linkang)
+				end
 			end
 		end
 	end

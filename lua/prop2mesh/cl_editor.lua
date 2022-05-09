@@ -796,7 +796,7 @@ local function setGlobalValue(frame, conroot, mod, key, value, name, force)
 
 		frame.confirm:DoClick()
 	else
-		local pnl = Derma_Query(string.format("Set %s to %s on all parts?", name or key, tostring(value)), "", "Yes", function()
+		local pnl = Derma_Query("This will CONFIRM any other changes to all controllers.", string.format("Set %s to %s on all parts?", name or key, tostring(value)), "Yes", function()
 			for i = 1, conroot.count do
 				if not mod[i] then
 					mod[i] = {}
@@ -807,11 +807,17 @@ local function setGlobalValue(frame, conroot, mod, key, value, name, force)
 			frame.confirm:DoClick()
 		end, "No")
 
+		pnl.lblTitle:SetFont(theme.font)
+		pnl.lblTitle:SetTextColor(color_white)
+
+		local time = SysTime()
+
 		pnl.Paint = function(_, w, h)
+			Derma_DrawBackgroundBlur(pnl, time)
 			surface.SetDrawColor(theme.colorMain)
-			surface.DrawRect(0, 24, w, h - 24)
+			surface.DrawRect(0, 0, w, h)
 			surface.SetDrawColor(0, 0, 0)
-			surface.DrawOutlinedRect(0, 24, w, h - 24)
+			surface.DrawOutlinedRect(0, 0, w, h)
 		end
 	end
 end
@@ -821,8 +827,39 @@ local function conmenu(frame, conroot)
 
 	local updates = frame.updates and frame.updates[conroot.num]
 	if updates and updates.mod and updates.set then
+		local opt = menu:AddOption("remove controller", function()
+			local pnl = Derma_Query("This will IGNORE any unconfirmed changes to all controllers.", string.format("Remove controller [%s]?", conroot.info.name or conroot.num), "Yes", function()
+				for k, v in pairs(frame.updates) do
+					v.add = {}
+					v.mod = {}
+					v.set = {}
+				end
+
+				updates.set.remove = true
+
+				frame.confirm:DoClick()
+			end, "No", function() end)
+
+			pnl.lblTitle:SetFont(theme.font)
+			pnl.lblTitle:SetTextColor(color_white)
+
+			local time = SysTime()
+
+			pnl.Paint = function(_, w, h)
+				Derma_DrawBackgroundBlur(pnl, time)
+				surface.SetDrawColor(theme.colorMain)
+				surface.DrawRect(0, 0, w, h)
+				surface.SetDrawColor(0, 0, 0)
+				surface.DrawOutlinedRect(0, 0, w, h)
+			end
+		end)
+
+		opt:SetIcon("icon16/image_delete.png")
+		opt:SetTextColor(theme.colorText_kill)
+
+		menu:AddSpacer()
 		menu:AddOption("set controller name", function()
-			local pnl = Derma_StringRequest("", string.format("Setting controller [%s] name to:", conroot.info.name or conroot.num), conroot.info.name or "", function(text)
+			local pnl = Derma_StringRequest(string.format("Set name of controller [%s]?", conroot.info.name or conroot.num), "This will CONFIRM any other changes to all controllers.", conroot.info.name or "", function(text)
 				if text == "" or conroot.info.name == text then
 					return
 				end
@@ -830,11 +867,17 @@ local function conmenu(frame, conroot)
 				frame.confirm:DoClick()
 			end)
 
+			pnl.lblTitle:SetFont(theme.font)
+			pnl.lblTitle:SetTextColor(color_white)
+
+			local time = SysTime()
+
 			pnl.Paint = function(_, w, h)
+				Derma_DrawBackgroundBlur(pnl, time)
 				surface.SetDrawColor(theme.colorMain)
-				surface.DrawRect(0, 24, w, h - 24)
+				surface.DrawRect(0, 0, w, h)
 				surface.SetDrawColor(0, 0, 0)
-				surface.DrawOutlinedRect(0, 24, w, h - 24)
+				surface.DrawOutlinedRect(0, 0, w, h)
 			end
 		end):SetIcon("icon16/text_signature.png")
 
@@ -862,7 +905,10 @@ local function conmenu(frame, conroot)
 			end
 		end)
 
+		local time = SysTime()
+
 		pnl.Paint = function(_, w, h)
+			Derma_DrawBackgroundBlur(pnl, time)
 			surface.SetDrawColor(theme.colorMain)
 			surface.DrawRect(0, 24, w, h - 24)
 			surface.SetDrawColor(0, 0, 0)

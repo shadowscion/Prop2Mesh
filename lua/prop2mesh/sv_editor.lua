@@ -35,7 +35,13 @@ local safeControllerValues = {
 	end,
 	name = function(val)
 		return isstring(val) and string.sub(val, 1, 64) or nil
-	end
+	end,
+	col = function(val)
+		return (istable(val) and table.Count(val) == 4) and val or nil
+	end,
+	mat = function(val)
+		return isstring(val) and val or nil
+	end,
 }
 
 local safePartValues = {
@@ -106,6 +112,12 @@ local function applyUpdate(self, pl, updateHandler)
 			end
 			if edits.name then
 				self:SetControllerName(controllerID, edits.name)
+			end
+			if edits.col then
+				self:SetControllerCol(controllerID, edits.col)
+			end
+			if edits.mat then
+				self:SetControllerMat(controllerID, edits.mat)
 			end
 		end
 	end

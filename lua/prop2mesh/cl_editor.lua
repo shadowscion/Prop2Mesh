@@ -301,6 +301,145 @@ local function changetable(partnode, key, diff)
 	end
 end
 
+local function registerColor(partnode, name, key)
+	local node = partnode:AddNode(name, "icon16/bullet_black.png")
+	local color_o = Color(120, 120, 120)
+
+	node.Icon.Paint = function(btn, w, h)
+		local w = w - 2
+		local h = h - 2
+
+		draw.RoundedBox(3, 0, 0, w, h, color_o)
+		draw.RoundedBox(3, 1, 1, w - 2, h - 2, color_white)
+		draw.RoundedBox(3, 2, 2, w - 4, h - 4, partnode.new[key])
+	end
+
+	node.PerformLayout = function(self, w, h)
+		DTree_Node.PerformLayout(self, w, h)
+
+    	local spacing = 4
+    	local cellWidth = math.ceil((w - 48) / 3) - spacing
+
+	    node.Icon:SetPos(24, 0)
+		node.Icon:SetSize(h, h)
+
+	    node.Label:SetPos(spacing + spacing - 1, 0)
+	end
+
+	local color
+	node.DoClick = function()
+		if color and IsValid(color) then
+			return
+		end
+
+		local window = partnode:GetParentNode():GetParent()
+
+		color = vgui.Create("DColorCombo", window)
+		color.Mixer:SetPalette(false)
+		color.Mixer:SetAlphaBar(true)
+		color.Mixer:SetWangs(true)
+
+		color:SetupCloseButton(function()
+			color:Remove()
+			color = nil
+		end)
+
+		color.Mixer:SetColor(partnode.new[key])
+
+		local x, y = window:ScreenToLocal(gui.MouseX(), gui.MouseY())
+		local w = window:GetWide()
+		color:Dock(NODOCK)
+		color:SetSize(w*0.75, w*0.75)
+		color:Center()
+		color:SetPos(color:GetX(), y)
+
+		color.Mixer.ValueChanged = function(pnl, val)
+			local diff = false
+			for k, v in pairs(val) do
+				if partnode.new[key][k] ~= v then
+					diff = true
+					break
+				end
+			end
+
+			if not diff then
+				return
+			end
+
+			partnode.new[key].r = val.r
+			partnode.new[key].g = val.g
+			partnode.new[key].b = val.b
+			partnode.new[key].a = val.a
+
+			local diff = false
+			for k, v in pairs(partnode.new[key]) do
+				if partnode.old[key][k] ~= v then
+					diff = true
+					break
+				end
+			end
+
+			if diff then
+				node.Label:SetTextColor((partnode.mod or partnode.set) and theme.colorText_edit or theme.colorText_add)
+				changetable(partnode, key, true)
+			else
+				node.Label:SetTextColor(theme.colorText_default)
+				changetable(partnode, key, false)
+			end
+		end
+	end
+end
+
+local function callbackString(partnode, name, text, key, val)
+	if not tostring(val) or partnode.new[key] == val then
+		return
+	end
+
+	partnode.new[key] = tostring(val)
+
+	if partnode.new[key] ~= partnode.old[key] then
+		name.Label:SetTextColor((partnode.mod or partnode.set) and theme.colorText_edit or theme.colorText_add)
+		text:SetTextColor((partnode.mod or partnode.set) and theme.colorText_edit or theme.colorText_add)
+
+		changetable(partnode, key, true)
+	else
+		name.Label:SetTextColor(theme.colorText_default)
+		text:SetTextColor(theme.colorText_default)
+
+		changetable(partnode, key, false)
+	end
+end
+
+local function registerString(partnode, name, key)
+	local node = partnode:AddNode(name, "icon16/bullet_black.png"):AddNode("")
+	node.ShowIcons = HideIcons
+	node:SetDrawLines(false)
+
+	local text = vgui.Create("DTextEntry", node)
+
+	node.PerformLayout = function(self, w, h)
+		DTree_Node.PerformLayout(self, w, h)
+
+    	local spacing = 4
+    	local cellWidth = math.ceil((w - 48) / 1) - spacing
+
+	    text:SetPos(24, 0)
+		text:SetSize(cellWidth, h)
+	end
+
+	text:SetFont(theme.font)
+	text.OnValueChange = function(self, val)
+		if not tostring(val) then
+			self:SetText(partnode.new[key])
+			return
+		end
+
+		self:SetText(val)
+		callbackString(partnode, node:GetParentNode(), self, key, val)
+	end
+	text:SetValue(partnode.new[key])
+end
+
 local function callbackVector(partnode, name, text, key, i, val)
 	if not tonumber(val) or partnode.new[key][i] == val then
 		return
@@ -1127,11 +1266,14 @@ function PANEL:RemakeTree()
 		setroot.set = self.updates[i].set
 
 		local setscale = info.scale
-		setroot.old = { uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
-		setroot.new = { uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
+		local setcol = info.col
+		setroot.old = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
+		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
 
-		registerVector(setroot, "mesh scale", "scale")
 		registerFloat(setroot, "texture size", "uvs", 0, 512)
+		registerColor(setroot, "color", "col")
+		registerString(setroot, "material", "mat")
+		registerVector(setroot, "scale", "scale")
 
 		setroot:ExpandRecurse(true)
 

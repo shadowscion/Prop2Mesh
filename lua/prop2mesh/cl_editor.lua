@@ -418,8 +418,13 @@ local function registerFloat(partnode, name, key, min, max)
 	x:SetTextColor(theme.colorText_default)
 
 	local s = vgui.Create("DNumSlider", node)
+	s.UpdateNotches = function(pnl)
+		return pnl.Slider:SetNotches(8)
+	end
 	s.Scratch:SetVisible(false)
 	s.Label:SetVisible(false)
+	s.Label:SetTextColor(theme.colorText_default)
+	s.TextArea:SetFont(theme.font)
 	s:SetWide(128)
 	s:DockMargin(24, 0, 4, 0)
 	s:Dock(LEFT)
@@ -830,7 +835,48 @@ function PANEL:CreateGhost()
 	self.Ghost:Spawn()
 end
 
+function PANEL:PerformLayout()
+	local titlePush = 0
+	if IsValid(self.imgIcon) then
+		self.imgIcon:SetPos(5, 5)
+		self.imgIcon:SetSize(16, 16)
+		titlePush = 16
+	end
+
+	local w, h = self:GetSize()
+
+	self.bclose:SetPos(w - 51, 4)
+	self.bclose:SetSize(45, 22)
+
+	self.bwiki:SetPos(w - 77, 4)
+	self.bwiki:SetSize(24, 22)
+
+	self.lblTitle:SetPos(8 + titlePush, 6)
+	self.lblTitle:SetSize(w - 25 - titlePush, 20)
+end
+
 function PANEL:Init()
+	self.btnClose:Remove()
+	self.btnMinim:Remove()
+	self.btnMaxim:Remove()
+
+	self.bclose = vgui.Create("DButton", self)
+	self.bclose:SetText("r")
+	self.bclose:SetFont("Marlett")
+	self.bclose.DoClick = function(button) self:Close() end
+
+	self.bwiki = vgui.Create("DButton", self)
+	self.bwiki:SetTooltip("Open wiki")
+	self.bwiki:SetText("")
+	self.bwiki:SetImage("icon16/help.png")
+	self.bwiki.DoClick = function (button)
+		gui.OpenURL("https://github.com/shadowscion/Prop2Mesh/wiki")
+	end
+	self.bwiki.Paint = function(panel, w, h)
+		if not (panel:IsHovered() or panel:IsDown()) then return end
+		derma.SkinHook("Paint", "Button", panel, w, h)
+	end
+
 	self:CreateGhost()
 
 	self.updates = {}

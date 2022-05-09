@@ -344,14 +344,14 @@ local function registerColor(partnode, name, key)
 			color = nil
 		end)
 
-		color.Mixer:SetColor(partnode.new[key])
+		color.Mixer:SetColor(table.Copy(partnode.new[key]))
 
 		local x, y = window:ScreenToLocal(gui.MouseX(), gui.MouseY())
 		local w = window:GetWide()
 		color:Dock(NODOCK)
 		color:SetSize(w*0.75, w*0.75)
 		color:Center()
-		color:SetPos(color:GetX(), y)
+		color:SetPos(color:GetX(), y + 12)
 
 		color.Mixer.ValueChanged = function(pnl, val)
 			local diff = false

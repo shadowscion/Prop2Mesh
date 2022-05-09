@@ -181,8 +181,9 @@ entclass.starfall_hologram = function(partlist, ent, worldpos, worldang)
 		part.bodygroup = bodygroup
 	end
 
-	if ent.scale then
-		part.scale = ent:GetScale()
+	local NVs = ent:GetNetworkVars()
+	if NVs["Scale"] ~= nil then
+		part.scale = NVs["Scale"]
 	end
 
 	if ent.clips then

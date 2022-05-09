@@ -1267,13 +1267,19 @@ function PANEL:RemakeTree()
 
 		local setscale = info.scale
 		local setcol = info.col
-		setroot.old = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
-		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, scale = {setscale.x,setscale.y,setscale.z} }
+		local setpos = info.linkpos or Vector()
+		local setang = info.linkang or Angle()
+		setroot.old = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs,
+			scale = {setscale.x,setscale.y,setscale.z}, linkpos = {setpos.x,setpos.y,setpos.z}, linkang = {setang.p,setang.y,setang.r} }
+		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs,
+			scale = {setscale.x,setscale.y,setscale.z}, linkpos = {setpos.x,setpos.y,setpos.z}, linkang = {setang.p,setang.y,setang.r} }
 
-		registerFloat(setroot, "texture size", "uvs", 0, 512)
-		registerColor(setroot, "color", "col")
-		registerString(setroot, "material", "mat")
+		registerVector(setroot, "pos offset", "linkpos")
+		registerVector(setroot, "ang offset", "linkang")
 		registerVector(setroot, "scale", "scale")
+		registerString(setroot, "material", "mat")
+		registerFloat(setroot, "texture map size", "uvs", 0, 512)
+		registerColor(setroot, "color", "col")
 
 		setroot:ExpandRecurse(true)
 

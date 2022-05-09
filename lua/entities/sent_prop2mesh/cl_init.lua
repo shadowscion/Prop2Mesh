@@ -294,7 +294,7 @@ local function refresh(self, info)
 		pos, ang = LocalToWorld(info.linkpos or Vector(), info.linkang or Angle(), parent:GetPos(), parent:GetAngles())
 	else
 		parent = self
-		pos, ang = LocalToWorld(Vector(), Angle(), parent:GetPos(), parent:GetAngles())
+		pos, ang = LocalToWorld(info.linkpos or Vector(), info.linkang or Angle(), parent:GetPos(), parent:GetAngles())
 	end
 
 	info.ent:SetParent(parent)
@@ -646,12 +646,12 @@ net.Receive("prop2mesh_sync", function(len)
 		if net.ReadBool() then
 			local linkent = net.ReadEntity()
 			info.linkent = IsValid(linkent) and linkent or nil
-			info.linkpos = net.ReadBool() and net.ReadVector() or nil
-			info.linkang = net.ReadBool() and net.ReadAngle() or nil
-		else
-			info.linkent = nil
-			info.linkpos = nil
-			info.linkang = nil
+		end
+		if net.ReadBool() then
+			info.linkpos = Vector(net.ReadFloat(), net.ReadFloat(), net.ReadFloat())
+		end
+		if net.ReadBool() then
+			info.linkang = Angle(net.ReadFloat(), net.ReadFloat(), net.ReadFloat())
 		end
 
 		if net.ReadBool() then

@@ -279,6 +279,10 @@ duplicator.RegisterEntityModifier("prop2mesh", function(ply, self, dupe)
 				info.crc = v.crc
 			end
 
+			--self:SetControllerLinkEnt(k, v.linkent) ??
+			self:SetControllerLinkPos(k, v.linkpos)
+			self:SetControllerLinkAng(k, v.linkang)
+
 			if v.name then
 				self:SetControllerName(k, v.name)
 			end
@@ -358,20 +362,22 @@ function ENT:SendControllers(syncwith)
 		if info.linkent and IsValid(info.linkent) then
 			net.WriteBool(true)
 			net.WriteEntity(info.linkent)
-
-			if info.linkpos then
-				net.WriteBool(true)
-				net.WriteVector(info.linkpos)
-			else
-				net.WriteBool(false)
-			end
-
-			if info.linkang then
-				net.WriteBool(true)
-				net.WriteAngle(info.linkang)
-			else
-				net.WriteBool(false)
-			end
+		else
+			net.WriteBool(false)
+		end
+		if info.linkpos then
+			net.WriteBool(true)
+			net.WriteFloat(info.linkpos.x)
+			net.WriteFloat(info.linkpos.y)
+			net.WriteFloat(info.linkpos.z)
+		else
+			net.WriteBool(false)
+		end
+		if info.linkang then
+			net.WriteBool(true)
+			net.WriteFloat(info.linkang.p)
+			net.WriteFloat(info.linkang.y)
+			net.WriteFloat(info.linkang.r)
 		else
 			net.WriteBool(false)
 		end

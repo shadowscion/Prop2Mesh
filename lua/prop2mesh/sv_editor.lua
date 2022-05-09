@@ -42,6 +42,12 @@ local safeControllerValues = {
 	mat = function(val)
 		return isstring(val) and val or nil
 	end,
+	linkpos = function(val)
+		return (istable(val) and #val == 3) and Vector(unpack(val)) or nil
+	end,
+	linkang = function(val)
+		return (istable(val) and #val == 3) and Angle(unpack(val)) or nil
+	end,
 }
 
 local safePartValues = {
@@ -118,6 +124,12 @@ local function applyUpdate(self, pl, updateHandler)
 			end
 			if edits.mat then
 				self:SetControllerMat(controllerID, edits.mat)
+			end
+			if edits.linkpos then
+				self:SetControllerLinkPos(controllerID, edits.linkpos)
+			end
+			if edits.linkang then
+				self:SetControllerLinkAng(controllerID, edits.linkang)
 			end
 		end
 	end

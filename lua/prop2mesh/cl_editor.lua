@@ -759,21 +759,21 @@ local function attach(pathnode)
 	end
 
 	local filename = string.GetFileFromFilename(pathnode.path)
-	local rootnode = pathnode:GetParentNode()
-	local partnode = rootnode.list:AddNode(string.format("[new!] %s", filename), "icon16/brick.png")
+	local partnode = pathnode.list:AddNode(string.format("[new!] %s", filename), "icon16/brick.png")
+
 	partnode.Label:SetTextColor(theme.colorText_add)
 	partnode.Icon:SetImageColor(theme.colorText_add)
 
 	partnode.menu = objmenu
 	partnode.new, partnode.old = partcopy({ objn = filename, objd = filecache_data[filecrc].crc })
-	rootnode.add[partnode] = true
+	pathnode.list.add[partnode] = true
 
 	installEditors(partnode)
 
 	partnode:ExpandTo(true)
 end
 
-local function filemenu(frame, pathnode)
+local function objfilemenu(frame, pathnode)
 	local menu = DermaMenu()
 
 	menu:AddOption("attach model", function()
@@ -854,7 +854,7 @@ local function conmenu(frame, conroot)
 			end
 		end)
 
-		opt:SetIcon("icon16/image_delete.png")
+		opt:SetIcon("icon16/controller_delete.png")
 		opt:SetTextColor(theme.colorText_kill)
 
 		menu:AddSpacer()
@@ -949,6 +949,7 @@ local function setEntityActual(self, ent)
 	self.Entity:CallOnRemove("prop2mesh_editor_close", function()
 		self:Remove()
 	end)
+	self.lblTitle:SetFont(theme.font)
 	self:SetTitle(tostring(self.Entity))
 	self:RemakeTree()
 end
@@ -1030,11 +1031,14 @@ function PANEL:PerformLayout()
 
 	local w, h = self:GetSize()
 
-	self.bclose:SetPos(w - 51, 4)
-	self.bclose:SetSize(45, 22)
+	self.btnExit:SetPos(w - 51, 4)
+	self.btnExit:SetSize(45, 22)
 
-	self.bwiki:SetPos(w - 77, 4)
-	self.bwiki:SetSize(24, 22)
+	self.btnWiki:SetPos(w - 77, 4)
+	self.btnWiki:SetSize(24, 22)
+
+	self.btnTools:SetPos(w - 103, 4)
+	self.btnTools:SetSize(24, 22)
 
 	self.lblTitle:SetPos(8 + titlePush, 6)
 	self.lblTitle:SetSize(w - 25 - titlePush, 20)
@@ -1045,19 +1049,61 @@ function PANEL:Init()
 	self.btnMinim:Remove()
 	self.btnMaxim:Remove()
 
-	self.bclose = vgui.Create("DButton", self)
-	self.bclose:SetText("r")
-	self.bclose:SetFont("Marlett")
-	self.bclose.DoClick = function(button) self:Close() end
+	self.btnExit = vgui.Create("DButton", self)
+	self.btnExit:SetText("r")
+	self.btnExit:SetFont("Marlett")
+	self.btnExit.DoClick = function(button)
+		self:Close()
+	end
 
-	self.bwiki = vgui.Create("DButton", self)
-	self.bwiki:SetTooltip("Open wiki")
-	self.bwiki:SetText("")
-	self.bwiki:SetImage("icon16/help.png")
-	self.bwiki.DoClick = function (button)
+	self.btnWiki = vgui.Create("DButton", self)
+	self.btnWiki:SetTooltip("Open wiki")
+	self.btnWiki:SetText("")
+	self.btnWiki:SetImage("icon16/help.png")
+	self.btnWiki.DoClick = function (button)
 		gui.OpenURL("https://github.com/shadowscion/Prop2Mesh/wiki")
 	end
-	self.bwiki.Paint = function(panel, w, h)
+	self.btnWiki.Paint = function(panel, w, h)
+		if not (panel:IsHovered() or panel:IsDown()) then return end
+		derma.SkinHook("Paint", "Button", panel, w, h)
+	end
+
+	self.btnTools = vgui.Create("DButton", self)
+	self.btnTools:SetText("")
+	self.btnTools:SetImage("icon16/wrench.png")
+	self.btnTools.DoClick = function (button)
+		local menu = DermaMenu()
+
+		-- local sub, opt = menu:AddSubMenu("pac3")
+		-- opt:SetIcon("icon16/layout.png")
+
+		-- sub:AddOption("import new", function()
+		-- end):SetIcon("icon16/layout_add.png")
+
+		-- sub:AddOption("import and merge", function()
+		-- end):SetIcon("icon16/layout_edit.png")
+
+		-- sub:AddOption("export all", function()
+		-- end):SetIcon("icon16/layout_delete.png")
+
+
+		-- local sub, opt = menu:AddSubMenu("expression2")
+		-- opt:SetIcon("icon16/cog.png")
+		-- opt.m_Image:SetImageColor(Color(255, 125, 125))
+
+		-- local opt = sub:AddOption("export all", function()
+		-- end)
+		-- opt:SetIcon("icon16/cog.png")
+		-- opt.m_Image:SetImageColor(Color(255, 125, 125))
+
+
+
+		menu:AddSpacer()
+		menu:AddOption("cancel"):SetIcon("icon16/cancel.png")
+
+		menu:Open()
+	end
+	self.btnTools.Paint = function(panel, w, h)
 		if not (panel:IsHovered() or panel:IsDown()) then return end
 		derma.SkinHook("Paint", "Button", panel, w, h)
 	end
@@ -1081,13 +1127,18 @@ function PANEL:Init()
 	end
 	self.contree:DockMargin(1, 1, 1, 1)
 
-	self.confirm = vgui.Create("DButton", self)
-	self.confirm:Dock(BOTTOM)
-	self.confirm:DockMargin(0, 2, 0, 0)
-	self.confirm:SetText("Confirm changes")
-	self.confirm.DoClick = function()
+	self.btnConfirm = vgui.Create("DButton", self)
+	self.btnConfirm:Dock(BOTTOM)
+	self.btnConfirm:DockMargin(0, 2, 0, 0)
+	self.btnConfirm:SetFont(theme.font)
+	self.btnConfirm:SetText("Confirm changes")
+	self.btnConfirm.DoClick = function()
 		if not IsValid(self.Entity) then
 			return false
+		end
+
+		if self.filebrowser then
+			self.filebrowser:Remove()
 		end
 
 		local set = {}
@@ -1143,7 +1194,7 @@ function PANEL:Init()
 			net.SendToServer()
 		end
 	end
-	self.confirm:DockMargin(1, 1, 1, 1)
+	self.btnConfirm:DockMargin(1, 1, 1, 1)
 
 	self.progress = vgui.Create("DPanel", self)
 	self.progress:Dock(BOTTOM)
@@ -1193,7 +1244,7 @@ function PANEL:Think()
 		if not self.disable or not self.contree:GetDisabled() then
 			self.disable = true
 			self.contree:SetDisabled(true)
-			self.confirm:SetDisabled(true)
+			self.btnConfirm:SetDisabled(true)
 		end
 		self.progress.frac = upstreamProgress()
 		self.progress.text = "uploading data..."
@@ -1204,7 +1255,7 @@ function PANEL:Think()
 				self.progress.frac = nil
 				self.disable = nil
 				self.contree:SetDisabled(false)
-				self.confirm:SetDisabled(false)
+				self.btnConfirm:SetDisabled(false)
 				self:RemakeTree()
 			elseif status == 1 then -- no data
 				self.progress.frac = 1
@@ -1290,16 +1341,12 @@ function PANEL:RemakeTree()
 	self.contree:Clear()
 	self.updates = {}
 
-	local files, filenodes = {}, {}
-	for k, v in ipairs(file.Find("p2m/*.txt", "DATA")) do table.insert(files, v) end
-	for k, v in ipairs(file.Find("p2m/*.obj", "DATA")) do table.insert(files, v) end
-
 	for i = 1, #self.Entity.prop2mesh_controllers do
 		self.updates[i] = { mod = {}, add = {}, set = {} }
 
 		local info = self.Entity.prop2mesh_controllers[i]
 		local condata = prop2mesh.getMeshData(info.crc, true) or {}
-		local conroot = self.contree:AddNode(string.format("controller [%s] [%d]", info.name or i, #condata), "icon16/image.png")
+		local conroot = self.contree:AddNode(string.format("controller [%s] [%d]", info.name or i, #condata), "icon16/controller.png")
 
 		conroot.num = i
 		conroot.info = info
@@ -1330,13 +1377,27 @@ function PANEL:RemakeTree()
 		setroot:ExpandRecurse(true)
 
 		local objroot = conroot:AddNode(".obj", "icon16/pictures.png")
-		local objfile = objroot:AddNode("files", "icon16/bullet_disk.png")
+
+		local import = objroot:AddNode("")
+		import.ShowIcons = HideIcons
+
+		local btnImport = vgui.Create("DButton", import)
+		btnImport:SetFont(theme.font)
+		btnImport:SetText("Open file browser")
+		btnImport:SizeToContents()
+		btnImport:Dock(LEFT)
+		btnImport:DockMargin(24, 0, 4, 0)
+
 		local objlist = objroot:AddNode("attachments", "icon16/bullet_picture.png")
 		local mdllist = conroot:AddNode(".mdl", "icon16/images.png")
 
-		filenodes[#filenodes + 1] = objfile
-		objfile.list = objlist
-		objfile.add = self.updates[i].add
+		objlist.add = self.updates[i].add
+		btnImport.DoClick = function(panel)
+			if self.filebrowser then
+				self.filebrowser:Remove()
+			end
+			self.filebrowser = self:OpenFileBrowser("Attach obj file", "p2m", {"*.txt", "*.obj"}, objlist, objfilemenu)
+		end
 
 		objlist.conscale = setscale
 		mdllist.conscale = setscale
@@ -1353,17 +1414,88 @@ function PANEL:RemakeTree()
 			part.num = k
 		end
 	end
+end
 
-	for k, v in SortedPairs(files) do
-		local path = string.format("p2m/%s", v)
-		for _, filenode in pairs(filenodes) do
-			local pathnode = filenode:AddNode(path, "icon16/page_white_text.png")
-			pathnode.menu = filemenu
-			pathnode.path = path
-			pathnode.Label.OnCursorEntered = onPartHover
+function PANEL:OpenFileBrowser(title, folder, wildcards, attachmentNode, menuCallback)
+	local frame = vgui.Create("DFrame", self)
+
+	frame.lblTitle:SetFont(theme.font)
+	frame:SetTitle(title)
+	frame:SetSize(self:GetWide()*0.75, self:GetTall()*0.5)
+	frame:Center()
+
+	frame.btnClose:Remove()
+	frame.btnMinim:Remove()
+	frame.btnMaxim:Remove()
+
+	frame.Paint = function(pnl, w, h)
+		surface.SetDrawColor(theme.colorMain)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(0, 0, 0)
+		surface.DrawOutlinedRect(0, 0, w, h)
+	end
+
+	frame.PerformLayout = function(pnl)
+		local w, h = pnl:GetSize()
+
+		pnl.btnExit:SetPos(w - 51, 4)
+		pnl.btnExit:SetSize(45, 22)
+
+		pnl.lblTitle:SetPos(8, 6)
+		pnl.lblTitle:SetSize(w - 25, 20)
+	end
+
+	frame.btnExit = vgui.Create("DButton", frame)
+	frame.btnExit:SetText("r")
+	frame.btnExit:SetFont("Marlett")
+	frame.btnExit.DoClick = function(button)
+		frame:Close()
+	end
+
+	local tree = vgui.Create("DTree", frame)
+
+	tree:SetClickOnDragHover(true)
+	tree:Dock(FILL)
+	tree:DockMargin(1, 1, 1, 1)
+
+	tree.AddNode = TreeAddNode
+	tree.DoRightClick = function(pnl, node)
+		if node.menu then node.menu(self, node) end
+	end
+
+	tree.Paint = function(pnl, w, h)
+		surface.SetDrawColor(theme.colorTree)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(0, 0, 0)
+		surface.DrawOutlinedRect(0, 0, w, h)
+	end
+
+	local populate, root_folder
+	populate = function(node, root, filter, callback)
+		local node_folder = node:AddNode(root)
+		if not root_folder then
+			root_folder = node_folder
+		end
+		local files, folders = file.Find(string.format("%s/*", root), "DATA")
+		for k, v in pairs(folders) do
+			populate(node_folder, string.format("%s/%s", root, v), filter, callback)
+		end
+		for k, v in ipairs(filter) do
+			for _, filename in pairs(file.Find(string.format("%s/%s", root, v), "DATA")) do
+				local node_file = node_folder:AddNode(filename, "icon16/page_white_text.png")
+				node_file.list = attachmentNode
+				node_file.menu = menuCallback
+				node_file.path = string.format("%s/%s", root, filename)
+				node_file.Label.OnCursorEntered = onPartHover
+			end
 		end
 	end
+
+	populate(tree, folder, wildcards)
+
+	root_folder:ExpandTo(true)
+
+	return frame
 end
 
 vgui.Register("prop2mesh_editor", PANEL, "DFrame")
-

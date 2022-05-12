@@ -794,7 +794,7 @@ local function setGlobalValue(frame, conroot, mod, key, value, name, force)
 			mod[i][key] = value
 		end
 
-		frame.confirm:DoClick()
+		frame.btnConfirm:DoClick()
 	else
 		local pnl = Derma_Query("This will CONFIRM any other changes to all controllers.", string.format("Set %s to %s on all parts?", name or key, tostring(value)), "Yes", function()
 			for i = 1, conroot.count do
@@ -804,7 +804,7 @@ local function setGlobalValue(frame, conroot, mod, key, value, name, force)
 				mod[i][key] = value
 			end
 
-			frame.confirm:DoClick()
+			frame.btnConfirm:DoClick()
 		end, "No")
 
 		pnl.lblTitle:SetFont(theme.font)
@@ -837,7 +837,7 @@ local function conmenu(frame, conroot)
 
 				updates.set.remove = true
 
-				frame.confirm:DoClick()
+				frame.btnConfirm:DoClick()
 			end, "No", function() end)
 
 			pnl.lblTitle:SetFont(theme.font)
@@ -864,7 +864,7 @@ local function conmenu(frame, conroot)
 					return
 				end
 				updates.set.name = text
-				frame.confirm:DoClick()
+				frame.btnConfirm:DoClick()
 			end)
 
 			pnl.lblTitle:SetFont(theme.font)

@@ -1404,7 +1404,8 @@ function PANEL:RemakeTree()
 
 		for k, v in ipairs(condata) do
 			local root = v.objd and objlist or mdllist
-			local part = root:AddNode(string.format("[%d] %s", k, string.GetFileFromFilename(v.objn or v.objd or v.prop or v.holo)))
+			local name = v.prop or v.holo or v.objn or v.objd or (v.primitive and "primitive_" .. v.primitive.type)
+			local part = root:AddNode(string.format("[%d] %s", k, string.GetFileFromFilename(name)))
 			part:SetIcon("icon16/brick.png")
 
 			part.Label.OnCursorEntered = onPartHover

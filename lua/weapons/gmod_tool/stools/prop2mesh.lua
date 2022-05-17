@@ -752,7 +752,7 @@ local function BuildPanel_ToolSettings(self)
 	scroll:Dock(FILL)
 	pnl:AddItem(scroll)
 
-	local class_list_display = { "prop_physics", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
+	local class_list_display = { "prop_physics", "prop_primitive", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
 	local class_list_convar = GetConVar("prop2mesh_tool_filter_ilist")
 	local class_list_filter = GetClientFilters(class_list_convar:GetString())
 

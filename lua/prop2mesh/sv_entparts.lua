@@ -245,3 +245,47 @@ entclass.sent_prop2mesh_legacy = function(partlist, ent, worldpos, worldang)
 		print(err)
 	end
 end
+
+entclass.prop_primitive = function(partlist, ent, worldpos, worldang)
+	local vars = ent:GetNetworkVars()
+	local part = { type = vars._primitive_type }
+
+	local tv = ent:Get_primitive_typevars()
+	for k, v in pairs(vars) do
+		if tv[k] then
+			part[tv[k]] = v
+		end
+	end
+
+	part = { primitive = part }
+
+	part.pos, part.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), worldpos, worldang)
+
+	local scale
+	if ent.GetScale then scale = ent:GetScale() else scale = ent:GetManipulateBoneScale(0) end
+	if isvector(scale) and scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
+		part.scale = scale
+	end
+
+	local clips = ent.ClipData or ent.EntityMods and ent.EntityMods.clips
+	if clips then
+		local pclips = {}
+		for _, clip in ipairs(clips) do
+			if not clip.n or not clip.d then
+				goto badclip
+			end
+			if clip.inside then
+				part.vinside = 1
+			end
+			local normal = clip.n:Forward()
+			pclips[#pclips + 1] = { n = normal, d = clip.d + normal:Dot(ent.OBBCenterOrg or ent:OBBCenter()) }
+
+			::badclip::
+		end
+		if next(pclips) then
+			part.clips = pclips
+		end
+	end
+
+	partlist[#partlist + 1] = part
+end

@@ -32,6 +32,61 @@ function prop2mesh.getBodygroupMask(ent)
 	return mask
 end
 
+function prop2mesh.triangulate(vertices, indices, uv)
+	uv = uv or (2 / 48) --math.max(1, math.floor(math.abs(uv or 48)))
+	local tris = {}
+	for k, face in ipairs(indices) do
+		local t1 = face[1]
+		local t2 = face[2]
+		for j = 3, #face do
+			local t3 = face[j]
+			local v1, v2, v3 = vertices[t1], vertices[t3], vertices[t2]
+			local normal = (v3 - v1):Cross(v2 - v1)
+			normal:Normalize()
+
+			v1 = {pos = v1, normal = normal}
+			v2 = {pos = v2, normal = normal}
+			v3 = {pos = v3, normal = normal}
+
+			local nx, ny, nz = math.abs(normal.x), math.abs(normal.y), math.abs(normal.z)
+			if nx > ny and nx > nz then
+
+				local nw = normal.x < 0 and -1 or 1
+				v1.u = v1.pos.z*nw*uv
+				v1.v = v1.pos.y*uv
+				v2.u = v2.pos.z*nw*uv
+				v2.v = v2.pos.y*uv
+				v3.u = v3.pos.z*nw*uv
+				v3.v = v3.pos.y*uv
+			elseif ny > nz then
+
+				local nw = normal.y < 0 and -1 or 1
+				v1.u = v1.pos.x*uv
+				v1.v = v1.pos.z*nw*uv
+				v2.u = v2.pos.x*uv
+				v2.v = v2.pos.z*nw*uv
+				v3.u = v3.pos.x*uv
+				v3.v = v3.pos.z*nw*uv
+			else
+
+				local nw = normal.z < 0 and 1 or -1
+				v1.u = v1.pos.x*nw*uv
+				v1.v = v1.pos.y*uv
+				v2.u = v2.pos.x*nw*uv
+				v2.v = v2.pos.y*uv
+				v3.u = v3.pos.x*nw*uv
+				v3.v = v3.pos.y*uv
+			end
+
+			tris[#tris + 1] = v1
+			tris[#tris + 1] = v2
+			tris[#tris + 1] = v3
+			t2 = t3
+		end
+	end
+	return tris
+end
+
 
 --[[
 
@@ -40,6 +95,7 @@ if SERVER then
 	AddCSLuaFile("prop2mesh/cl_meshlab.lua")
 	AddCSLuaFile("prop2mesh/cl_modelfixer.lua")
 	AddCSLuaFile("prop2mesh/cl_editor.lua")
+	AddCSLuaFile("prop2mesh/compat/cl_primitive.lua")
 	AddCSLuaFile("prop2mesh/sh_netstream.lua")
 
 	include("prop2mesh/sh_netstream.lua")
@@ -87,6 +143,7 @@ elseif CLIENT then
 	include("prop2mesh/cl_meshlab.lua")
 	include("prop2mesh/cl_modelfixer.lua")
 	include("prop2mesh/cl_editor.lua")
+	include("prop2mesh/compat/cl_primitive.lua")
 
 	concommand.Add("prop2mesh_debug_bodygroups", function(ply, cmd, args)
 		local eid = tonumber(args[1])

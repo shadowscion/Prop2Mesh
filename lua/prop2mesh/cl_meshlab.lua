@@ -194,6 +194,102 @@ end
 --[[
 
 ]]
+local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
+	local pfunc = prop2mesh.primitive[partnext.primitive.type]
+	if not pfunc then
+		return
+	end
+
+	local submeshes = pfunc(partnext.primitive)
+	if not submeshes then
+		return
+	end
+
+	local partpos = partnext.pos
+	local partang = partnext.ang
+	local partscale = partnext.scale
+	local partclips = partnext.clips
+
+	local partverts = {}
+	local modeluv = not meshtex
+
+	local submeshdata  = submeshes
+	local submeshverts = {}
+
+	for vertid = 1, #submeshdata do
+		local vert   = submeshdata[vertid]
+		local pos    = Vector(vert.pos)
+		local normal = Vector(vert.normal)
+
+		if partscale then
+			pos.x = pos.x * partscale.x
+			pos.y = pos.y * partscale.y
+			pos.z = pos.z * partscale.z
+		end
+
+		local vcopy = {
+			pos    = pos,
+			normal = normal,
+			rotate = submeshfix,
+		}
+
+		if modeluv then
+			vcopy.u = vert.u
+			vcopy.v = vert.v
+		end
+
+		submeshverts[#submeshverts + 1] = vcopy
+	end
+
+	if partclips then
+		for clipid = 1, #partclips do
+			submeshverts = applyClippingPlane(submeshverts, partclips[clipid].n, partclips[clipid].d, modeluv)
+		end
+	end
+
+	for vertid = 1, #submeshverts do
+		local vert = submeshverts[vertid]
+		if vert.rotate then
+			rotate(vert.normal, vert.rotate.ang or partang)
+			rotate(vert.pos, vert.rotate.ang or partang)
+			vert.rotate = nil
+		else
+			rotate(vert.normal, partang)
+			rotate(vert.pos, partang)
+		end
+		add(vert.pos, partpos)
+		partverts[#partverts + 1] = vert
+		calcbounds(vmins, vmaxs, vert.pos)
+	end
+
+	if #partverts == 0 then
+		return
+	end
+
+	local nflat = partnext.vsmooth == 1
+	if meshtex or nflat then
+		for pv = 1, #partverts, 3 do
+			local normal = cross(partverts[pv + 2].pos - partverts[pv].pos, partverts[pv + 1].pos - partverts[pv].pos)
+			normalize(normal)
+
+			if nflat then
+				partverts[pv    ].normal = Vector(normal)
+				partverts[pv + 1].normal = Vector(normal)
+				partverts[pv + 2].normal = Vector(normal)
+			end
+
+			if meshtex then
+				local boxDir = getBoxDir(normal)
+				partverts[pv    ].u, partverts[pv    ].v = getBoxUV(partverts[pv    ].pos, boxDir, meshtex)
+				partverts[pv + 1].u, partverts[pv + 1].v = getBoxUV(partverts[pv + 1].pos, boxDir, meshtex)
+				partverts[pv + 2].u, partverts[pv + 2].v = getBoxUV(partverts[pv + 2].pos, boxDir, meshtex)
+			end
+		end
+	end
+
+	return partverts
+end
+
 local meshmodelcache
 local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 	local modelpath = partnext.prop or partnext.holo
@@ -536,6 +632,13 @@ local function getMeshFromData(data, uvs, direct, split)
 			partverts = getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 		elseif partnext.objd and partlist.custom then
 			local valid, opv = pcall(getVertsFromOBJ, partlist.custom, partnext, meshtex, vmins, vmaxs, direct)
+			if valid and opv then
+				partverts = opv
+			else
+				print(opv)
+			end
+		elseif partnext.primitive then
+			local valid, opv = pcall(getVertsFromPrimitive, partnext, meshtex, vmins, vmaxs, direct)
 			if valid and opv then
 				partverts = opv
 			else

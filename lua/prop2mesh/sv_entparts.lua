@@ -250,11 +250,13 @@ entclass.prop_primitive = function(partlist, ent, worldpos, worldang)
 	local vars = ent:GetNetworkVars()
 	local part = { type = vars._primitive_type }
 
-	local tv = ent:Get_primitive_typevars()
-	for k, v in pairs(vars) do
-		if tv[k] then
-			part[tv[k]] = v
-		end
+	local typevars = ent:Get_primitive_typevars(part.type)
+	for k, v in pairs(typevars) do
+		part[string.gsub(k, "_primitive_", "")] = vars[k]
+	end
+
+	if next(part) == nil then
+		return
 	end
 
 	part = { primitive = part }
@@ -289,3 +291,4 @@ entclass.prop_primitive = function(partlist, ent, worldpos, worldang)
 
 	partlist[#partlist + 1] = part
 end
+

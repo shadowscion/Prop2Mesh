@@ -195,12 +195,7 @@ end
 
 ]]
 local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
-	local pfunc = prop2mesh.primitive[partnext.primitive.type]
-	if not pfunc then
-		return
-	end
-
-	local submeshes = pfunc(partnext.primitive)
+	local submeshes = prop2mesh.primitive.primitive_build(partnext.primitive)
 	if not submeshes then
 		return
 	end

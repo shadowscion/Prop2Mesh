@@ -855,3 +855,160 @@ shapes[name] = function(vars, nophys)
 
 	return {vertex = vertex, index = index, phys = phys}
 end
+
+
+----------------------------------------------------------------
+local name = "cube_magic"
+shapes[name] = function(vars, nophys)
+	local vertex, index, phys
+
+	local dx = (vars.dx or 1)*0.5
+	local dy = (vars.dy or 1)*0.5
+	local dz = (vars.dz or 1)*0.5
+
+	local tx = 1 - (vars.tx or 0)
+	local ty = 1 - (vars.ty or 0)
+
+	local dt = math.min(vars.dt or 1, dx, dy)
+
+	if dt == dx or dt == dy then
+		return shapes["cube"](vars, nophys)
+	end
+
+	local sv = string.gsub(string.lower(vars.modv or ""), " ", "")
+	local _, _, sides = string.find(sv, "sides=(%d%d%d%d%d%d)")
+
+	if not sides then
+		sides = {true,true,true,true,true,true}
+	else
+		local ret = {}
+		for i = 1, 6 do
+			ret[i] = tobool(sides[i])
+		end
+		sides = ret
+		local valid
+		for k, v in pairs(sides) do
+			if v == true then
+				valid = true
+				break
+			end
+		end
+		if not valid then sides = {true,true,true,true,true,true} end
+	end
+
+	local normals = {
+		Vector(1, 0, 0):Angle(),
+		Vector(-1, 0, 0):Angle(),
+		Vector(0, 1, 0):Angle(),
+		Vector(0, -1, 0):Angle(),
+		Vector(0, 0, 1):Angle(),
+		Vector(0, 0, -1):Angle(),
+	}
+
+	local a = Vector(1, -1, -1)
+	local b = Vector(1, 1, -1)
+	local c = Vector(1, 1, 1)
+	local d = Vector(1, -1, 1)
+
+	vertex = {}
+	if not nophys then phys = {} end
+	if CLIENT then index = {} end
+
+	local ibuffer = 1
+
+	for k, v in ipairs(normals) do
+		if not sides[k] then
+			ibuffer = ibuffer - 8
+		else
+			local vec = Vector(a)
+
+			vec:Rotate(v)
+
+			vec.x = vec.x*dx
+			vec.y = vec.y*dy
+			vec.z = vec.z*dz
+
+			if vec.z > 0 then
+				vec.x = vec.x*tx
+				vec.y = vec.y*ty
+			end
+
+			vertex[#vertex + 1] = vec
+			vertex[#vertex + 1] = vec - vec:GetNormalized()*dt
+
+			local vec = Vector(b)
+
+			vec:Rotate(v)
+
+			vec.x = vec.x*dx
+			vec.y = vec.y*dy
+			vec.z = vec.z*dz
+
+			if vec.z > 0 then
+				vec.x = vec.x*tx
+				vec.y = vec.y*ty
+			end
+
+			vertex[#vertex + 1] = vec
+			vertex[#vertex + 1] = vec - vec:GetNormalized()*dt
+
+			local vec = Vector(c)
+
+			vec:Rotate(v)
+
+			vec.x = vec.x*dx
+			vec.y = vec.y*dy
+			vec.z = vec.z*dz
+
+			if vec.z > 0 then
+				vec.x = vec.x*tx
+				vec.y = vec.y*ty
+			end
+
+			vertex[#vertex + 1] = vec
+			vertex[#vertex + 1] = vec - vec:GetNormalized()*dt
+
+			local vec = Vector(d)
+
+			vec:Rotate(v)
+
+			vec.x = vec.x*dx
+			vec.y = vec.y*dy
+			vec.z = vec.z*dz
+
+			if vec.z > 0 then
+				vec.x = vec.x*tx
+				vec.y = vec.y*ty
+			end
+
+			vertex[#vertex + 1] = vec
+			vertex[#vertex + 1] = vec - vec:GetNormalized()*dt
+
+			if not nophys then
+				local count = #vertex
+				phys[#phys + 1] = {
+					vertex[count - 0],
+					vertex[count - 1],
+					vertex[count - 2],
+					vertex[count - 3],
+					vertex[count - 4],
+					vertex[count - 5],
+					vertex[count - 6],
+					vertex[count - 7],
+				}
+			end
+
+			if CLIENT then
+				local n = (k - 1)*8 + ibuffer
+				index[#index + 1] = {n + 0, n + 2, n + 4, n + 6}
+				index[#index + 1] = {n + 3, n + 1, n + 7, n + 5}
+				index[#index + 1] = {n + 1, n + 0, n + 6, n + 7}
+				index[#index + 1] = {n + 2, n + 3, n + 5, n + 4}
+				index[#index + 1] = {n + 5, n + 7, n + 6, n + 4}
+				index[#index + 1] = {n + 0, n + 1, n + 3, n + 2}
+			end
+		end
+	end
+
+	return {vertex = vertex, index = index, phys = phys}
+end

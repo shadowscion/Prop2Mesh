@@ -1,6 +1,6 @@
 
 
-----------------------------------------------------------------
+--
 prop2mesh.primitive = {}
 
 local addon = prop2mesh.primitive
@@ -8,29 +8,68 @@ local shapes = {}
 addon.primitive_shapes = shapes
 
 local function primitive_build(vars)
-	if not shapes[vars.type] then
+	if not shapes[vars.shape] then
 		return false
 	end
-	local shape = shapes[vars.type](vars, true)
+	local shape = shapes[vars.shape](vars, true)
 	if not shape then
 		return false
 	end
-	return addon.primitive_triangulate(shape.vertex, shape.index)
+
+	local sv = string.gsub(string.lower(vars.modv or ""), " ", "")
+	local _, _, normals = string.find(sv, "normals=(%d+)")
+
+	return addon.primitive_triangulate(shape.vertex, shape.index, tonumber(normals))
 end
 addon.primitive_build = primitive_build
 
 
-----------------------------------------------------------------
+--
 local math = math
 local pi = math.pi
 local tau = math.pi*2
 local Vector = Vector
+local vec = Vector()
+local div = vec.Div
+local add = vec.Add
+local dot = vec.Dot
 
 local function map(x, in_min, in_max, out_min, out_max)
     return (x - in_min)*(out_max - out_min)/(in_max - in_min) + out_min
 end
 
-local function primitive_triangulate(vertices, indices)
+-- https:--github.com/thegrb93/StarfallEx/blob/b6de9fbe84040e9ebebcbe858c30adb9f7d937b5/lua/starfall/libs_sh/mesh.lua#L229
+-- credit to Sevii
+local function autosmooth(vertices, smoothrad)
+	if smoothrad == 1 then return end
+
+	local norms = setmetatable({},{__index = function(t,k) local r=setmetatable({},{__index=function(t,k) local r=setmetatable({},{__index=function(t,k) local r={} t[k]=r return r end}) t[k]=r return r end}) t[k]=r return r end})
+	for _, vertex in ipairs(vertices) do
+		local pos = vertex.pos
+		local norm = norms[pos[1]][pos[2]][pos[3]]
+		norm[#norm+1] = vertex.normal
+	end
+
+	for _, vertex in ipairs(vertices) do
+		local normal = Vector()
+		local count = 0
+		local pos = vertex.pos
+
+		for _, norm in ipairs(norms[pos[1]][pos[2]][pos[3]]) do
+			if dot(vertex.normal, norm) >= smoothrad then
+				add(normal, norm)
+				count = count + 1
+			end
+		end
+
+		if count > 1 then
+			div(normal, count)
+			vertex.normal = normal
+		end
+	end
+end
+
+local function primitive_triangulate(vertices, indices, normals)
 	local uv = 1/48
 	local tris = {}
 	for k, face in ipairs(indices) do
@@ -82,16 +121,21 @@ local function primitive_triangulate(vertices, indices)
 			t2 = t3
 		end
 	end
+
+	if normals then
+		autosmooth(tris, math.cos(math.rad(normals)))
+	end
+
 	return tris
 end
 addon.primitive_triangulate = primitive_triangulate
 
 
-----------------------------------------------------------------
+--
 --[[
 local name = "generic"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	--local dx = (vars.dx or 1)*0.5
 	--local dy = (vars.dy or 1)*0.5
@@ -105,15 +149,15 @@ shapes[name] = function(vars, nophys)
 
 	end
 
-	return {vertex = vertex, index = index, phys = {phys}}
+	return {vertex = vertex, index = index, physics = {physics}}
 end
 ]]
 
 
-----------------------------------------------------------------
+--
 local name = "cube"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local dx = (vars.dx or 1)*0.5
 	local dy = (vars.dy or 1)*0.5
@@ -165,17 +209,17 @@ shapes[name] = function(vars, nophys)
 	end
 
 	if not nophys then
-		phys = vertex
+		physics = vertex
 	end
 
-	return {vertex = vertex, index = index, phys = {phys}}
+	return {vertex = vertex, index = index, physics = {physics}}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "wedge"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local dx = (vars.dx or 1)*0.5
 	local dy = (vars.dy or 1)*0.5
@@ -224,17 +268,17 @@ shapes[name] = function(vars, nophys)
 	end
 
 	if not nophys then
-		phys = vertex
+		physics = vertex
 	end
 
-	return {vertex = vertex, index = index, phys = {phys}}
+	return {vertex = vertex, index = index, physics = {physics}}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "wedge_corner"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local dx = (vars.dx or 1)*0.5
 	local dy = (vars.dy or 1)*0.5
@@ -260,17 +304,17 @@ shapes[name] = function(vars, nophys)
 	end
 
 	if not nophys then
-		phys = vertex
+		physics = vertex
 	end
 
-	return {vertex = vertex, index = index, phys = {phys}}
+	return {vertex = vertex, index = index, physics = {physics}}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "pyramid"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local dx = (vars.dx or 1)*0.5
 	local dy = (vars.dy or 1)*0.5
@@ -298,17 +342,17 @@ shapes[name] = function(vars, nophys)
 	end
 
 	if not nophys then
-		phys = vertex
+		physics = vertex
 	end
 
-	return {vertex = vertex, index = index, phys = {phys}}
+	return {vertex = vertex, index = index, physics = {physics}}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "cone"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local maxseg = vars.maxseg or 32
 	if maxseg < 3 then maxseg = 3 elseif maxseg > 32 then maxseg = 32 end
@@ -352,28 +396,28 @@ shapes[name] = function(vars, nophys)
 
 	if not nophys then
 		if numseg ~= maxseg then
-			phys = {{vertex[c1], vertex[c2]}, {vertex[c1], vertex[c2]}}
+			physics = {{vertex[c1], vertex[c2]}, {vertex[c1], vertex[c2]}}
 			for i = 1, c0 do
 				if (i - 1 <= maxseg*0.5) then
-					table.insert(phys[1], vertex[i])
+					table.insert(physics[1], vertex[i])
 				end
 				if (i - 1 >= maxseg*0.5) then
-					table.insert(phys[2], vertex[i])
+					table.insert(physics[2], vertex[i])
 				end
 			end
 		else
-			phys = {vertex}
+			physics = {vertex}
 		end
 	end
 
-	return {vertex = vertex, index = index, phys = phys}
+	return {vertex = vertex, index = index, physics = physics}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "cylinder"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local maxseg = vars.maxseg or 32
 	if maxseg < 3 then maxseg = 3 elseif maxseg > 32 then maxseg = 32 end
@@ -438,39 +482,39 @@ shapes[name] = function(vars, nophys)
 
 	if not nophys then
 		if numseg ~= maxseg then
-			phys = {{vertex[c1], vertex[c2]}, {vertex[c1], vertex[c2]}}
+			physics = {{vertex[c1], vertex[c2]}, {vertex[c1], vertex[c2]}}
 			if tx == 0 and ty == 0 then
 				for i = 1, c0 do
 					if (i - 1 <= maxseg*0.5) then
-						table.insert(phys[1], vertex[i])
+						table.insert(physics[1], vertex[i])
 					end
 					if (i - 1 >= maxseg*0.5) then
-						table.insert(phys[2], vertex[i])
+						table.insert(physics[2], vertex[i])
 					end
 				end
 			else
 				for i = 1, c0 do
 					if i - (maxseg > 3 and 2 or 1) <= maxseg then
-						table.insert(phys[1], vertex[i])
+						table.insert(physics[1], vertex[i])
 					end
 					if i - 1 >= maxseg then
-						table.insert(phys[2], vertex[i])
+						table.insert(physics[2], vertex[i])
 					end
 				end
 			end
 		else
-			phys = {vertex}
+			physics = {vertex}
 		end
 	end
 
-	return {vertex = vertex, index = index, phys = phys}
+	return {vertex = vertex, index = index, physics = physics}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "tube"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local maxseg = vars.maxseg or 32
 	if maxseg < 3 then maxseg = 3 elseif maxseg > 32 then maxseg = 32 end
@@ -545,32 +589,32 @@ shapes[name] = function(vars, nophys)
 	end
 
 	if not nophys then
-		phys = {}
+		physics = {}
 		if iscone then
 			for i = 1, c0 - 2, 2 do
-				phys[#phys + 1] = {vertex[c2], vertex[i], vertex[i + 1], vertex[i + 2], vertex[i + 3]}
+				physics[#physics + 1] = {vertex[c2], vertex[i], vertex[i + 1], vertex[i + 2], vertex[i + 3]}
 			end
 		else
 			for i = 1, c0 - 4, 4 do
-				phys[#phys + 1] = {vertex[i], vertex[i + 1], vertex[i + 2], vertex[i + 3], vertex[i + 4], vertex[i + 5], vertex[i + 6], vertex[i + 7]}
+				physics[#physics + 1] = {vertex[i], vertex[i + 1], vertex[i + 2], vertex[i + 3], vertex[i + 4], vertex[i + 5], vertex[i + 6], vertex[i + 7]}
 			end
 		end
 	end
 
-	return {vertex = vertex, index = index, phys = phys}
+	return {vertex = vertex, index = index, physics = physics}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "torus"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local maxseg = vars.maxseg or 32
 	if maxseg < 3 then maxseg = 3 elseif maxseg > 32 then maxseg = 32 end
 	local numseg = vars.numseg or 32
 	if numseg < 1 then numseg = 1 elseif numseg > maxseg then numseg = maxseg end
-	local numring = vars.numring or 16
+	local numring = vars.subdiv or 16
 	if numring < 3 then numring = 3 elseif numring > 32 then numring = 32 end
 
 	local dx = (vars.dx or 1)*0.5
@@ -623,13 +667,13 @@ shapes[name] = function(vars, nophys)
 			end
 		end
 
-		phys = {}
+		physics = {}
 		for j = 1, numring do
 			for i = 1, numseg do
-				if not phys[i] then
-					phys[i] = {}
+				if not physics[i] then
+					physics[i] = {}
 				end
-				local part = phys[i]
+				local part = physics[i]
 				part[#part + 1] = pvertex[(maxseg + 1)*j + i]
 				part[#part + 1] = pvertex[(maxseg + 1)*(j - 1) + i]
 				part[#part + 1] = pvertex[(maxseg + 1)*(j - 1) + i + 1]
@@ -641,14 +685,14 @@ shapes[name] = function(vars, nophys)
 		end
 	end
 
-	return {vertex = vertex, index = index, phys = phys}
+	return {vertex = vertex, index = index, physics = physics}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "sphere"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local numseg = 2*math.Round((vars.numseg or 32)/2)
 	if numseg < 4 then numseg = 4 elseif numseg > 32 then numseg = 32 end
@@ -703,12 +747,12 @@ shapes[name] = function(vars, nophys)
 	if not nophys then
 		local limit = 12
 		if CLIENT and numseg < limit then
-			phys = vertex
+			physics = vertex
 		else
 			local numseg = limit
 			local numseg = numseg*0.5
 
-			phys = {}
+			physics = {}
 			for y = 0, isdome and numseg*0.5 or numseg do
 				local v = y/numseg
 				local t = v*pi
@@ -723,20 +767,20 @@ shapes[name] = function(vars, nophys)
 					local cosTau = math.cos(p)
 					local sinTau = math.sin(p)
 
-					phys[#phys + 1] = Vector(-dx*cosTau*sinPi, dy*sinTau*sinPi, dz*cosPi)
+					physics[#physics + 1] = Vector(-dx*cosTau*sinPi, dy*sinTau*sinPi, dz*cosPi)
 				end
 			end
 		end
 		if SERVER then
-			vertex = phys
+			vertex = physics
 		end
 	end
 
-	return {vertex = vertex, index = index, phys = {phys}}
+	return {vertex = vertex, index = index, physics = {physics}}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "dome"
 shapes[name] = function(vars, nophys)
 	vars.isdome = true
@@ -744,10 +788,10 @@ shapes[name] = function(vars, nophys)
 end
 
 
-----------------------------------------------------------------
+--
 local name = "cube_tube"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local dx = (vars.dx or 1)*0.5
 	local dy = (vars.dy or 1)*0.5
@@ -761,7 +805,7 @@ shapes[name] = function(vars, nophys)
 	local numseg = vars.numseg or 4
 	if numseg > 4 then numseg = 4 elseif numseg < 1 then numseg = 1 end
 
-	local numring = 4*math.Round((vars.numring or 32)/4)
+	local numring = 4*math.Round((vars.subdiv or 32)/4)
 	if numring < 4 then numring = 4 elseif numring > 32 then numring = 32 end
 
 	local cube_angle = Angle(0, 90, 0)
@@ -779,7 +823,7 @@ shapes[name] = function(vars, nophys)
 	vertex = {}
 
 	if not nophys then
-		phys = {}
+		physics = {}
 	end
 
 	for i = 0, numseg - 1 do
@@ -812,7 +856,7 @@ shapes[name] = function(vars, nophys)
 
 		local count_end1 = #vertex
 		if not nophys then
-			phys[#phys + 1] = {
+			physics[#physics + 1] = {
 				vertex[count_end0 - 0],
 				vertex[count_end0 - 3],
 				vertex[count_end0 - 4],
@@ -822,7 +866,7 @@ shapes[name] = function(vars, nophys)
 				vertex[count_end1 - ring_steps1*0.5],
 				vertex[count_end1 - ring_steps1*0.5 - 1],
 			}
-			phys[#phys + 1] = {
+			physics[#physics + 1] = {
 				vertex[count_end0 - 2],
 				vertex[count_end0 - 5],
 				vertex[count_end0 - 4],
@@ -853,14 +897,14 @@ shapes[name] = function(vars, nophys)
 		end
 	end
 
-	return {vertex = vertex, index = index, phys = phys}
+	return {vertex = vertex, index = index, physics = physics}
 end
 
 
-----------------------------------------------------------------
+--
 local name = "cube_magic"
 shapes[name] = function(vars, nophys)
-	local vertex, index, phys
+	local vertex, index, physics
 
 	local dx = (vars.dx or 1)*0.5
 	local dy = (vars.dy or 1)*0.5
@@ -911,7 +955,7 @@ shapes[name] = function(vars, nophys)
 	local d = Vector(1, -1, 1)
 
 	vertex = {}
-	if not nophys then phys = {} end
+	if not nophys then physics = {} end
 	if CLIENT then index = {} end
 
 	local ibuffer = 1
@@ -986,7 +1030,7 @@ shapes[name] = function(vars, nophys)
 
 			if not nophys then
 				local count = #vertex
-				phys[#phys + 1] = {
+				physics[#physics + 1] = {
 					vertex[count - 0],
 					vertex[count - 1],
 					vertex[count - 2],
@@ -1010,5 +1054,5 @@ shapes[name] = function(vars, nophys)
 		end
 	end
 
-	return {vertex = vertex, index = index, phys = phys}
+	return {vertex = vertex, index = index, physics = physics}
 end

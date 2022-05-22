@@ -246,9 +246,9 @@ entclass.sent_prop2mesh_legacy = function(partlist, ent, worldpos, worldang)
 	end
 end
 
-entclass.prop_primitive = function(partlist, ent, worldpos, worldang)
+entclass.primitive_shape = function(partlist, ent, worldpos, worldang)
 	local vars = ent:GetNetworkVars()
-	local part = { type = vars._primitive_type }
+	local part = { shape = vars._primitive_shape }
 
 	local typevars = ent:Get_primitive_typevars(part.type)
 	for k, v in pairs(typevars) do

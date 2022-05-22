@@ -195,6 +195,9 @@ end
 
 ]]
 local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
+	if partnext.vsmooth == 1 and partnext.primitive then
+		partnext.primitive.modv = string.gsub(partnext.primitive.modv or "", "(normals=%d+)", "")
+	end
 	local submeshes = prop2mesh.primitive.primitive_build(partnext.primitive)
 	if not submeshes then
 		return

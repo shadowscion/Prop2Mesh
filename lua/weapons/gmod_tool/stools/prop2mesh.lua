@@ -732,6 +732,60 @@ local function BuildPanel_ToolSettings(self)
 	pnl:ControlHelp("Ignore entities with mass above this value.")
 
 	--
+	local class_list_convar = GetConVar("prop2mesh_tool_filter_ilist")
+	local class_list_filter = GetClientFilters(class_list_convar:GetString())
+	local class_list_display = { "prop_physics", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
+
+	local combo = vgui.Create("DComboBox", pnl)
+	pnl:AddItem(combo)
+
+	local id = combo:SetText("Class filters")
+	combo:SetFont(help_font)
+	combo:SetSortItems(false)
+
+	combo.OnMenuOpened = function(_, menu)
+		menu:GetChild(menu:ChildCount()):SetFont("DermaDefaultBold")
+	end
+
+	combo.OnSelect = function(_, id, value, func)
+		combo:SetText("Class filters")
+		if isfunction(func) then func(id, value, true) end
+	end
+
+	local function onChoose(id, value, cmd)
+		class_list_filter = GetClientFilters(class_list_convar:GetString())
+		if class_list_filter[value] == true then class_list_filter[value] = nil else class_list_filter[value] = true end
+		if cmd then RunConsoleCommand("prop2mesh_tool_filter_ilist", table.concat(table.GetKeys(class_list_filter), ",")) end
+		combo.ChoiceIcons[id] = class_list_filter[value] and "icon16/cross.png" or nil
+	end
+
+	local choices = {}
+	for k, v in SortedPairsByValue(class_list_display) do
+		local id = combo:AddChoice(v, onChoose, nil, class_list_filter[v] and "icon16/cross.png")
+		choices[id] = v
+	end
+
+	if g_primitive then
+		combo:AddSpacer()
+
+		local v = "primitive_shape"
+		choices[combo:AddChoice(v, onChoose, nil, class_list_filter[v] and "icon16/cross.png")] = v
+
+		local v = "primitive_rail_slider"
+		choices[combo:AddChoice(v, onChoose, nil, class_list_filter[v] and "icon16/cross.png")] = v
+	end
+
+	combo:AddSpacer()
+	combo:AddChoice("cancel")
+
+	self.tempfixfilters = function()
+		local class_list_filter = GetClientFilters(class_list_convar:GetString())
+		for id, value in pairs(choices) do
+			combo.ChoiceIcons[id] = class_list_filter[value] and "icon16/cross.png" or nil
+		end
+	end
+
+	--[[
 	local help = pnl:Help("Class filters")
 	help:DockMargin(0, 0, 0, 0)
 	help:SetFont(help_font)
@@ -740,19 +794,18 @@ local function BuildPanel_ToolSettings(self)
 		surface.DrawLine(0, h - 1, w, h - 1)
 	end
 
-	--[[
-	pnl:CheckBox("Ignore props", "prop2mesh_tool_filter_iprop")
-	pnl:CheckBox("Ignore holos", "prop2mesh_tool_filter_iholo")
-	pnl:CheckBox("Ignore acf armor", "prop2mesh_tool_filter_ipacf")
-	pnl:CheckBox("Ignore legacy p2m", "prop2mesh_tool_filter_ilp2m")
-	]]
-
 	local scroll = vgui.Create("DScrollPanel", pnl)
 	scroll:SetTall(96)
 	scroll:Dock(FILL)
 	pnl:AddItem(scroll)
 
-	local class_list_display = { "prop_physics", "primitive_shape", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
+	local class_list_display = { "prop_physics", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
+
+	if g_primitive then
+		table.insert(class_list_display, 2, "primitive_shape")
+		table.insert(class_list_display, 2, "primitive_rail_slider")
+	end
+
 	local class_list_convar = GetConVar("prop2mesh_tool_filter_ilist")
 	local class_list_filter = GetClientFilters(class_list_convar:GetString())
 
@@ -784,6 +837,7 @@ local function BuildPanel_ToolSettings(self)
 			v:SetTextColor(class_list_filter[v.key] and colortext_sel or colortext_def)
 		end
 	end
+	]]
 
 	--
 	local help = pnl:Help("Entity options")

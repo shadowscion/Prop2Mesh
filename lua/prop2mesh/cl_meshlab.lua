@@ -198,7 +198,11 @@ local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
 	if partnext.vsmooth == 1 and partnext.primitive then
 		partnext.primitive.modv = string.gsub(partnext.primitive.modv or "", "(normals=%d+)", "")
 	end
-	local submeshes = prop2mesh.primitive.primitive_build(partnext.primitive)
+	if meshtex then partnext.primitive.skipUV = true end
+
+	local submeshes = prop2mesh.primitive.construct_get(partnext.primitive.construct, partnext.primitive, true, true)
+	submeshes = submeshes.triangle
+
 	if not submeshes then
 		return
 	end
@@ -719,7 +723,7 @@ local function setmessage(text)
 
 		local green = Color(255, 255, 0)
 		local black = Color(0,0,0)
-		local font  = "prop2mesheditor"
+		local font  = shadowscion_standard_font or "Default"
 
 		message.Paint = function(self, w, h)
 			draw.SimpleTextOutlined(self.text, font, 0, 0, green, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, 1, black)

@@ -80,21 +80,10 @@ function prop2mesh.sanitizeCustom(partlist) -- remove unused obj data
 	partlist.custom = custom
 end
 
-
---[[
-
-]]
-local getBodygroupMask = prop2mesh.getBodygroupMask
-
-entclass.prop_physics = function(partlist, ent, worldpos, worldang)
-	local part = { prop = ent:GetModel() }
+local function basic_info(partlist, ent, worldpos, worldang)
+	local part = {}
 
 	part.pos, part.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), worldpos, worldang)
-
-	local bodygroup = getBodygroupMask(ent)
-	if bodygroup ~= 0 then
-		part.bodygroup = bodygroup
-	end
 
 	local scale
 	if ent.GetScale then scale = ent:GetScale() else scale = ent:GetManipulateBoneScale(0) end
@@ -120,6 +109,25 @@ entclass.prop_physics = function(partlist, ent, worldpos, worldang)
 		if next(pclips) then
 			part.clips = pclips
 		end
+	end
+
+	return part
+end
+
+
+--[[
+
+]]
+local getBodygroupMask = prop2mesh.getBodygroupMask
+
+entclass.prop_physics = function(partlist, ent, worldpos, worldang)
+	local part = basic_info(partlist, ent, worldpos, worldang)
+
+	part.prop = ent:GetModel()
+
+	local bodygroup = getBodygroupMask(ent)
+	if bodygroup ~= 0 then
+		part.bodygroup = bodygroup
 	end
 
 	partlist[#partlist + 1] = part
@@ -247,48 +255,30 @@ entclass.sent_prop2mesh_legacy = function(partlist, ent, worldpos, worldang)
 end
 
 entclass.primitive_shape = function(partlist, ent, worldpos, worldang)
-	local vars = ent:GetNetworkVars()
-	local part = { shape = vars._primitive_shape }
+	if not ent._primitive_GetVars then return end
 
-	local typevars = ent:Get_primitive_typevars(part.type)
-	for k, v in pairs(typevars) do
-		part[string.gsub(k, "_primitive_", "")] = vars[k]
-	end
+	local vars = ent:_primitive_GetVars(nil, true)
+	if not vars or next(vars) == nil then return end
 
-	if next(part) == nil then
-		return
-	end
+	vars.construct = vars.shape
+	vars.shape = nil
 
-	part = { primitive = part }
-
-	part.pos, part.ang = WorldToLocal(ent:GetPos(), ent:GetAngles(), worldpos, worldang)
-
-	local scale
-	if ent.GetScale then scale = ent:GetScale() else scale = ent:GetManipulateBoneScale(0) end
-	if isvector(scale) and scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1 then
-		part.scale = scale
-	end
-
-	local clips = ent.ClipData or ent.EntityMods and ent.EntityMods.clips
-	if clips then
-		local pclips = {}
-		for _, clip in ipairs(clips) do
-			if not clip.n or not clip.d then
-				goto badclip
-			end
-			if clip.inside then
-				part.vinside = 1
-			end
-			local normal = clip.n:Forward()
-			pclips[#pclips + 1] = { n = normal, d = clip.d + normal:Dot(ent.OBBCenterOrg or ent:OBBCenter()) }
-
-			::badclip::
-		end
-		if next(pclips) then
-			part.clips = pclips
-		end
-	end
+	local part = basic_info(partlist, ent, worldpos, worldang)
+	part.primitive = vars
 
 	partlist[#partlist + 1] = part
 end
 
+entclass.primitive_rail_slider = function(partlist, ent, worldpos, worldang)
+	if not ent._primitive_GetVars then return end
+
+	local vars = ent:_primitive_GetVars(nil, true)
+	if not vars or next(vars) == nil then return end
+
+	vars.construct = "rail_slider"
+
+	local part = basic_info(partlist, ent, worldpos, worldang)
+	part.primitive = vars
+
+	partlist[#partlist + 1] = part
+end

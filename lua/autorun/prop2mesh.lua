@@ -84,6 +84,11 @@ if SERVER then
 	end, "Data")
 
 elseif CLIENT then
+	if not shadowscion_standard_font then
+		shadowscion_standard_font = "shadowscion_standard_font"
+		surface.CreateFont(shadowscion_standard_font, {size = 13, weight = 800, font = "Tahoma"})
+	end
+
 	include("prop2mesh/sh_netstream.lua")
 	include("prop2mesh/cl_meshlab.lua")
 	include("prop2mesh/cl_modelfixer.lua")

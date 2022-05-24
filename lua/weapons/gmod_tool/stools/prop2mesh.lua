@@ -661,7 +661,7 @@ local ConVars = {
 	["tool_filter_ipacf"]    = 1, -- procedural armor
 	]]
 
-	["tool_filter_ilist"]    = "acf_armor, sent_prop2mesh_legacy",
+	["tool_filter_ilist"]    = "acf_armor, sent_prop2mesh_legacy, primitive_rail_slider",
 }
 TOOL.ClientConVar = ConVars
 
@@ -739,7 +739,7 @@ local function BuildPanel_ToolSettings(self)
 	local combo = vgui.Create("DComboBox", pnl)
 	pnl:AddItem(combo)
 
-	local id = combo:SetText("Class filters")
+	local id = combo:SetText("Class filters...")
 	combo:SetFont(help_font)
 	combo:SetSortItems(false)
 
@@ -748,7 +748,7 @@ local function BuildPanel_ToolSettings(self)
 	end
 
 	combo.OnSelect = function(_, id, value, func)
-		combo:SetText("Class filters")
+		combo:SetText("Class filters...")
 		if isfunction(func) then func(id, value, true) end
 	end
 

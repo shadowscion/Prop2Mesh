@@ -26,7 +26,8 @@ local IsValid = IsValid
 local WorldToLocal = WorldToLocal
 local LocalToWorld = LocalToWorld
 
-local entclass = {}
+prop2mesh.entclass = {}
+local entclass = prop2mesh.entclass
 
 
 --[[

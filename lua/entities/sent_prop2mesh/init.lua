@@ -119,7 +119,11 @@ end)
 --[[
 
 ]]
+local allow_disable = GetConVar("prop2mesh_disable_allowed")
+
 net.Receive("prop2mesh_download", function(len, pl)
+	if allow_disable:GetBool() and tobool(pl:GetInfoNum("prop2mesh_disable", 0)) then return end
+
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
 		return
@@ -138,6 +142,8 @@ net.Receive("prop2mesh_download", function(len, pl)
 end)
 
 net.Receive("prop2mesh_sync", function(len, pl)
+	if allow_disable:GetBool() and tobool(pl:GetInfoNum("prop2mesh_disable", 0)) then return end
+
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
 		return

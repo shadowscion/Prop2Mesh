@@ -675,6 +675,41 @@ local function BuildPanel_ToolSettings(self)
 	pnl:SetName("Tool Settings")
 
 	--
+	local btn = pnl:Button("Reset all tool options")
+	btn.DoClick = function()
+		for var, _ in pairs(ConVars) do
+			local convar = GetConVar("prop2mesh_" .. var)
+			if convar then
+				convar:Revert()
+			end
+		end
+		timer.Simple(0.1, self.tempfixfilters)
+	end
+
+	--
+	local preset = vgui.Create("ControlPresets", pnl)
+
+	local cvarlist = {}
+	for k, v in pairs(ConVars) do
+		local name = "prop2mesh_" .. k
+		cvarlist[name] = v
+		preset:AddConVar(name)
+	end
+
+	preset:SetPreset("prop2mesh")
+	preset:AddOption("#preset.default", cvarlist)
+
+	preset.OnSelect = function(_, index, value, data)
+		if not data then return end
+		for k, v in pairs(data) do
+			RunConsoleCommand(k, v)
+		end
+		timer.Simple(0.1, self.tempfixfilters)
+	end
+
+	pnl:AddItem(preset)
+
+	--
 	local help = pnl:Help("Danger zone")
 	help:DockMargin(0, 0, 0, 0)
 	help:SetFont(help_font)
@@ -683,28 +718,17 @@ local function BuildPanel_ToolSettings(self)
 		surface.DrawLine(0, h - 1, w, h - 1)
 	end
 
+	local cbox = pnl:CheckBox("Enable legacy mode", "prop2mesh_tool_legacymode")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
+
 	local cbox = pnl:CheckBox("Set selection alpha to 0 when done", "prop2mesh_tool_setalphazero")
 	cbox.OnChange = function(_, value)
 		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
 	end
 
 	local cbox = pnl:CheckBox("Remove selected props when done", "prop2mesh_tool_setautoremove")
-	cbox.OnChange = function(_, value)
-		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
-	end
-
-	local cbox = pnl:CheckBox("Enable legacy mode", "prop2mesh_tool_legacymode")
-	cbox.OnChange = function(_, value)
-		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
-	end
-
-	local cbox = pnl:CheckBox("Hide legacy cubes", "prop2mesh_legacy_hide")
-	cbox:SetTooltip("toggles 'prop2mesh_legacy_hide' convar")
-	cbox.OnChange = function(_, value)
-		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
-	end
-
-	local cbox = pnl:CheckBox("Disable rendering", "prop2mesh_render_disable")
 	cbox.OnChange = function(_, value)
 		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
 	end
@@ -784,60 +808,6 @@ local function BuildPanel_ToolSettings(self)
 			combo.ChoiceIcons[id] = class_list_filter[value] and "icon16/cross.png" or nil
 		end
 	end
-
-	--[[
-	local help = pnl:Help("Class filters")
-	help:DockMargin(0, 0, 0, 0)
-	help:SetFont(help_font)
-	help.Paint = function(_, w, h)
-		surface.SetDrawColor(0, 0, 0, 255)
-		surface.DrawLine(0, h - 1, w, h - 1)
-	end
-
-	local scroll = vgui.Create("DScrollPanel", pnl)
-	scroll:SetTall(96)
-	scroll:Dock(FILL)
-	pnl:AddItem(scroll)
-
-	local class_list_display = { "prop_physics", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
-
-	if g_primitive then
-		table.insert(class_list_display, 2, "primitive_shape")
-		table.insert(class_list_display, 2, "primitive_rail_slider")
-	end
-
-	local class_list_convar = GetConVar("prop2mesh_tool_filter_ilist")
-	local class_list_filter = GetClientFilters(class_list_convar:GetString())
-
-	local colortext_def = Color(55, 55, 55)
-	local colortext_sel = Color(75, 175, 75)
-
-	local boxes = {}
-	for k, v in ipairs(class_list_display) do
-		local cbox = scroll:Add("DCheckBoxLabel")
-		cbox:Dock(TOP)
-		cbox:DockMargin(0, 0, 0, 5)
-		cbox:SetText("Ignore " .. v)
-		cbox.OnChange = function(_, val)
-			class_list_filter = GetClientFilters(class_list_convar:GetString())
-			if val then class_list_filter[v] = true else class_list_filter[v] = nil end
-			RunConsoleCommand("prop2mesh_tool_filter_ilist", table.concat(table.GetKeys(class_list_filter), ","))
-			cbox:SetTextColor(val and colortext_sel or colortext_def)
-		end
-		cbox:SetChecked(class_list_filter[v] or false)
-		cbox:SetTextColor(class_list_filter[v] and colortext_sel or colortext_def)
-		cbox.key = v
-		table.insert(boxes, cbox)
-	end
-
-	self.tempfixfilters = function()
-		local class_list_filter = GetClientFilters(class_list_convar:GetString())
-		for k, v in pairs(boxes) do
-			v:SetChecked(class_list_filter[v.key] or false)
-			v:SetTextColor(class_list_filter[v.key] and colortext_sel or colortext_def)
-		end
-	end
-	]]
 
 	--
 	local help = pnl:Help("Entity options")
@@ -921,17 +891,46 @@ local function BuildPanel_Profiler(self)
 	return pnl
 end
 
-TOOL.BuildCPanel = function(self)
-	local btn = self:Button("Reset all tool options")
-	btn.DoClick = function()
-		for var, _ in pairs(ConVars) do
-			local convar = GetConVar("prop2mesh_" .. var)
-			if convar then
-				convar:Revert()
-			end
-		end
-		self.tempfixfilters()
+local function BuildPanel_AddonSettings(self)
+	local pnl = vgui.Create("DForm")
+	pnl:SetName("Addon Settings")
+
+	local help = pnl:Help("Stranger zone")
+	help:DockMargin(0, 0, 0, 0)
+	help:SetFont(help_font)
+	help.Paint = function(_, w, h)
+		surface.SetDrawColor(0, 0, 0, 255)
+		surface.DrawLine(0, h - 1, w, h - 1)
 	end
+
+	local cbox = pnl:CheckBox("Disable legacy cubes", "prop2mesh_legacy_hide")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
+
+	local cbox = pnl:CheckBox("Disable obj generation", "prop2mesh_render_disable_obj")
+	cbox:SetTooltip("Note: unless you rejoin, this will not apply to already generated meshes")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
+
+	local cbox = pnl:CheckBox("Disable rendering", "prop2mesh_render_disable")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
+
+	local cbox = pnl:CheckBox("Disable everything", "prop2mesh_disable")
+	cbox:SetTooltip("Note: unless you rejoin, this will not apply to already generated meshes")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
+	pnl:ControlHelp("This must also be enabled on the server.")
+
+	return pnl
+end
+
+TOOL.BuildCPanel = function(self)
+	self:AddPanel(BuildPanel_AddonSettings(self))
 	self:AddPanel(BuildPanel_ToolSettings(self))
 	self:AddPanel(BuildPanel_Profiler(self))
 end

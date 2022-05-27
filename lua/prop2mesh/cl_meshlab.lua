@@ -37,6 +37,13 @@ local table_remove = table.remove
 
 local a90 = Angle(0, -90, 0)
 
+local cvar = CreateClientConVar("prop2mesh_render_disable_obj", 0, true, false)
+local disable_obj = cvar:GetBool()
+
+cvars.AddChangeCallback("prop2mesh_render_disable_obj", function(cvar, old, new)
+    disable_obj = tobool(new)
+end, "swapdrawdisable_obj")
+
 
 --[[
 
@@ -475,7 +482,50 @@ local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 	return partverts
 end
 
+local function getFallbackOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
+	local modeluid = tonumber(partnext.objd)
+	local modelobj = custom[modeluid]
+
+	if not modelobj then
+		return
+	end
+
+	local omins, omaxs = Vector(), Vector()
+
+	local pos = partnext.pos
+	local ang = partnext.ang
+	local scale = partnext.scale
+
+	if scale then
+		if scale.x == 1 and scale.y == 1 and scale.z == 1 then scale = nil end
+	end
+
+	for line in string.gmatch(modelobj, "(.-)\n") do
+		local temp = string_explode(" ", string_gsub(string_trim(line), "%s+", " "))
+		local head = table_remove(temp, 1)
+
+		if head == "v" then
+			local vert = Vector(tonumber(temp[1]), tonumber(temp[2]), tonumber(temp[3]))
+			if scale then
+				vert.x = vert.x * scale.x
+				vert.y = vert.y * scale.y
+				vert.z = vert.z * scale.z
+			end
+			calcbounds(omins, omaxs, vert)
+		end
+	end
+
+	pos = (omins + omaxs)*0.5
+	ang = ang or Angle()
+
+	return getVertsFromMDL({ang	= ang, pos	= pos, prop = "models/hunter/blocks/cube025x025x025.mdl", scale = (omaxs - omins)/12}, meshtex, vmins, vmaxs, direct)
+end
+
 local function getVertsFromOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
+	if disable_obj then
+		return getFallbackOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
+	end
+
 	local modeluid = tonumber(partnext.objd)
 	local modelobj = custom[modeluid]
 

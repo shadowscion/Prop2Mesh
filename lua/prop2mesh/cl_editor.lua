@@ -1198,16 +1198,23 @@ function PANEL:Init()
 	self.progress:Dock(BOTTOM)
 	self.progress:DockMargin(1, 1, 1, 1)
 	self.progress:SetTall(16)
+
+	local disabled = GetConVar("prop2mesh_disable")
 	self.progress.Paint = function(pnl, w, h)
 		surface.SetDrawColor(theme.colorTree)
 		surface.DrawRect(0, 0, w, h)
 
 		if pnl.frac then
-			surface.SetDrawColor(0, 255, 0)
-			surface.DrawRect(0, 0, pnl.frac*w, h)
-
-			if pnl.text then
-				draw.SimpleText(pnl.text, shadowscion_standard_font, w*0.5, h*0.5, theme.colorText_default, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			if disabled:GetBool() then
+				surface.SetDrawColor(255, 0, 0)
+				surface.DrawRect(0, 0, w*0.25, h)
+				draw.SimpleText("prop2mesh is disabled...", shadowscion_standard_font, w*0.5, h*0.5, theme.colorText_kill, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			else
+				surface.SetDrawColor(0, 255, 0)
+				surface.DrawRect(0, 0, pnl.frac*w, h)
+				if pnl.text then
+					draw.SimpleText(pnl.text, shadowscion_standard_font, w*0.5, h*0.5, theme.colorText_default, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				end
 			end
 		end
 

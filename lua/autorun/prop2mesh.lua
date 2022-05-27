@@ -37,6 +37,8 @@ end
 
 ]]
 if SERVER then
+	CreateConVar("prop2mesh_disable_allowed", 0, {FCVAR_NOTIFY, FCVAR_ARCHIVE}, "prevents prop2mesh data from networking")
+
 	AddCSLuaFile("prop2mesh/cl_meshlab.lua")
 	AddCSLuaFile("prop2mesh/cl_modelfixer.lua")
 	AddCSLuaFile("prop2mesh/cl_editor.lua")
@@ -84,6 +86,8 @@ if SERVER then
 	end, "Data")
 
 elseif CLIENT then
+	CreateClientConVar("prop2mesh_disable", 0, true, true)
+
 	if not shadowscion_standard_font then
 		shadowscion_standard_font = "shadowscion_standard_font"
 		surface.CreateFont(shadowscion_standard_font, {size = 13, weight = 800, font = "Tahoma"})

@@ -134,6 +134,14 @@ entclass.prop_physics = function(partlist, ent, worldpos, worldang)
 	partlist[#partlist + 1] = part
 end
 
+entclass.prop_effect = function(partlist, ent, worldpos, worldang)
+	ent = ent.AttachedEntity
+
+	if not ent or not IsValid(ent) or ent:GetClass() ~= "prop_dynamic" then return end
+
+	entclass.prop_physics(partlist, ent, worldpos, worldang)
+end
+
 entclass.acf_armor = entclass.prop_physics
 
 entclass.gmod_wire_hologram = function(partlist, ent, worldpos, worldang)

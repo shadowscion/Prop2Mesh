@@ -70,6 +70,15 @@ if SERVER then
 		ent:Activate()
 		ent:SetPlayer(self:GetOwner())
 
+		local freeze = self:GetClientNumber("tool_setfrozen") ~= 0
+		if freeze then
+			local phys = ent:GetPhysicsObject()
+			if IsValid(phys) then
+				phys:EnableMotion(false)
+				phys:Wake()
+			end
+		end
+
 		if CPPI and ent.CPPISetOwner then
 			ent:CPPISetOwner(self:GetOwner())
 		end
@@ -193,6 +202,9 @@ if SERVER then
 		end
 	end
 
+	local attachments = {}
+	attachments.prop_effect = function(ent) return IsValid(ent.AttachedEntity) and ent.AttachedEntity end
+
 	function TOOL:SelectEntity(ent)
 		if not IsValid(ent) or self.selection[ent] or ent == self.p2m.ent or not checkOwner(self:GetOwner(), ent) then
 			return false
@@ -201,10 +213,13 @@ if SERVER then
 		if not select_color_class[class] then
 			return false
 		end
-		self.selection[ent] = { col = ent:GetColor(), mat = ent:GetMaterial(), mode = ent:GetRenderMode() }
-		ent:SetColor(select_color_class[class])
-		ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
-		ent:SetMaterial(select_material)
+
+		local temp = attachments[class] and attachments[class](ent) or ent
+
+		self.selection[ent] = { col = temp:GetColor(), mat = temp:GetMaterial(), mode = temp:GetRenderMode() }
+		temp:SetColor(select_color_class[class])
+		temp:SetRenderMode(RENDERMODE_TRANSCOLOR)
+		temp:SetMaterial(select_material)
 		ent:CallOnRemove("prop2mesh_deselect", function(e)
 			self.selection[e] = nil
 		end)
@@ -218,9 +233,13 @@ if SERVER then
 		if modify then
 			duplicator.StoreEntityModifier(ent, "colour", { Color = self.selection[ent].col, RenderMode = self.selection[ent].mode })
 		end
-		ent:SetColor(self.selection[ent].col)
-		ent:SetRenderMode(self.selection[ent].mode)
-		ent:SetMaterial(self.selection[ent].mat)
+
+		local class = ent:GetClass()
+		local temp = attachments[class] and attachments[class](ent) or ent
+
+		temp:SetColor(self.selection[ent].col)
+		temp:SetRenderMode(self.selection[ent].mode)
+		temp:SetMaterial(self.selection[ent].mat)
 		ent:RemoveCallOnRemove("prop2mesh_deselect")
 		self.selection[ent] = nil
 		return true
@@ -641,6 +660,7 @@ language.Add("tool.prop2mesh.right3", "Select [E] all entities parented to your 
 
 local ConVars = {
 	["tool_legacymode"]      = 0,
+	["tool_setfrozen"]       = 0,
 	["tool_setmodel"]        = "models/p2m/cube.mdl",
 	["tool_setautocenter"]   = 0,
 	["tool_setautoremove"]   = 0,
@@ -661,7 +681,7 @@ local ConVars = {
 	["tool_filter_ipacf"]    = 1, -- procedural armor
 	]]
 
-	["tool_filter_ilist"]    = "acf_armor, sent_prop2mesh_legacy, primitive_rail_slider",
+	["tool_filter_ilist"]    = "prop_effect, acf_armor, sent_prop2mesh_legacy, primitive_rail_slider",
 }
 TOOL.ClientConVar = ConVars
 
@@ -718,6 +738,11 @@ local function BuildPanel_ToolSettings(self)
 		surface.DrawLine(0, h - 1, w, h - 1)
 	end
 
+	local cbox = pnl:CheckBox("Spawn frozen", "prop2mesh_tool_setfrozen")
+	cbox.OnChange = function(_, value)
+		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
+	end
+
 	local cbox = pnl:CheckBox("Enable legacy mode", "prop2mesh_tool_legacymode")
 	cbox.OnChange = function(_, value)
 		cbox.Label:SetTextColor(value and Color(255, 0, 0) or nil)
@@ -758,7 +783,7 @@ local function BuildPanel_ToolSettings(self)
 	--
 	local class_list_convar = GetConVar("prop2mesh_tool_filter_ilist")
 	local class_list_filter = GetClientFilters(class_list_convar:GetString())
-	local class_list_display = { "prop_physics", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
+	local class_list_display = { "prop_physics", "prop_effect", "gmod_wire_hologram", "starfall_hologram", "acf_armor", "sent_prop2mesh_legacy" }
 
 	local combo = vgui.Create("DComboBox", pnl)
 	pnl:AddItem(combo)

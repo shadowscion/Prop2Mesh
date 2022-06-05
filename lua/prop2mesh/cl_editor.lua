@@ -237,6 +237,9 @@ end
 ]]
 local theme = {}
 
+local editor_font = "prop2mesh_editor_font"
+surface.CreateFont(editor_font, {font = "Consolas", size = 14, weight = 800, antialias = 1})
+
 theme.colorText_add = Color(100, 200, 100)
 theme.colorText_edit = Color(100, 100, 255)
 theme.colorText_kill = Color(255, 100, 100)
@@ -249,14 +252,14 @@ local wireframe = Material("models/wireframe")
 local TreeAddNode, NodeAddNode
 function TreeAddNode(self, text, icon, font)
 	local node = DTree.AddNode(self, string.lower(text), icon)
-	node.Label:SetFont(font or shadowscion_standard_font)
+	node.Label:SetFont(font or editor_font)
 	node.Label:SetTextColor(theme.colorText_default)
 	node.AddNode = NodeAddNode
 	return node
 end
 function NodeAddNode(self, text, icon, font)
 	local node = DTree_Node.AddNode(self, string.lower(text), icon)
-	node.Label:SetFont(font or shadowscion_standard_font)
+	node.Label:SetFont(font or editor_font)
 	node.Label:SetTextColor(theme.colorText_default)
 	node.AddNode = NodeAddNode
 	return node
@@ -425,7 +428,7 @@ local function registerString(partnode, name, key)
 		text:SetSize(cellWidth, h)
 	end
 
-	text:SetFont(shadowscion_standard_font)
+	text:SetFont(editor_font)
 	text.OnValueChange = function(self, val)
 		if not tostring(val) then
 			self:SetText(partnode.new[key])
@@ -492,7 +495,7 @@ local function registerVector(partnode, name, key)
 	end
 
 	for i, v in ipairs({x, y, z}) do
-		v:SetFont(shadowscion_standard_font)
+		v:SetFont(editor_font)
 		v:SetNumeric(true)
 		v.OnValueChange = function(self, val)
 			if not tonumber(val) then
@@ -540,7 +543,7 @@ local function registerBoolean(partnode, name, key)
 
 	x:SetValue(partnode.new[key] == 1)
 	x:SetTextColor(theme.colorText_default)
-	x:SetFont(shadowscion_standard_font)
+	x:SetFont(editor_font)
 end
 
 local function registerFloat(partnode, name, key, min, max)
@@ -551,7 +554,7 @@ local function registerFloat(partnode, name, key, min, max)
 	x:Dock(LEFT)
 	x:DockMargin(24, 0, 4, 0)
 	x:SetText(name)
-	x:SetFont(shadowscion_standard_font)
+	x:SetFont(editor_font)
 	x:SetTextColor(theme.colorText_default)
 
 	local s = vgui.Create("DNumSlider", node)
@@ -561,7 +564,7 @@ local function registerFloat(partnode, name, key, min, max)
 	s.Scratch:SetVisible(false)
 	s.Label:SetVisible(false)
 	s.Label:SetTextColor(theme.colorText_default)
-	s.TextArea:SetFont(shadowscion_standard_font)
+	s.TextArea:SetFont(editor_font)
 	s:SetWide(128)
 	s:DockMargin(24, 0, 4, 0)
 	s:Dock(LEFT)
@@ -637,7 +640,7 @@ local function registerSubmodels(partnode)
 		x:SetValue(new[i] == 1)
 		x:SetToolTip(string.format("tris: %d\nmat: %s", #submeshes[i].triangles, submeshes[i].material))
 		x:SetTextColor(theme.colorText_default)
-		x:SetFont(shadowscion_standard_font)
+		x:SetFont(editor_font)
 	end
 end
 
@@ -805,7 +808,7 @@ local function setGlobalValue(frame, conroot, mod, key, value, name, force)
 			frame.btnConfirm:DoClick()
 		end, "No")
 
-		pnl.lblTitle:SetFont(shadowscion_standard_font)
+		pnl.lblTitle:SetFont(editor_font)
 		pnl.lblTitle:SetTextColor(color_white)
 
 		local time = SysTime()
@@ -838,7 +841,7 @@ local function conmenu(frame, conroot)
 				frame.btnConfirm:DoClick()
 			end, "No", function() end)
 
-			pnl.lblTitle:SetFont(shadowscion_standard_font)
+			pnl.lblTitle:SetFont(editor_font)
 			pnl.lblTitle:SetTextColor(color_white)
 
 			local time = SysTime()
@@ -865,7 +868,7 @@ local function conmenu(frame, conroot)
 				frame.btnConfirm:DoClick()
 			end)
 
-			pnl.lblTitle:SetFont(shadowscion_standard_font)
+			pnl.lblTitle:SetFont(editor_font)
 			pnl.lblTitle:SetTextColor(color_white)
 
 			local time = SysTime()
@@ -947,7 +950,7 @@ local function setEntityActual(self, ent)
 	self.Entity:CallOnRemove("prop2mesh_editor_close", function()
 		self:Remove()
 	end)
-	self.lblTitle:SetFont(shadowscion_standard_font)
+	self.lblTitle:SetFont(editor_font)
 	self:SetTitle(tostring(self.Entity))
 	self:RemakeTree()
 end
@@ -1128,7 +1131,7 @@ function PANEL:Init()
 	self.btnConfirm = vgui.Create("DButton", self)
 	self.btnConfirm:Dock(BOTTOM)
 	self.btnConfirm:DockMargin(0, 2, 0, 0)
-	self.btnConfirm:SetFont(shadowscion_standard_font)
+	self.btnConfirm:SetFont(editor_font)
 	self.btnConfirm:SetText("Confirm changes")
 	self.btnConfirm.DoClick = function()
 		if not IsValid(self.Entity) then
@@ -1208,12 +1211,12 @@ function PANEL:Init()
 			if disabled:GetBool() then
 				surface.SetDrawColor(255, 0, 0)
 				surface.DrawRect(0, 0, w*0.25, h)
-				draw.SimpleText("prop2mesh is disabled...", shadowscion_standard_font, w*0.5, h*0.5, theme.colorText_kill, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				draw.SimpleText("prop2mesh is disabled...", editor_font, w*0.5, h*0.5, theme.colorText_kill, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			else
 				surface.SetDrawColor(0, 255, 0)
 				surface.DrawRect(0, 0, pnl.frac*w, h)
 				if pnl.text then
-					draw.SimpleText(pnl.text, shadowscion_standard_font, w*0.5, h*0.5, theme.colorText_default, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+					draw.SimpleText(pnl.text, editor_font, w*0.5, h*0.5, theme.colorText_default, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 				end
 			end
 		end
@@ -1387,7 +1390,7 @@ function PANEL:RemakeTree()
 		import.ShowIcons = HideIcons
 
 		local btnImport = vgui.Create("DButton", import)
-		btnImport:SetFont(shadowscion_standard_font)
+		btnImport:SetFont(editor_font)
 		btnImport:SetText("Open file browser")
 		btnImport:SizeToContents()
 		btnImport:Dock(LEFT)
@@ -1425,7 +1428,7 @@ end
 function PANEL:OpenFileBrowser(title, folder, wildcards, attachmentNode, menuCallback)
 	local frame = vgui.Create("DFrame", self)
 
-	frame.lblTitle:SetFont(shadowscion_standard_font)
+	frame.lblTitle:SetFont(editor_font)
 	frame:SetTitle(title)
 	frame:SetSize(self:GetWide()*0.75, self:GetTall()*0.5)
 	frame:Center()

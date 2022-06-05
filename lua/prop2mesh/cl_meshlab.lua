@@ -773,7 +773,7 @@ local function setmessage(text)
 
 		local green = Color(255, 255, 0)
 		local black = Color(0,0,0)
-		local font  = shadowscion_standard_font or "Default"
+		local font  = "Default"
 
 		message.Paint = function(self, w, h)
 			draw.SimpleTextOutlined(self.text, font, 0, 0, green, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, 1, black)

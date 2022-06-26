@@ -8,6 +8,44 @@ file.CreateDir("p2m")
 
 --[[
 
+	skin and panel overrides
+
+]]
+local theme = {}
+
+local editor_font = "prop2mesh_editor_font"
+surface.CreateFont(editor_font, {font = "Consolas", size = 14, weight = 800, antialias = 1})
+
+theme.colorText_add = Color(100, 200, 100)
+theme.colorText_edit = Color(100, 100, 255)
+theme.colorText_kill = Color(255, 100, 100)
+theme.colorText_default = Color(75, 75, 75)
+theme.colorMain = Color(75, 75, 75)
+theme.colorTree = Color(245, 245, 245)
+
+local wireframe = Material("models/wireframe")
+
+local TreeAddNode, NodeAddNode
+function TreeAddNode(self, text, icon, font)
+	local node = DTree.AddNode(self, string.lower(text), icon)
+	node.Label:SetFont(font or editor_font)
+	node.Label:SetTextColor(theme.colorText_default)
+	node.AddNode = NodeAddNode
+	return node
+end
+function NodeAddNode(self, text, icon, font)
+	local node = DTree_Node.AddNode(self, string.lower(text), icon)
+	node.Label:SetFont(font or editor_font)
+	node.Label:SetTextColor(theme.colorText_default)
+	node.AddNode = NodeAddNode
+	return node
+end
+
+local function HideIcons() return false end
+
+
+--[[
+
 	uploader
 
 ]]
@@ -86,7 +124,8 @@ local function formatOBJ(filestr)
 	return table.concat(condensed)
 end
 
-local function exportOBJ(meshparts)
+local export_output, export_iter
+local function exportOBJ(meshparts, additive, id)
 	if not meshparts then
 		return
 	end
@@ -104,8 +143,10 @@ local function exportOBJ(meshparts)
 		tbl[#tbl + 1] = format(pattern, ...)
 	end
 
-	local t_output = {}
-	local vnum = 1
+	if not export_iter or not export_output then
+		export_output = {}
+		export_iter = 1
+	end
 
 	for i = 2, #meshparts do
 		local part = meshparts[i]
@@ -132,12 +173,12 @@ local function exportOBJ(meshparts)
 			push(s_uvws, p_uvws, v2.u, v2.v)
 			push(s_uvws, p_uvws, v3.u, v3.v)
 
-			push(s_faces, p_faces, vnum, vnum, vnum, vnum + 2, vnum + 2, vnum + 2, vnum + 1, vnum + 1, vnum + 1)
-			vnum = vnum + 3
+			push(s_faces, p_faces, export_iter, export_iter, export_iter, export_iter + 2, export_iter + 2, export_iter + 2, export_iter + 1, export_iter + 1, export_iter + 1)
+			export_iter = export_iter + 3
 		end
 
-		t_output[#t_output + 1] = concat({
-			format("\no model %d\n", i - 1),
+		export_output[#export_output + 1] = concat({
+			format("\no id %d model %d\n", id or 1, i - 1),
 			concat(s_verts),
 			concat(s_norms),
 			concat(s_uvws),
@@ -145,30 +186,43 @@ local function exportOBJ(meshparts)
 		})
 	end
 
-	return concat(t_output)
+	if not additive then
+		local ret = concat(export_output)
+		export_iter = nil
+		export_output = nil
+
+		return ret
+	end
 end
 
-local function formatE2(conroot)
+local function formatE2(conroot, skipheader)
+	if conroot.crc == "!none" then return end
+
 	local format = string.format
 	local concat = table.concat
 
 	local header = {}
-	header[#header + 1] = "#---- UNCOMMENT IF NECESSARY\n#---- ONLY NEEDED ONCE PER ENTITY\n"
-	header[#header + 1] = "#[\nBase = entity()\nP2M = p2mCreate( put count here, Base:pos(), Base:angles())\nP2M:p2mSetParent(Base)\n]#\n\n"
-	header[#header + 1] = "#---- UNCOMMENT AND PUT AT END OF CODE\n#P2M:p2mBuild()\n\n"
+
+	p2m = conroot.pname or "P2M1"
+
+	if not skipheader then
+		header[#header + 1] = "#---- UNCOMMENT IF NECESSARY\n#---- ONLY NEEDED ONCE PER ENTITY\n"
+		header[#header + 1] = "#[\nBase = entity()\nP2M = p2mCreate( put count here, Base:pos(), Base:angles())\nP2M:p2mSetParent(Base)\n]#\n\n"
+		header[#header + 1] = "#---- UNCOMMENT AND PUT AT END OF CODE\n#P2M:p2mBuild()\n\n"
+	end
 
 	header[#header + 1] = format("#---- CONTROLLER %d\nlocal Index = %d\n", conroot.num, conroot.num)
-	header[#header + 1] = format("P2M:p2mSetUV(Index, %d)", conroot.info.uvs)
-	header[#header + 1] = format("P2M:p2mSetScale(Index, vec(%g, %g, %g))", conroot.info.scale.x, conroot.info.scale.y, conroot.info.scale.z)
-	header[#header + 1] = format("P2M:p2mSetColor(Index, vec4(%d, %d, %d, %d))", conroot.info.col.r, conroot.info.col.g, conroot.info.col.b, conroot.info.col.a)
-	header[#header + 1] = format("P2M:p2mSetMaterial(Index, \"%s\")\n\n", conroot.info.mat)
+	header[#header + 1] = format("%s:p2mSetUV(Index, %d)", p2m, conroot.info.uvs)
+	header[#header + 1] = format("%s:p2mSetScale(Index, vec(%g, %g, %g))", p2m, conroot.info.scale.x, conroot.info.scale.y, conroot.info.scale.z)
+	header[#header + 1] = format("%s:p2mSetColor(Index, vec4(%d, %d, %d, %d))", p2m, conroot.info.col.r, conroot.info.col.g, conroot.info.col.b, conroot.info.col.a)
+	header[#header + 1] = format("%s:p2mSetMaterial(Index, \"%s\")\n\n", p2m, conroot.info.mat)
 
 	local specialk = {
 		clips = true, vsmooth = true, vinside = true, bodygroup = true, submodels = true
 	}
 
 	local body = {}
-	for k, v in ipairs(prop2mesh.getMeshData(conroot.info.crc, true)) do
+	for k, v in ipairs(prop2mesh.getMeshData(conroot.info.crc, true) or {}) do
 		if not v.prop and not v.holo then
 			goto CONTINUE
 		end
@@ -212,14 +266,14 @@ local function formatE2(conroot)
 				push[#push + 1] = format("    \"clips\" = array(\n        %s\n    )", concat(clips, ",\n        "))
 			end
 
-			body[#body + 1] = format("P2M:p2mPushModel(Index, table(\n%s\n))", concat(push, ",\n"))
+			body[#body + 1] = format("%s:p2mPushModel(Index, table(\n%s\n))", p2m, concat(push, ",\n"))
 		else
 			if v.scale then
-				body[#body + 1] = format("P2M:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g), vec(%g, %g, %g))",
-					v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r, v.scale.x, v.scale.y, v.scale.z)
+				body[#body + 1] = format("%s:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g), vec(%g, %g, %g))",
+					p2m, v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r, v.scale.x, v.scale.y, v.scale.z)
 			else
-				body[#body + 1] = format("P2M:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g))",
-					v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r)
+				body[#body + 1] = format("%s:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g))",
+					p2m, v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r)
 			end
 		end
 
@@ -232,40 +286,103 @@ end
 
 --[[
 
-	skin and panel overrides
+	batch exporter
 
 ]]
-local theme = {}
+local function batchExportObj(batch)
+	local pnl = Derma_StringRequest("", "Exporting all controllers to folder:", "default", function(text)
+		local gid = 0
+		text = string.lower(string.StripExtension(text))
 
-local editor_font = "prop2mesh_editor_font"
-surface.CreateFont(editor_font, {font = "Consolas", size = 14, weight = 800, antialias = 1})
+		for ent in pairs(batch) do
+			export_iter = nil
+			export_output = nil
 
-theme.colorText_add = Color(100, 200, 100)
-theme.colorText_edit = Color(100, 100, 255)
-theme.colorText_kill = Color(255, 100, 100)
-theme.colorText_default = Color(75, 75, 75)
-theme.colorMain = Color(75, 75, 75)
-theme.colorTree = Color(245, 245, 245)
+			for index, info in ipairs(ent.prop2mesh_controllers) do
+				exportOBJ(prop2mesh.getMeshDirect(info.crc, info.uvs), true, index)
+			end
 
-local wireframe = Material("models/wireframe")
+			gid = gid + 1
 
-local TreeAddNode, NodeAddNode
-function TreeAddNode(self, text, icon, font)
-	local node = DTree.AddNode(self, string.lower(text), icon)
-	node.Label:SetFont(font or editor_font)
-	node.Label:SetTextColor(theme.colorText_default)
-	node.AddNode = NodeAddNode
-	return node
+			local dir = string.format("p2m/%s", text)
+			file.CreateDir(dir)
+			file.Write(string.format("%s/controller%d.txt", dir, gid), table.concat(export_output))
+		end
+	end)
+
+	pnl.lblTitle:SetFont(editor_font)
+	pnl.lblTitle:SetTextColor(color_white)
+
+	local time = SysTime()
+
+	pnl.Paint = function(_, w, h)
+		Derma_DrawBackgroundBlur(pnl, time)
+		surface.SetDrawColor(theme.colorMain)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(0, 0, 0)
+		surface.DrawOutlinedRect(0, 0, w, h)
+	end
 end
-function NodeAddNode(self, text, icon, font)
-	local node = DTree_Node.AddNode(self, string.lower(text), icon)
-	node.Label:SetFont(font or editor_font)
-	node.Label:SetTextColor(theme.colorText_default)
-	node.AddNode = NodeAddNode
-	return node
+
+local function batchFormatE2(batch)
+	openE2Editor()
+	if not wire_expression2_editor then return end
+
+	local codeblocks = {""}
+
+	local header = {}
+	header[#header + 1] = "#----\nBase = entity()\n\n"
+
+	local eid = 0
+	for ent in pairs(batch) do
+		eid = eid + 1
+		for index, info in ipairs(ent.prop2mesh_controllers) do
+			codeblocks[#codeblocks + 1] = formatE2({ pname = string.format("P2M%d", eid), num = index, info = info }, true)
+		end
+		header[#header + 1] = string.format("P2M%d = p2mCreate(%d, Base:pos(), Base:angles())\n", eid, #ent.prop2mesh_controllers)
+	end
+
+	header[#header + 1] = "\n"
+	for i = 1, eid do
+		header[#header + 1] = string.format("P2M%d:p2mSetParent(Base)\n", i)
+	end
+
+	local footer = {"#----\n"}
+	for i = 1, eid do
+		footer[#footer + 1] = string.format("P2M%d:p2mBuild()\n", i)
+	end
+
+	codeblocks[1] = table.concat(header)
+	codeblocks[#codeblocks + 1] = table.concat(footer)
+
+	wire_expression2_editor:NewTab()
+	wire_expression2_editor:SetCode(table.concat(codeblocks, "\n\n"))
+	spawnmenu.ActivateTool("wire_expression2")
 end
 
-local function HideIcons() return false end
+net.Receive("prop2mesh_export", function()
+	local type = net.ReadUInt(8)
+
+	local count = net.ReadUInt(32)
+	local batch = {}
+
+	for i = 1, count do
+		local ent = Entity(net.ReadUInt(32))
+		if IsValid(ent) then
+			batch[ent] = true
+		end
+	end
+
+	if next(batch) == nil then return end
+
+	if type == 1 then
+		batchExportObj(batch)
+	end
+
+	if type == 2 and E2Lib and openE2Editor then
+		batchFormatE2(batch)
+	end
+end)
 
 
 --[[
@@ -1087,17 +1204,16 @@ function PANEL:Init()
 		-- sub:AddOption("export all", function()
 		-- end):SetIcon("icon16/layout_delete.png")
 
+		local opt = menu:AddOption("Export all as .obj", function()
+			batchExportObj({[self.Entity] = true})
+		end)
+		opt:SetIcon("icon16/car.png")
 
-		-- local sub, opt = menu:AddSubMenu("expression2")
-		-- opt:SetIcon("icon16/cog.png")
-		-- opt.m_Image:SetImageColor(Color(255, 125, 125))
-
-		-- local opt = sub:AddOption("export all", function()
-		-- end)
-		-- opt:SetIcon("icon16/cog.png")
-		-- opt.m_Image:SetImageColor(Color(255, 125, 125))
-
-
+		local opt = menu:AddOption("Export all to E2", function()
+			batchFormatE2({[self.Entity] = true})
+		end)
+		opt:SetIcon("icon16/cog.png")
+		opt.m_Image:SetImageColor(Color(255, 125, 125))
 
 		menu:AddSpacer()
 		menu:AddOption("cancel"):SetIcon("icon16/cancel.png")

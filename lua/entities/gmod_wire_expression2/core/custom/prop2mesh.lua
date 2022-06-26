@@ -99,6 +99,9 @@ registerCallback("destruct", function(self)
 			ent:Remove()
 		end
 	end
+	if IsValid(self.entity) then
+		self.entity:SetNW2Bool("has_prop2mesh", false)
+	end
 end)
 
 local function p2mCreate(context, count, pos, ang, uvs, scale)
@@ -142,6 +145,8 @@ local function p2mCreate(context, count, pos, ang, uvs, scale)
 	self.DoNotDuplicate = true
 	self.prop2mesh_e2_resevoir = {}
 
+	context.entity:SetNW2Bool("has_prop2mesh", true)
+
 	for i = 1, count do
 		self:AddController()
 		if uvs then self:SetControllerUVS(i, uvs) end
@@ -171,6 +176,10 @@ e2function void entity:p2mRemove()
 	if checkvalid(self, this, nil, nil, true) then
 		self.data.prop2mesh[this] = nil
 		SafeRemoveEntity(this)
+
+		if next(self.data.prop2mesh) == nil then
+			self.entity:SetNW2Bool("has_prop2mesh", false)
+		end
 	end
 end
 

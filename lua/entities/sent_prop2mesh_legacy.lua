@@ -28,23 +28,30 @@ if CLIENT then
 	return
 end
 
+
 function ENT:Think()
 	local info = self.prop2mesh_controllers[1]
 	if info then
 		local val = self:GetColor()
+
 		if info.col.r ~= val.r or info.col.g ~= val.g or info.col.b ~= val.b or info.col.a ~= val.a then
 			info.col.r = val.r
 			info.col.g = val.g
 			info.col.b = val.b
 			info.col.a = val.a
+
 			self:AddControllerUpdate(1, "col")
 		end
+
 		local val = self:GetMaterial()
-		if info.mat ~= val then
+
+		if info.mat ~= val and not string.find(val, ";") then
 			info.mat = val
+
 			self:AddControllerUpdate(1, "mat")
 		end
 	end
+
 	BaseClass.Think(self)
 end
 

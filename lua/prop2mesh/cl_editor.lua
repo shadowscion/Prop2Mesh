@@ -213,7 +213,7 @@ local function formatE2(conroot, skipheader)
 
 	header[#header + 1] = format("#---- CONTROLLER %d\nlocal Index = %d\n", conroot.num, conroot.num)
 	header[#header + 1] = format("%s:p2mSetUV(Index, %d)", p2m, conroot.info.uvs)
-	header[#header + 1] = format("%s:p2mSetScale(Index, vec(%g, %g, %g))", p2m, conroot.info.scale.x, conroot.info.scale.y, conroot.info.scale.z)
+	header[#header + 1] = format("%s:p2mSetScale(Index, vec(%.3f, %.3f, %.3f))", p2m, conroot.info.scale.x, conroot.info.scale.y, conroot.info.scale.z)
 	header[#header + 1] = format("%s:p2mSetColor(Index, vec4(%d, %d, %d, %d))", p2m, conroot.info.col.r, conroot.info.col.g, conroot.info.col.b, conroot.info.col.a)
 	header[#header + 1] = format("%s:p2mSetMaterial(Index, \"%s\")\n\n", p2m, conroot.info.mat)
 
@@ -239,11 +239,11 @@ local function formatE2(conroot, skipheader)
 			local push = {}
 
 			push[#push + 1] = format("    \"model\" = \"%s\"", v.prop or v.holo)
-			push[#push + 1] = format("    \"pos\" = vec(%g, %g, %g)", v.pos.x, v.pos.y, v.pos.z)
-			push[#push + 1] = format("    \"ang\" = ang(%g, %g, %g)", v.ang.p, v.ang.y, v.ang.r)
+			push[#push + 1] = format("    \"pos\" = vec(%.3f, %.3f, %.3f)", v.pos.x, v.pos.y, v.pos.z)
+			push[#push + 1] = format("    \"ang\" = ang(%.3f, %.3f, %.3f)", v.ang.p, v.ang.y, v.ang.r)
 
 			if v.scale then
-				push[#push + 1] = format("    \"scale\" = vec(%g, %g, %g)", v.scale.x, v.scale.y, v.scale.z)
+				push[#push + 1] = format("    \"scale\" = vec(%.3f, %.3f, %.3f)", v.scale.x, v.scale.y, v.scale.z)
 			end
 			if v.vsmooth then
 				push[#push + 1] = "    \"flat\" = 1"
@@ -261,7 +261,7 @@ local function formatE2(conroot, skipheader)
 				local clips = {}
 				for i, clip in ipairs(v.clips) do
 					local pos = clip.n * clip.d
-					clips[#clips + 1] = format("vec(%g, %g, %g), vec(%g, %g, %g)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
+					clips[#clips + 1] = format("vec(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f)", pos.x, pos.y, pos.z, clip.n.x, clip.n.y, clip.n.z)
 				end
 				push[#push + 1] = format("    \"clips\" = array(\n        %s\n    )", concat(clips, ",\n        "))
 			end
@@ -269,10 +269,10 @@ local function formatE2(conroot, skipheader)
 			body[#body + 1] = format("%s:p2mPushModel(Index, table(\n%s\n))", p2m, concat(push, ",\n"))
 		else
 			if v.scale then
-				body[#body + 1] = format("%s:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g), vec(%g, %g, %g))",
+				body[#body + 1] = format("%s:p2mPushModel(Index, \"%s\", vec(%.3f, %.3f, %.3f), ang(%.3f, %.3f, %.3f), vec(%.3f, %.3f, %.3f))",
 					p2m, v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r, v.scale.x, v.scale.y, v.scale.z)
 			else
-				body[#body + 1] = format("%s:p2mPushModel(Index, \"%s\", vec(%g, %g, %g), ang(%g, %g, %g))",
+				body[#body + 1] = format("%s:p2mPushModel(Index, \"%s\", vec(%.3f, %.3f, %.3f), ang(%.3f, %.3f, %.3f))",
 					p2m, v.prop or v.holo, v.pos.x, v.pos.y, v.pos.z, v.ang.p, v.ang.y, v.ang.r)
 			end
 		end

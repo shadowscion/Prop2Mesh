@@ -482,7 +482,7 @@ end
 
 function ENT:SetControllerMat(index, val)
 	local info = self.prop2mesh_controllers[index]
-	if (info and isstring(val)) and (info.mat ~= val) then
+	if (info and isstring(val) and not string.find(val, ";")) and (info.mat ~= val) then
 		info.mat = val
 		self:AddControllerUpdate(index, "mat")
 	end

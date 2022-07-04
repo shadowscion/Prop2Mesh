@@ -42,7 +42,7 @@ if SERVER then
 	AddCSLuaFile("prop2mesh/cl_meshlab.lua")
 	AddCSLuaFile("prop2mesh/cl_modelfixer.lua")
 	AddCSLuaFile("prop2mesh/cl_editor.lua")
-	AddCSLuaFile("prop2mesh/compat/cl_primitive.lua")
+	--AddCSLuaFile("prop2mesh/compat/cl_primitive.lua")
 	AddCSLuaFile("prop2mesh/sh_netstream.lua")
 
 	include("prop2mesh/sh_netstream.lua")
@@ -92,7 +92,7 @@ elseif CLIENT then
 	include("prop2mesh/cl_meshlab.lua")
 	include("prop2mesh/cl_modelfixer.lua")
 	include("prop2mesh/cl_editor.lua")
-	include("prop2mesh/compat/cl_primitive.lua")
+	--include("prop2mesh/compat/cl_primitive.lua")
 
 	concommand.Add("prop2mesh_debug_bodygroups", function(ply, cmd, args)
 		local eid = tonumber(args[1])

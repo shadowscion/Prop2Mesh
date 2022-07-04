@@ -201,6 +201,7 @@ end
 --[[
 
 ]]
+/*
 local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
 	if partnext.vsmooth == 1 and partnext.primitive then
 		partnext.primitive.modv = string.gsub(partnext.primitive.modv or "", "(normals=%d+)", "")
@@ -298,6 +299,7 @@ local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
 
 	return partverts
 end
+*/
 
 local meshmodelcache
 local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
@@ -689,6 +691,8 @@ local function getMeshFromData(data, uvs, direct, split)
 			else
 				print(opv)
 			end
+		end
+		/*
 		elseif partnext.primitive then
 			local valid, opv = pcall(getVertsFromPrimitive, partnext, meshtex, vmins, vmaxs, direct)
 			if valid and opv then
@@ -697,6 +701,7 @@ local function getMeshFromData(data, uvs, direct, split)
 				print(opv)
 			end
 		end
+		*/
 
 		if partverts then
 			meshpcount = meshpcount + 1

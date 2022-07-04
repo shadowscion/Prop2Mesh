@@ -263,6 +263,7 @@ entclass.sent_prop2mesh_legacy = function(partlist, ent, worldpos, worldang)
 	end
 end
 
+/*
 entclass.primitive_shape = function(partlist, ent, worldpos, worldang)
 	if not ent._primitive_GetVars then return end
 
@@ -291,3 +292,4 @@ entclass.primitive_rail_slider = function(partlist, ent, worldpos, worldang)
 
 	partlist[#partlist + 1] = part
 end
+*/

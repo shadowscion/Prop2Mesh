@@ -681,7 +681,7 @@ local ConVars = {
 	["tool_filter_ipacf"]    = 1, -- procedural armor
 	]]
 
-	["tool_filter_ilist"]    = "prop_effect, acf_armor, sent_prop2mesh_legacy", --primitive_rail_slider",
+	["tool_filter_ilist"]    = "prop_effect, acf_armor, sent_prop2mesh_legacy",
 }
 TOOL.ClientConVar = ConVars
 
@@ -814,17 +814,15 @@ local function BuildPanel_ToolSettings(self)
 		choices[id] = v
 	end
 
-	/*
-	if g_primitive then
+	if Primitive then
 		combo:AddSpacer()
 
 		local v = "primitive_shape"
 		choices[combo:AddChoice(v, onChoose, nil, class_list_filter[v] and "icon16/cross.png")] = v
 
-		local v = "primitive_rail_slider"
+		local v = "primitive_airfoil"
 		choices[combo:AddChoice(v, onChoose, nil, class_list_filter[v] and "icon16/cross.png")] = v
 	end
-	*/
 
 	combo:AddSpacer()
 	combo:AddChoice("cancel")

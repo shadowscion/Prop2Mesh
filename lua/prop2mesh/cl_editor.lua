@@ -1528,8 +1528,8 @@ function PANEL:RemakeTree()
 
 		for k, v in ipairs(condata) do
 			local root = v.objd and objlist or mdllist
-			--local name = v.prop or v.holo or v.objn or v.objd or (v.primitive and "primitive_" .. v.primitive.construct)
-			local name = v.prop or v.holo or v.objn or v.objd
+			local name = v.prop or v.holo or v.objn or v.objd or (v.primitive and "primitive_" .. v.primitive.construct)
+			--local name = v.prop or v.holo or v.objn or v.objd
 			local part = root:AddNode(string.format("[%d] %s", k, string.GetFileFromFilename(name)))
 			part:SetIcon("icon16/brick.png")
 

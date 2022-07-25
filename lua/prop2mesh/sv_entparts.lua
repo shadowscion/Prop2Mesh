@@ -263,33 +263,32 @@ entclass.sent_prop2mesh_legacy = function(partlist, ent, worldpos, worldang)
 	end
 end
 
-/*
+
 entclass.primitive_shape = function(partlist, ent, worldpos, worldang)
-	if not ent._primitive_GetVars then return end
+	local vars = ent.primitive and ent.primitive.keys
+	if not istable(vars) or next(vars) == nil then return end
 
-	local vars = ent:_primitive_GetVars(nil, true)
-	if not vars or next(vars) == nil then return end
+	vars = table.Copy(vars)
 
-	vars.construct = vars.shape
-	vars.shape = nil
-
-	local part = basic_info(partlist, ent, worldpos, worldang)
-	part.primitive = vars
-
-	partlist[#partlist + 1] = part
-end
-
-entclass.primitive_rail_slider = function(partlist, ent, worldpos, worldang)
-	if not ent._primitive_GetVars then return end
-
-	local vars = ent:_primitive_GetVars(nil, true)
-	if not vars or next(vars) == nil then return end
-
-	vars.construct = "rail_slider"
+	vars.construct = vars.PrimTYPE
+	vars.PrimTYPE = nil
 
 	local part = basic_info(partlist, ent, worldpos, worldang)
 	part.primitive = vars
 
 	partlist[#partlist + 1] = part
 end
-*/
+
+entclass.primitive_airfoil = function(partlist, ent, worldpos, worldang)
+	local vars = ent.primitive and ent.primitive.keys
+	if not istable(vars) or next(vars) == nil then return end
+
+	vars = table.Copy(vars)
+
+	vars.construct = "airfoil"
+
+	local part = basic_info(partlist, ent, worldpos, worldang)
+	part.primitive = vars
+
+	partlist[#partlist + 1] = part
+end

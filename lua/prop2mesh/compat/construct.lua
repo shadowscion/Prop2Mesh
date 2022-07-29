@@ -605,6 +605,28 @@ do
 
 
     --[[
+        @FUNCTION: simpleton:CopyVertex
+
+        @DESCRIPTION: Copy an existing vertex and add it to the vertex table
+
+        @PARAMETERS:
+            [number] n -- the existing vertex index
+            [number] x -- optional setter
+            [number] y -- optional setter
+            [number] z -- optional setter
+
+        @RETURN:
+            [number] -- the index of the added vertex
+    --]]
+    function meta:CopyVertex( n, x, y, z )
+        local copy = self.verts[n]
+        if not copy then return end
+        self.verts[#self.verts + 1] = Vector( x or copy.x, y or copy.y, z or copy.z )
+        return #self.verts
+    end
+
+
+    --[[
         @FUNCTION: simpleton:PushXYZ
 
         @DESCRIPTION: Add a single vertex to the vertex table, differs from PushVertex in that
@@ -2638,8 +2660,8 @@ registerType( "rail_slider", function( param, data, threaded, physics )
     -- flange
     local fbits, getflange = math_floor( tonumber( param.PrimFENUMS ) or 0 )
 
-    local ENUM_FENABLE = 1
-    if bit.band( fbits, ENUM_FENABLE ) == ENUM_FENABLE then
+    local ENUM_FENABLE = bit.bor( 1, 2, 4, 8 )
+    if bit.band( fbits, ENUM_FENABLE ) ~= 0 then
         local fdim
         if double then
             fdim = Vector( cdim.x, cgap - cdim.y, cdim.z * 0.25 )
@@ -2688,6 +2710,92 @@ registerType( "rail_slider", function( param, data, threaded, physics )
     end
 
     util_Transform( model.verts, param.PrimMESHROT, param.PrimMESHPOS, thread )
+
+    return model
+end )
+
+
+-- STAIRCASE
+registerType( "staircase", function( param, data, threaded, physics )
+    local count = math_clamp( math_floor( tonumber( param.PrimSCOUNT ) or 0 ), 1, 32 )
+    local rise = math_clamp( tonumber( param.PrimSRISE ) or 0, 1, 48 )
+    local run = math_clamp( tonumber( param.PrimSRUN ) or 0, 1, 48 )
+    local width = math_clamp( ( tonumber( param.PrimSWIDTH ) or 0 ) * 0.5, 1, 1000 )
+
+    local model = simpleton.New()
+    local verts = model.verts
+
+    if physics then
+        model.convexes = {}
+    end
+
+    for i = 0, count - 1 do
+        local a = model:PushXYZ( run * i, width, rise * i )
+        local b = model:PushXYZ( run * i, width, rise * i + rise )
+        local c = model:PushXYZ( run * i + run, width, rise * i + rise )
+
+        local d = model:CopyVertex( a, nil, -width, nil )
+        local e = model:CopyVertex( b, nil, -width, nil )
+        local f = model:CopyVertex( c, nil, -width, nil )
+
+        if physics then
+            model.convexes[#model.convexes + 1] = {
+                verts[a],
+                verts[b],
+                verts[c],
+                verts[d],
+                verts[e],
+                verts[f],
+            }
+        end
+
+        if CLIENT then
+            model:PushTriangle( a, b, c ) -- riser
+            model:PushTriangle( f, e, d )
+
+            model:PushTriangle( b, a, d ) -- face
+            model:PushTriangle( b, d, e )
+
+            model:PushTriangle( c, b, e ) -- tread
+            model:PushTriangle( c, e, f )
+        end
+    end
+
+    local isSolid = bit.band( tonumber( param.PrimSOPT ) or 0, 1 ) == 1
+
+    if isSolid then
+        local a = model:PushXYZ( run * count, width,  0 )
+        local b = model:PushXYZ( run * count, -width,  0 )
+
+        if physics then
+            model.convexes[#model.convexes + 1] = {
+                verts[count * 6 - 3],
+                verts[count * 6],
+                verts[1],
+                verts[4],
+                verts[a],
+                verts[b]
+            }
+        end
+
+        if CLIENT then
+            model:PushTriangle( count * 6 - 3, a, 1 ) -- side
+            model:PushTriangle( 4, b, count * 6 )
+
+            model:PushTriangle( b, a, count * 6 - 3 ) -- back
+            model:PushTriangle( b, count * 6 - 3, count * 6 )
+
+            model:PushTriangle( 1, a, b ) -- bottom
+            model:PushTriangle( 1, b, 4 )
+        end
+    else
+        if CLIENT then
+            model:PushTriangle( count * 6 - 3, count * 6, 4 )
+            model:PushTriangle( count * 6 - 3, 4, 1 )
+        end
+    end
+
+    util_Transform( model.verts, param.PrimMESHROT, param.PrimMESHPOS, threaded )
 
     return model
 end )

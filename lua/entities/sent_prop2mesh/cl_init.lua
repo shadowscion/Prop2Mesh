@@ -276,7 +276,6 @@ local function drawMesh(self)
 	return meshes and meshes.basic or empty
 end
 
-local matrix = Matrix()
 local function refresh(self, info)
 	if not IsValid(info.ent) then
 		info.ent = ents.CreateClientside("base_anim")
@@ -307,6 +306,7 @@ local function refresh(self, info)
 	info.ent.RenderGroup = info.col.a == 255 and RENDERGROUP_OPAQUE or RENDERGROUP_BOTH
 
 	if info.scale.x ~= 1 or info.scale.y ~= 1 or info.scale.z ~= 1 then
+		local matrix = Matrix()
 		matrix:SetScale(info.scale)
 		info.ent:EnableMatrix("RenderMultiply", matrix)
 		info.ent.scale = info.scale

@@ -118,7 +118,7 @@ local function toAng( ang )
 end
 
 local function isVector( op0 )
-    return type(op0) == "Vector"
+    return type( op0 ) == "Vector"
 end
 
 ---------------------------------------
@@ -139,11 +139,11 @@ return function( instance ) -- Called for library declarations
     local vec_meta, vunwrap = instance.Types.Vector, instance.Types.Vector.Unwrap
     local col_meta, cwrap, cunwrap = instance.Types.Color, instance.Types.Color.Wrap, instance.Types.Color.Unwrap
 
-    instance:AddHook("initialize", function()
+    instance:AddHook( "initialize", function()
         instance.data.p2ms = { p2ms = {} }
     end)
 
-    instance:AddHook("deinitialize", function()
+    instance:AddHook( "deinitialize", function()
         local p2ms = instance.data.p2ms.p2ms
 
         for p2m, _ in pairs( p2ms ) do
@@ -232,10 +232,10 @@ return function( instance ) -- Called for library declarations
             ent:CPPISetOwner( ply )
         end
 
-        ent:SetPlayer(ply)
-        ent:SetSolid(SOLID_NONE)
-        ent:SetMoveType(MOVETYPE_NONE)
-        ent:DrawShadow(false)
+        ent:SetPlayer( ply )
+        ent:SetSolid( SOLID_NONE )
+        ent:SetMoveType( MOVETYPE_NONE )
+        ent:DrawShadow( false )
         ent:Activate()
 
         ent:CallOnRemove( "starfall_p2m_delete", p2mOnDestroy, p2mdata, ply )

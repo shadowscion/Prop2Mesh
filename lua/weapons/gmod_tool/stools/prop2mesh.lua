@@ -825,6 +825,9 @@ local function BuildPanel_ToolSettings(self)
 
 		local v = "primitive_staircase"
 		choices[combo:AddChoice(v, onChoose, nil, class_list_filter[v] and "icon16/cross.png")] = v
+
+		local v = "primitive_ladder"
+		choices[combo:AddChoice(v, onChoose, nil, class_list_filter[v] and "icon16/cross.png")] = v
 	end
 
 	combo:AddSpacer()

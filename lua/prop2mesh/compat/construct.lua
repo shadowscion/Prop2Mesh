@@ -587,6 +587,27 @@ do
 
 
     --[[
+        @FUNCTION: simpleton:PushFaceTable
+
+        @DESCRIPTION: Triangulates a variable number of indices and adds each triplet to the index table.
+                      NOTE, this creates a triangle fan, which only works for a convex face.
+        @PARAMETERS:
+            [table] -- face index table
+
+        @RETURN:
+    --]]
+    function meta:PushFaceTable( f )
+        local a, b, c = f[1], f[2]
+
+        for i = 3, #f do
+            c = f[i]
+            self:PushTriangle( a, b, c )
+            b = c
+        end
+    end
+
+
+    --[[
         @FUNCTION: simpleton:PushVertex
 
         @DESCRIPTION: Add a single vertex to the vertex table
@@ -2718,8 +2739,8 @@ end )
 -- STAIRCASE
 registerType( "staircase", function( param, data, threaded, physics )
     local count = math_clamp( math_floor( tonumber( param.PrimSCOUNT ) or 0 ), 1, 32 )
-    local rise = math_clamp( tonumber( param.PrimSRISE ) or 0, 1, 48 )
-    local run = math_clamp( tonumber( param.PrimSRUN ) or 0, 1, 48 )
+    local rise = math_clamp( tonumber( param.PrimSRISE ) or 0, 1, 50 )
+    local run = math_clamp( tonumber( param.PrimSRUN ) or 0, 1, 50 )
     local width = math_clamp( ( tonumber( param.PrimSWIDTH ) or 0 ) * 0.5, 1, 1000 )
 
     local model = simpleton.New()
@@ -2793,6 +2814,56 @@ registerType( "staircase", function( param, data, threaded, physics )
             model:PushTriangle( count * 6 - 3, count * 6, 4 )
             model:PushTriangle( count * 6 - 3, 4, 1 )
         end
+    end
+
+    util_Transform( model.verts, param.PrimMESHROT, param.PrimMESHPOS, threaded )
+
+    return model
+end )
+
+
+-- LADDER
+registerType( "ladder", function( param, data, threaded, physics )
+    local model = simpleton.New()
+    local verts = model.verts
+
+    if physics then
+        model.convexes = {}
+    end
+
+    local isSolid = bit.band( tonumber( param.PrimSOPT ) or 0, 1 ) == 1
+
+    local count = math_clamp( math_floor( tonumber( param.PrimSCOUNT ) or 0 ), 1, 32 )
+    local height = math_clamp( tonumber( param.PrimSHEIGHT ) or 0, 1, 50 )
+
+    -- rung
+    local rdim = isvector( param.PrimRDIM ) and Vector( param.PrimRDIM ) or Vector( 1, 1, 1 )
+
+    local rx = math_clamp( rdim.x, 1, 1000 )
+    local ry = math_clamp( rdim.y, 1, 1000 )
+    local rz = math_min( height, math_clamp( rdim.z, 1, 50 ) )
+
+    for i = 0, count - 1 do
+        model:PushPrefab( "cube", Vector( 0, 0, height * i ), Angle(), Vector( rx, ry, rz ), CLIENT, not isSolid and model.convexes )
+    end
+
+    if isSolid and physics then
+        local size = height * ( count - 1 )
+        model:PushPrefab( "cube", Vector( 0, 0, size * 0.5 ), Angle(), Vector( rx, ry, size + rz ), nil, model.convexes )
+    end
+
+    -- rail
+    if count > 1 and bit.band( tonumber( param.PrimSOPT ) or 0, 2 ) == 2 then
+        local xdim = isvector( param.PrimXDIM ) and Vector( param.PrimXDIM ) or Vector( 1, 1, 1 )
+
+        local xx = math_clamp( xdim.x, 1, 1000 )
+        local xy = math_clamp( xdim.y, 1, 1000 )
+        local xz = math_clamp( xdim.z, 1, 50 )
+
+        local xsize = Vector( xx, xy, height * ( count - 1 ) + xz )
+
+        model:PushPrefab( "cube", Vector( 0, ry * 0.5 + xy * 0.5, xsize.z * 0.5 - xz * 0.5 ), Angle(), xsize, CLIENT, model.convexes )
+        model:PushPrefab( "cube", Vector( 0, -ry * 0.5 - xy * 0.5, xsize.z * 0.5 - xz * 0.5 ), Angle(), xsize, CLIENT, model.convexes )
     end
 
     util_Transform( model.verts, param.PrimMESHROT, param.PrimMESHPOS, threaded )

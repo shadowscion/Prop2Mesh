@@ -306,3 +306,17 @@ entclass.primitive_staircase = function(partlist, ent, worldpos, worldang)
 
 	partlist[#partlist + 1] = part
 end
+
+entclass.primitive_ladder = function(partlist, ent, worldpos, worldang)
+	local vars = ent.primitive and ent.primitive.keys
+	if not istable(vars) or next(vars) == nil then return end
+
+	vars = table.Copy(vars)
+
+	vars.construct = "ladder"
+
+	local part = basic_info(partlist, ent, worldpos, worldang)
+	part.primitive = vars
+
+	partlist[#partlist + 1] = part
+end

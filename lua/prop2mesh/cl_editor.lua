@@ -384,6 +384,10 @@ net.Receive("prop2mesh_export", function()
 	end
 end)
 
+local function CanToolClient(ent)
+	if not CPPI then return true end
+	return IsValid(ent) and ent.CPPICanTool and ent.CPPICanTool(LocalPlayer(), "prop2mesh")
+end
 
 --[[
 
@@ -1015,6 +1019,7 @@ local function conmenu(frame, conroot)
 
 	menu:AddSpacer()
 	menu:AddOption("export as .obj", function()
+		if not CanToolClient( frame.Entity ) then return end
 		local pnl = Derma_StringRequest("", string.format("Exporting and saving controller %d as:", conroot.num), "default.txt", function(text)
 			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uvs))
 			if filedata then
@@ -1036,6 +1041,7 @@ local function conmenu(frame, conroot)
 
 	if E2Lib and openE2Editor then
 		local opt = menu:AddOption("export to expression2", function()
+			if not CanToolClient( frame.Entity ) then return end
 			openE2Editor()
 			if wire_expression2_editor then
 				local e2code = formatE2(conroot)
@@ -1205,11 +1211,13 @@ function PANEL:Init()
 		-- end):SetIcon("icon16/layout_delete.png")
 
 		local opt = menu:AddOption("Export all as .obj", function()
+			if not CanToolClient( self.Entity ) then return end
 			batchExportObj({[self.Entity] = true})
 		end)
 		opt:SetIcon("icon16/car.png")
 
 		local opt = menu:AddOption("Export all to E2", function()
+			if not CanToolClient( self.Entity ) then return end
 			batchFormatE2({[self.Entity] = true})
 		end)
 		opt:SetIcon("icon16/cog.png")

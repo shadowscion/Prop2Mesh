@@ -197,11 +197,11 @@ return function( instance ) -- Called for library declarations
     end
 
     --- Creates a p2m controller.
-    -- @param count Number of controllers
-    -- @param pos The position to create the p2m ent
-    -- @param ang The angle to create the p2m ent
-    -- @param uvs (Optional) The uvscale to give the p2m controllers
-    -- @param scale (Optional) The meshscale to give the p2m controllers
+    -- @param number count Number of controllers
+    -- @param Vector pos The position to create the p2m ent
+    -- @param Angle ang The angle to create the p2m ent
+    -- @param number? uvs The uvscale to give the p2m controllers
+    -- @param Vector? scale The meshscale to give the p2m controllers
     -- @return The p2m ent
     function p2m_library.create( count, pos, ang, uvs, scale )
         CheckLuaType( count, TYPE_NUMBER )
@@ -270,16 +270,16 @@ return function( instance ) -- Called for library declarations
     end
 
     --- Adds a model to the build stack.
-    -- @param index index oc ontroller
-    -- @param model model to add
-    -- @param pos local pos offset
-    -- @param ang local ang offset
-    -- @param scale ( optional vec ) model scale
-    -- @param clips ( optional table ) table of alternating clip origins and clip normals
-    -- @param render_inside ( optional bool )
-    -- @param render_flat ( optional bool ) use flat normal shading
-    -- @param submodels ( optional table ) ignore submodels
-    -- @param submodelswl ( optional bool ) submodels as whitelist
+    -- @param number index index of controller
+    -- @param string model model to add
+    -- @param Vector pos local pos offset
+    -- @param Angle ang local ang offset
+    -- @param Vector? scale model scale
+    -- @param table? clips table of alternating clip origins and clip normals
+    -- @param boolean? render_inside
+    -- @param boolean? render_flat use flat normal shading
+    -- @param table? submodels ignore submodels
+    -- @param boolean? submodelswl submodels as whitelist
     function ents_methods:p2mPushModel( index, model, pos, ang, scale, clips, vinside, vsmooth, bodygroup, submodels, submodelswl )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -350,8 +350,8 @@ return function( instance ) -- Called for library declarations
         ent.prop2mesh_sf_resevoir = {}
     end
 
-    ---
-    -- @return count
+    --- Gets the number of prop2mesh controllers
+    -- @return number count
     function ents_methods:p2mGetCount()
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -363,9 +363,9 @@ return function( instance ) -- Called for library declarations
         return #this.prop2mesh_controllers
     end
 
-    ---
-    -- @param index
-    -- @return the color
+    --- Gets the color of the controller
+    -- @param number index
+    -- @return Color the color
     function ents_methods:p2mGetColor( index )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -379,9 +379,9 @@ return function( instance ) -- Called for library declarations
         return cwrap( ent:GetControllerCol( index ) )
     end
 
-    ---
-    -- @param index
-    -- @param the color
+    --- Sets the color of the controller
+    -- @param number index
+    -- @param Color color
     function ents_methods:p2mSetColor( index, color )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -395,9 +395,9 @@ return function( instance ) -- Called for library declarations
         ent:SetControllerCol( index, cunwrap( color ) )
     end
 
-    ---
-    -- @param index
-    -- @param the alpha
+    --- Sets the alpha of the controller
+    -- @param number index
+    -- @param number alpha
     function ents_methods:p2mSetAlpha( index, alpha )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -413,9 +413,9 @@ return function( instance ) -- Called for library declarations
         ent:SetControllerAlpha( index, alpha )
     end
 
-    ---
-    -- @param index
-    -- @return the mat
+    --- Gets the material of the controller
+    -- @param number index
+    -- @return string material name
     function ents_methods:p2mGetMaterial( index )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -429,9 +429,9 @@ return function( instance ) -- Called for library declarations
         return ent:GetControllerMat( index )
     end
 
-    ---
-    -- @param index
-    -- @param the mat
+    --- Sets the material of the controller
+    -- @param number index
+    -- @param string mat material name
     function ents_methods:p2mSetMaterial( index, mat )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -446,9 +446,9 @@ return function( instance ) -- Called for library declarations
         ent:SetControllerMat( index, mat )
     end
 
-    ---
-    -- @param index
-    -- @param the scale
+    --- Sets the scale of the controller
+    -- @param number index
+    -- @param Vector scale
     function ents_methods:p2mSetScale( index, scale )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -461,9 +461,9 @@ return function( instance ) -- Called for library declarations
         ent:SetControllerScale( index, vunwrap( scale ) )
     end
 
-    ---
-    -- @param index
-    -- @param the uvs
+    --- Sets the UVs of the controller
+    -- @param number index
+    -- @param number uvs
     function ents_methods:p2mSetUV( index, uvs )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )
@@ -478,11 +478,11 @@ return function( instance ) -- Called for library declarations
         ent:SetControllerUVS( index, math.Clamp( math.floor( math.abs( uvs ) ), 0, 512 ) )
     end
 
-    ---
-    -- @param index
-    -- @param link ent
-    -- @param link pos
-    -- @param link ang
+    --- Sets the controller's link data
+    -- @param number index
+    -- @param Entity ent link entity
+    -- @param Vector pos link position
+    -- @param Angle ang link angle
     function ents_methods:p2mSetLink( index, other, pos, ang )
         CheckType( self, ents_metatable )
         local ent = unwrap( self )

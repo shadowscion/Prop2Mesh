@@ -1,6 +1,3 @@
---[[
-
-]]
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
@@ -17,108 +14,6 @@ util.AddNetworkString("prop2mesh_update")
 util.AddNetworkString("prop2mesh_download")
 
 
---[[
-
-]]
---[[
-local download_wait = 0.1
-local download_time = SysTime()
-local download_list
-
-hook.Add("Think", "prop2mesh_download_queue", function()
-	if not download_list or SysTime() - download_time < download_wait then
-		return
-	end
-
-	download_time = SysTime()
-
-	local crc, download = next(download_list)
-	if not crc or not download then
-		download_list = nil
-
-		if prop2mesh.enablelog then
-			prop2mesh.log(string.format("no more downloads"))
-		end
-
-		return
-	end
-
-	if not next(download.players) or not download.data then
-		download_list[crc] = nil
-
-		if prop2mesh.enablelog then
-			prop2mesh.log(string.format("download %s -> no more clients", crc))
-		end
-
-		return
-	end
-
-	local clients = {}
-	for pl, sendme in pairs(download.players) do
-		if IsValid(pl) then
-			if sendme == true then
-				download.players[pl] = false
-				clients[#clients + 1] = pl
-			end
-		else
-			download.players[pl] = nil
-		end
-	end
-
-	if next(clients) then
-		net.Start("prop2mesh_download")
-		net.WriteString(crc)
-		net.WriteStream(download.data, function(client)
-			download.players[client] = nil
-
-			if prop2mesh.enablelog then
-				prop2mesh.log(string.format("download %s -> client %s is finished", crc, client))
-			end
-		end)
-		net.Send(clients)
-
-		if prop2mesh.enablelog then
-			prop2mesh.log(string.format("download %s -> sending to %d clients", crc, #clients))
-		end
-	end
-end)
-
-net.Receive("prop2mesh_download", function(len, pl)
-	local self = net.ReadEntity()
-	if not prop2mesh.isValid(self) then
-		return
-	end
-
-	local crc = net.ReadString()
-	if not crc or not isstring(self.prop2mesh_partlists[crc]) then
-		return
-	end
-
-	if not download_list then
-		download_list = {}
-	end
-
-	if not download_list[crc] then
-		download_list[crc] = {
-			players = {},
-			data = self.prop2mesh_partlists[crc],
-		}
-	end
-
-	if download_list[crc].players[pl] == nil then
-		download_list[crc].players[pl] = true
-
-		if prop2mesh.enablelog then
-			prop2mesh.log(string.format("adding %s to download queue %s", tostring(pl), crc))
-		end
-	end
-end)
-]]
-
-
---[[
-
-]]
 local allow_disable = GetConVar("prop2mesh_disable_allowed")
 
 net.Receive("prop2mesh_download", function(len, pl)
@@ -183,6 +78,30 @@ kvpass.scale = function(val)
 	return { val.x, val.y, val.z }
 end
 
+function ENT:PrepareUpdate()
+	for index, update in pairs(self.prop2mesh_updates) do
+		for key in pairs(update) do
+			if kvpass[key] then
+				update[key] = kvpass[key](self.prop2mesh_controllers[index][key])
+			else
+				update[key] = self.prop2mesh_controllers[index][key]
+			end
+		end
+	end
+end
+
+function ENT:BroadcastUpdate()
+	self.prop2mesh_synctime = SysTime() .. ""
+
+	net.Start("prop2mesh_update")
+	net.WriteEntity(self)
+	net.WriteString(self.prop2mesh_synctime)
+	net.WriteTable(self.prop2mesh_updates)
+	net.Broadcast()
+
+	self.prop2mesh_updates = nil
+end
+
 function ENT:Think()
 	if self.prop2mesh_upload_queue then
 		self:SetNetworkedBool("uploading", true)
@@ -212,26 +131,8 @@ function ENT:Think()
 			self.prop2mesh_syncwith = nil
 		end
 		if self.prop2mesh_updates then
-			self.prop2mesh_synctime = SysTime() .. ""
-
-			net.Start("prop2mesh_update")
-			net.WriteEntity(self)
-			net.WriteString(self.prop2mesh_synctime)
-
-			for index, update in pairs(self.prop2mesh_updates) do
-				for key in pairs(update) do
-					if kvpass[key] then
-						update[key] = kvpass[key](self.prop2mesh_controllers[index][key])
-					else
-						update[key] = self.prop2mesh_controllers[index][key]
-					end
-				end
-			end
-
-			net.WriteTable(self.prop2mesh_updates)
-			net.Broadcast()
-
-			self.prop2mesh_updates = nil
+			self:PrepareUpdate()
+			self:BroadcastUpdate()
 		else
 			if self:GetNetworkedBool("uploading") then
 				self:SetNetworkedBool("uploading", false)

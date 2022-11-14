@@ -276,7 +276,7 @@ local function drawMesh(self)
 	return meshes and meshes.basic or empty
 end
 
-local function refresh(self, info)
+function prop2mesh.sentRefresh(self, info)
 	if not IsValid(info.ent) then
 		info.ent = ents.CreateClientside("base_anim")
 		info.ent:SetModel("models/hunter/plates/plate.mdl")
@@ -338,11 +338,11 @@ end
 
 local function refreshAll(self, prop2mesh_controllers)
 	for k, info in pairs(prop2mesh_controllers) do
-		refresh(self, info)
+		prop2mesh.sentRefresh(self, info)
 	end
 end
 
-local function discard(self, prop2mesh_controllers)
+function prop2mesh.discardControllers(self, prop2mesh_controllers)
 	if not prop2mesh_controllers then
 		return
 	end
@@ -406,7 +406,7 @@ function ENT:OnRemove()
 		if IsValid(self) then
 			return
 		end
-		discard(self, snapshot)
+		prop2mesh.discardControllers(self, snapshot)
 	end)
 end
 
@@ -589,6 +589,24 @@ end
 --[[
 
 ]]
+function prop2mesh.handleControllerUpdates(ent, syncTime, updates)
+	for index, update in pairs(updates) do
+		local info = ent.prop2mesh_controllers[index]
+		if not info then
+			ent.prop2mesh_sync = nil
+			return
+		end
+		for key, val in pairs(update) do
+			if kvpass[key] then kvpass[key](ent, info, val) else info[key] = val end
+		end
+		prop2mesh.sentRefresh(ent, info)
+	end
+
+	ent.prop2mesh_synctime = synctime
+	ent.prop2mesh_triggertool = true
+	ent.prop2mesh_triggereditor = prop2mesh.editor and true
+end
+
 net.Receive("prop2mesh_update", function(len)
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
@@ -596,22 +614,7 @@ net.Receive("prop2mesh_update", function(len)
 	end
 
 	local synctime = net.ReadString()
-
-	for index, update in pairs(net.ReadTable()) do
-		local info = self.prop2mesh_controllers[index]
-		if not info then
-			self.prop2mesh_sync = nil
-			return
-		end
-		for key, val in pairs(update) do
-			if kvpass[key] then kvpass[key](self, info, val) else info[key] = val end
-		end
-		refresh(self, info)
-	end
-
-	self.prop2mesh_synctime = synctime
-	self.prop2mesh_triggertool = true
-	self.prop2mesh_triggereditor = prop2mesh.editor and true
+	prop2mesh.handleControllerUpdates(self, synctime, net.ReadTable())
 end)
 
 net.Receive("prop2mesh_sync", function(len)
@@ -620,7 +623,7 @@ net.Receive("prop2mesh_sync", function(len)
 		return
 	end
 
-	discard(self, self.prop2mesh_controllers)
+	prop2mesh.discardControllers(self, self.prop2mesh_controllers)
 
 	self.prop2mesh_synctime = net.ReadString()
 	self.prop2mesh_controllers = {}

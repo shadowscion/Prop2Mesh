@@ -673,6 +673,36 @@ net.Receive("prop2mesh_sync", function(len)
 end)
 
 prop2mesh.downloads = 0
+function prop2mesh.handleDownload(crc, data)
+	if not crc or not isstring(data) then
+		prop2mesh.downloads = math.max(0, prop2mesh.downloads - 1)
+		return
+	end
+
+	if not recycle[crc] then
+		recycle[crc] = { users = {}, meshes = {} }
+	end
+
+	if crc == util.CRC(data) then
+		recycle[crc].zip = data
+
+		for user in pairs(recycle[crc].users) do
+			if IsValid(user) then
+				for k, info in pairs(user.prop2mesh_controllers) do
+					if info.crc == crc then
+						checkmesh(crc, info.uvs)
+					end
+				end
+			else
+				setuser(user, crc, false)
+			end
+		end
+	else
+		garbage[crc] = SysTime() + 500
+	end
+
+	prop2mesh.downloads = math.max(0, prop2mesh.downloads - 1)
+end
 
 net.Receive("prop2mesh_download", function(len)
 	local crc = net.ReadString()
@@ -683,34 +713,7 @@ net.Receive("prop2mesh_download", function(len)
 	prop2mesh.downloads = prop2mesh.downloads + 1
 
 	prop2mesh.ReadStream(nil, function(data)
-		if not crc or not isstring(data) then
-			prop2mesh.downloads = math.max(0, prop2mesh.downloads - 1)
-			return
-		end
-
-		if not recycle[crc] then
-			recycle[crc] = { users = {}, meshes = {} }
-		end
-
-		if crc == util.CRC(data) then
-			recycle[crc].zip = data
-
-			for user in pairs(recycle[crc].users) do
-				if IsValid(user) then
-					for k, info in pairs(user.prop2mesh_controllers) do
-						if info.crc == crc then
-							checkmesh(crc, info.uvs)
-						end
-					end
-				else
-					setuser(user, crc, false)
-				end
-			end
-		else
-			garbage[crc] = SysTime() + 500
-		end
-
-		prop2mesh.downloads = math.max(0, prop2mesh.downloads - 1)
+		prop2mesh.handleDownload(crc, data)
 	end)
 end)
 

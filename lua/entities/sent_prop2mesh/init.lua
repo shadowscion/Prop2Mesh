@@ -15,6 +15,13 @@ util.AddNetworkString("prop2mesh_download")
 
 
 local allow_disable = GetConVar("prop2mesh_disable_allowed")
+function prop2mesh.sendDownload(pl, self, crc)
+	net.Start("prop2mesh_download")
+	net.WriteString(crc)
+	prop2mesh.WriteStream(self.prop2mesh_partlists[crc])
+	net.Send(pl)
+	--print("download", pl)
+end
 
 net.Receive("prop2mesh_download", function(len, pl)
 	if allow_disable:GetBool() and tobool(pl:GetInfoNum("prop2mesh_disable", 0)) then return end
@@ -29,11 +36,7 @@ net.Receive("prop2mesh_download", function(len, pl)
 		return
 	end
 
-	net.Start("prop2mesh_download")
-	net.WriteString(crc)
-	prop2mesh.WriteStream(self.prop2mesh_partlists[crc])
-	net.Send(pl)
-	--print("download", pl)
+	prop2mesh.sendDownload(pl, self, crc)
 end)
 
 net.Receive("prop2mesh_sync", function(len, pl)

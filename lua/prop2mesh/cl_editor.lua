@@ -49,10 +49,14 @@ local function HideIcons() return false end
 	uploader
 
 ]]
-local filecache_data = {}
-local filecache_keys = {}
+prop2mesh.filecache_data = {}
+local filecache_data = prop2mesh.filecache_data
 
-local upstreams = {}
+prop2mesh.filecache_keys = {}
+local filecache_keys = prop2mesh.filecache_keys
+
+prop2mesh.upstreams = {}
+local upstreams = prop2mesh.upstreams
 
 net.Receive("prop2mesh_upload_start", function(len)
 	local eid = net.ReadUInt(16)
@@ -71,9 +75,9 @@ end)
 local function upstreamProgress()
 	local max = 0
 	for crc, stream in pairs(upstreams) do
-		local client = next(stream.clients)
-		if client and stream.clients[client] then
-			client = stream.clients[client]
+		local _, client = next(stream.clients)
+
+		if client then
 			if client.finished then
 				upstreams[crc] = nil
 			else

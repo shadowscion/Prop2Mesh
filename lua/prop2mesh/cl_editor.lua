@@ -797,6 +797,35 @@ local function copyclips(clips)
 	return ret
 end
 
+local copydeeper
+function copydeeper(t, lookup_table)
+	if t == nil then return nil end
+
+	local copy = {}
+	setmetatable(copy, debug.getmetatable(t))
+
+	for i, v in pairs(t) do
+		if not istable(v) then
+			if isvector(v) then
+				copy[i] = Vector(v.x, v.y, v.z)
+			elseif isangle(v) then
+				copy[i] = Angle(v.p, v.y, v.r)
+			else
+				copy[i] = v
+			end
+		else
+			lookup_table = lookup_table or {}
+			lookup_table[t] = copy
+			if lookup_table[v] then
+				copy[i] = lookup_table[v]
+			else
+				copy[i] = copydeeper(v, lookup_table)
+			end
+		end
+	end
+	return copy
+end
+
 local function partcopy(from)
 	local a = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0, submodels = {}, clips = {} }
 	local b = { pos = {0, 0, 0}, ang = {0, 0, 0}, scale = {1, 1, 1}, vinvert = 0, vinside = 0, vsmooth = 0, submodels = {}, clips = {} }
@@ -817,6 +846,9 @@ local function partcopy(from)
 			elseif k == "clips" then
 				a[k] = copyclips(v)
 				b[k] = copyclips(v)
+			elseif k == "primitive" then
+				a[k] = copydeeper(v)
+				b[k] = copydeeper(v)
 			end
 		end
 	end
@@ -1364,6 +1396,11 @@ function PANEL:OnRemove()
 	end
 	if IsValid(self.Ghost) then
 		self.Ghost:Remove()
+		self.Ghost.GetRenderMesh = nil
+		if self.Ghost.RenderMesh then
+			self.Ghost.RenderMesh:Destroy()
+			self.Ghost.RenderMesh = nil
+		end
 	end
 end
 
@@ -1415,48 +1452,113 @@ local function onPartHover(label)
 
 		self.contree:SetSelectedItem(partnode)
 
-		if partnode.new and (partnode.new.holo or partnode.new.prop) then
-			if self.Ghost.lastSubmodels then
-				for k in pairs(self.Ghost.lastSubmodels) do
-					self.Ghost:SetSubMaterial(k - 1, nil)
+		if partnode.new then
+
+			if partnode.new.holo or partnode.new.prop then
+				self.Ghost.GetRenderMesh = nil
+				if self.Ghost.RenderMesh then
+					self.Ghost.RenderMesh:Destroy()
+					self.Ghost.RenderMesh = nil
 				end
-				self.Ghost.lastSubmodels = nil
-			end
 
-			self.Ghost:SetNoDraw(false)
-			self.Ghost:SetModel(partnode.new.holo or partnode.new.prop)
+				if self.Ghost.lastSubmodels then
+					for k in pairs(self.Ghost.lastSubmodels) do
+						self.Ghost:SetSubMaterial(k - 1, nil)
+					end
+					self.Ghost.lastSubmodels = nil
+				end
 
-			local scale = partnode:GetParentNode().conscale or Vector(1,1,1)
+				self.Ghost:SetNoDraw(false)
+				self.Ghost:SetModel(partnode.new.holo or partnode.new.prop)
+				self.Ghost:SetRenderBounds(self.Ghost:GetModelBounds())
 
-			local pos, ang = LocalToWorld(Vector(unpack(partnode.new.pos))*scale, Angle(unpack(partnode.new.ang)), self.Entity:GetPos(), self.Entity:GetAngles())
+				local scale = partnode:GetParentNode().conscale or Vector(1,1,1)
 
-			self.Ghost:SetParent(self.Entity)
-			self.Ghost:SetPos(pos)
-			self.Ghost:SetAngles(ang)
+				local pos, ang = LocalToWorld(Vector(unpack(partnode.new.pos))*scale, Angle(unpack(partnode.new.ang)), self.Entity:GetPos(), self.Entity:GetAngles())
 
-			if partnode.new.submodels then
-				self.Ghost.lastSubmodels = {}
-				for k, v in pairs(partnode.new.submodels) do
-					if v == 1 then
-						self.Ghost.lastSubmodels[k] = true
-						self.Ghost:SetSubMaterial(k - 1, "Models/effects/vol_light001")
+				self.Ghost:SetParent(self.Entity)
+				self.Ghost:SetPos(pos)
+				self.Ghost:SetAngles(ang)
+
+				if partnode.new.submodels then
+					self.Ghost.lastSubmodels = {}
+					for k, v in pairs(partnode.new.submodels) do
+						if v == 1 then
+							self.Ghost.lastSubmodels[k] = true
+							self.Ghost:SetSubMaterial(k - 1, "Models/effects/vol_light001")
+						end
 					end
 				end
+
+				if partnode.new.clips and #partnode.new.clips > 0 then
+					self.Ghost.clips = partnode.new.clips
+				else
+					self.Ghost.clips = nil
+				end
+
+				if partnode.new.scale then
+					local matrix = Matrix()
+					matrix:SetScale(Vector(unpack(partnode.new.scale))*scale)
+					self.Ghost:EnableMatrix("RenderMultiply", matrix)
+				else
+					self.Ghost:DisableMatrix("RenderMultiply")
+				end
+
+			elseif partnode.new.primitive then
+				self.Ghost.GetRenderMesh = nil
+				if self.Ghost.RenderMesh then
+					self.Ghost.RenderMesh:Destroy()
+					self.Ghost.RenderMesh = nil
+				end
+
+				if self.Ghost.lastSubmodels then
+					for k in pairs(self.Ghost.lastSubmodels) do
+						self.Ghost:SetSubMaterial(k - 1, nil)
+					end
+					self.Ghost.lastSubmodels = nil
+				end
+
+				self.Ghost:SetNoDraw(false)
+				self.Ghost:SetModel("models/Combine_Helicopter/helicopter_bomb01.mdl")
+
+				local _, submeshes = prop2mesh.primitive.construct.get(partnode.new.primitive.construct, partnode.new.primitive, false, false)
+
+				if submeshes and submeshes.tris then
+					self.Ghost:SetRenderBounds(submeshes.mins, submeshes.maxs)
+
+					self.Ghost.RenderMesh = Mesh()
+					self.Ghost.RenderMesh:BuildFromTriangles(submeshes.tris)
+
+					self.Ghost.GetRenderMesh = function(e)
+						return { Mesh = self.Ghost.RenderMesh, Material = wireframe }
+					end
+				end
+
+				local scale = partnode:GetParentNode().conscale or Vector(1,1,1)
+
+				local pos, ang = LocalToWorld(Vector(unpack(partnode.new.pos))*scale, Angle(unpack(partnode.new.ang)), self.Entity:GetPos(), self.Entity:GetAngles())
+
+				self.Ghost:SetParent(self.Entity)
+				self.Ghost:SetPos(pos)
+				self.Ghost:SetAngles(ang)
+
+				if partnode.new.clips and #partnode.new.clips > 0 then
+					self.Ghost.clips = partnode.new.clips
+				else
+					self.Ghost.clips = nil
+				end
+
+				if partnode.new.scale then
+					local matrix = Matrix()
+					matrix:SetScale(Vector(unpack(partnode.new.scale))*scale)
+					self.Ghost:EnableMatrix("RenderMultiply", matrix)
+				else
+					self.Ghost:DisableMatrix("RenderMultiply")
+				end
+			else
+				self.Ghost:SetNoDraw(true)
 			end
 
-			if partnode.new.clips and #partnode.new.clips > 0 then
-				self.Ghost.clips = partnode.new.clips
-			else
-				self.Ghost.clips = nil
-			end
-
-			if partnode.new.scale then
-				local matrix = Matrix()
-				matrix:SetScale(Vector(unpack(partnode.new.scale))*scale)
-				self.Ghost:EnableMatrix("RenderMultiply", matrix)
-			else
-				self.Ghost:DisableMatrix("RenderMultiply")
-			end
 		else
 			self.Ghost:SetNoDraw(true)
 		end

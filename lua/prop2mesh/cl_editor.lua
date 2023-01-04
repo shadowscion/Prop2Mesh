@@ -299,7 +299,7 @@ local function batchExportObj(batch)
 			export_output = nil
 
 			for index, info in ipairs(ent.prop2mesh_controllers) do
-				exportOBJ(prop2mesh.getMeshDirect(info.crc, info.uvs), true, index)
+				exportOBJ(prop2mesh.getMeshDirect(info.crc, info.uniqueID), true, index)
 			end
 
 			gid = gid + 1
@@ -1053,7 +1053,7 @@ local function conmenu(frame, conroot)
 	menu:AddOption("export as .obj", function()
 		if not CanToolClient( frame.Entity ) then return end
 		local pnl = Derma_StringRequest("", string.format("Exporting and saving controller %d as:", conroot.num), "default.txt", function(text)
-			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uvs))
+			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uniqueID))
 			if filedata then
 				local filename = string.lower(string.StripExtension(string.GetFileFromFilename(text)))
 				file.Write(string.format("p2m/%s.txt", filename), filedata)
@@ -1596,17 +1596,18 @@ function PANEL:RemakeTree()
 		local setcol = info.col
 		local setpos = info.linkpos or Vector()
 		local setang = info.linkang or Angle()
-		setroot.old = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs,
+		setroot.old = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, bump = info.bump and 1 or 0, uniqueID = info.uniqueID,
 			scale = {setscale.x,setscale.y,setscale.z}, linkpos = {setpos.x,setpos.y,setpos.z}, linkang = {setang.p,setang.y,setang.r} }
-		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs,
+		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, bump = info.bump and 1 or 0, uniqueID = info.uniqueID,
 			scale = {setscale.x,setscale.y,setscale.z}, linkpos = {setpos.x,setpos.y,setpos.z}, linkang = {setang.p,setang.y,setang.r} }
 
 		registerVector(setroot, "pos offset", "linkpos")
 		registerVector(setroot, "ang offset", "linkang")
 		registerVector(setroot, "scale", "scale")
 		registerString(setroot, "material", "mat")
-		registerFloat(setroot, "texture map size", "uvs", 0, 512)
 		registerColor(setroot, "color", "col")
+		registerFloat(setroot, "texture map size", "uvs", 0, 512)
+		registerBoolean(setroot, "enable bumpmap", "bump")
 
 		setroot:ExpandRecurse(true)
 

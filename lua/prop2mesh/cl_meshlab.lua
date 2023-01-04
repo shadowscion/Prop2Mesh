@@ -61,6 +61,7 @@ local function copy(v)
 		u      = v.u,
 		v      = v.v,
 		rotate = v.rotate,
+		userdata = v.userdata,
 	}
 end
 
@@ -90,6 +91,72 @@ local function getBoxUV(vert, dir, scale)
 	else
 		return vert.x * -sign(dir) * scale, vert.y * scale
 	end
+end
+
+local function calcTangents(verts, threaded)
+    -- credit to https://gamedev.stackexchange.com/questions/68612/how-to-compute-tangent-and-bitangent-vectors
+    -- seems to work but i have no idea how or why, nor why i cant do this during triangulation
+
+    local YIELD_THRESHOLD = 30
+
+    local tan1 = {}
+    local tan2 = {}
+
+    for i = 1, #verts do
+        tan1[i] = Vector(0, 0, 0)
+        tan2[i] = Vector(0, 0, 0)
+
+        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine.yield(false) end
+    end
+
+    for i = 1, #verts - 2, 3 do
+        local v1 = verts[i]
+        local v2 = verts[i + 1]
+        local v3 = verts[i + 2]
+
+        local p1 = v1.pos
+        local p2 = v2.pos
+        local p3 = v3.pos
+
+        local x1 = p2.x - p1.x
+        local x2 = p3.x - p1.x
+        local y1 = p2.y - p1.y
+        local y2 = p3.y - p1.y
+        local z1 = p2.z - p1.z
+        local z2 = p3.z - p1.z
+
+        local us1 = v2.u - v1.u
+        local us2 = v3.u - v1.u
+        local ut1 = v2.v - v1.v
+        local ut2 = v3.v - v1.v
+
+        local r = 1 / (us1*ut2 - us2*ut1)
+
+        local sdir = Vector((ut2*x1 - ut1*x2)*r, (ut2*y1 - ut1*y2)*r, (ut2*z1 - ut1*z2)*r)
+        local tdir = Vector((us1*x2 - us2*x1)*r, (us1*y2 - us2*y1)*r, (us1*z2 - us2*z1)*r)
+
+        add(tan1[i], sdir)
+        add(tan1[i + 1], sdir)
+        add(tan1[i + 2], sdir)
+
+        add(tan2[i], tdir)
+        add(tan2[i + 1], tdir)
+        add(tan2[i + 2], tdir)
+
+        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine.yield(false) end
+    end
+
+    for i = 1, #verts do
+        local n = verts[i].normal
+        local t = tan1[i]
+
+        local tangent = (t - n*dot(n, t))
+        normalize(tangent)
+
+        verts[i].userdata = { tangent[1], tangent[2], tangent[3], dot(cross(n, t), tan2[i]) }
+
+        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine.yield(false) end
+    end
 end
 
 local function clip(v1, v2, plane, length, getUV)
@@ -201,7 +268,7 @@ end
 --[[
 
 ]]
-local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
+local function getVertsFromPrimitive(partnext, meshtex, meshbump, vmins, vmaxs, direct)
     partnext.primitive.skip_bounds = true
     partnext.primitive.skip_tangents = true
     partnext.primitive.skip_inside = true
@@ -301,12 +368,14 @@ local function getVertsFromPrimitive(partnext, meshtex, vmins, vmaxs, direct)
 		end
 	end
 
+	if meshbump then calcTangents(partverts, not direct) end
+
 	return partverts
 end
 
 
 local meshmodelcache
-local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
+local function getVertsFromMDL(partnext, meshtex, meshbump, vmins, vmaxs, direct)
 	local modelpath = partnext.prop or partnext.holo
 	if prop2mesh.isBlockedModel(modelpath) then
 		return
@@ -485,10 +554,12 @@ local function getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
 		end
 	end
 
+	if meshbump then calcTangents(partverts, not direct) end
+
 	return partverts
 end
 
-local function getFallbackOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
+local function getFallbackOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs, direct)
 	local modeluid = tonumber(partnext.objd)
 	local modelobj = custom[modeluid]
 
@@ -524,12 +595,12 @@ local function getFallbackOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
 	pos = (omins + omaxs)*0.5
 	ang = ang or Angle()
 
-	return getVertsFromMDL({ang	= ang, pos	= pos, prop = "models/hunter/blocks/cube025x025x025.mdl", scale = (omaxs - omins)/12}, meshtex, vmins, vmaxs, direct)
+	return getVertsFromMDL({ang	= ang, pos	= pos, prop = "models/hunter/blocks/cube025x025x025.mdl", scale = (omaxs - omins)/12}, meshtex, meshbump, vmins, vmaxs, direct)
 end
 
-local function getVertsFromOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
+local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs, direct)
 	if disable_obj then
-		return getFallbackOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
+		return getFallbackOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs, direct)
 	end
 
 	local modeluid = tonumber(partnext.objd)
@@ -650,6 +721,8 @@ local function getVertsFromOBJ(custom, partnext, meshtex, vmins, vmaxs, direct)
 		end
 	end
 
+	if meshbump then calcTangents(vmesh, not direct) end
+
 	return #vmesh > 0 and vmesh
 end
 
@@ -657,8 +730,8 @@ end
 --[[
 
 ]]
-local function getMeshFromData(data, uvs, direct, split)
-	if not data or not uvs then
+local function getMeshFromData(data, uniqueID, direct, split)
+	if not data or not uniqueID then
 		if not direct then coroutine.yield(true) else return end
 	end
 	local partlist = util.JSONToTable(util.Decompress(data))
@@ -671,11 +744,15 @@ local function getMeshFromData(data, uvs, direct, split)
 		meshmodelcache = {}
 	end
 
+	local uvb = string.Explode("_", uniqueID .. "")
+	uvb[1] = tonumber(uvb[1] or 16)
+
 	local meshpcount = 0
 	local meshvcount = 0
 	local vmins = Vector()
 	local vmaxs = Vector()
-	local meshtex = (uvs and uvs ~= 0) and (1 / uvs) or nil
+	local meshtex = (uvb[1] and uvb[1] ~= 0) and (1 / uvb[1]) or nil
+	local meshbump = tobool(uvb[2]) or system.IsLinux()
 
 	local meshlist = { {} }
 	local meshnext = meshlist[1]
@@ -687,16 +764,16 @@ local function getMeshFromData(data, uvs, direct, split)
 		local partverts
 
 		if partnext.prop or partnext.holo then
-			partverts = getVertsFromMDL(partnext, meshtex, vmins, vmaxs, direct)
+			partverts = getVertsFromMDL(partnext, meshtex, meshbump, vmins, vmaxs, direct)
 		elseif partnext.objd and partlist.custom then
-			local valid, opv = pcall(getVertsFromOBJ, partlist.custom, partnext, meshtex, vmins, vmaxs, direct)
+			local valid, opv = pcall(getVertsFromOBJ, partlist.custom, partnext, meshtex, meshbump, vmins, vmaxs, direct)
 			if valid and opv then
 				partverts = opv
 			else
 				print(opv)
 			end
 		elseif partnext.primitive then
-			local valid, opv = pcall(getVertsFromPrimitive, partnext, meshtex, vmins, vmaxs, direct)
+			local valid, opv = pcall(getVertsFromPrimitive, partnext, meshtex, meshbump, vmins, vmaxs, direct)
 			if valid and opv then
 				partverts = opv
 			else
@@ -741,27 +818,27 @@ end
 
 ]]
 local meshlabs = {}
-function prop2mesh.getMesh(crc, uvs, data)
-	if not crc or not uvs or not data then
+function prop2mesh.getMesh(crc, uniqueID, data)
+	if not crc or not uniqueID or not data then
 		return false
 	end
 
-	local key = string.format("%s_%s", crc, uvs)
+	local key = string.format("%s_%s", crc, uniqueID)
 	if not meshlabs[key] then
-		meshlabs[key] = { crc = crc, uvs = uvs, data = data, coro = coroutine.create(getMeshFromData) }
+		meshlabs[key] = { crc = crc, uniqueID = uniqueID, data = data, coro = coroutine.create(getMeshFromData) }
 		return true
 	end
 
 	return false
 end
 
-function prop2mesh.getMeshDirect(crc, uvs)
+function prop2mesh.getMeshDirect(crc, uniqueID)
 	local data = prop2mesh.getMeshData(crc)
 	if not data then
 		return
 	end
 
-	local meshlist = getMeshFromData(data, uvs, true, true)
+	local meshlist = getMeshFromData(data, uniqueID, true, true)
 
 	prop2mesh.unloadModelFixer()
 	meshmodelcache = nil
@@ -828,7 +905,7 @@ hook.Add("Think", "prop2mesh_meshlab", function()
 
 	local curtime = SysTime()
 	while SysTime() - curtime < 0.05 do
-		local ok, err, mdata = coroutine.resume(lab.coro, lab.data, lab.uvs)
+		local ok, err, mdata = coroutine.resume(lab.coro, lab.data, lab.uniqueID)
 
 		if not ok then
 			print(err)
@@ -837,7 +914,7 @@ hook.Add("Think", "prop2mesh_meshlab", function()
 		end
 
 		if err then
-			hook.Run("prop2mesh_hook_meshdone", lab.crc, lab.uvs, mdata)
+			hook.Run("prop2mesh_hook_meshdone", lab.crc, lab.uniqueID, mdata)
 			meshlabs[key] = nil
 			break
 		end

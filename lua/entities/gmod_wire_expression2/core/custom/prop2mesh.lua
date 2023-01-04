@@ -18,16 +18,19 @@ local _NODRAW = -9
 local _BUILD  = -10
 local _ALPHA  = -11
 local _LINK   = -12
+local _BUMP   = -13
 -- local _LINKPOS = -13
 -- local _LINKANG = -14
 
 local cooldowns = {}
 cooldowns[_BUILD] = 10
 cooldowns[_UVS] = 10
+cooldowns[_BUMP] = 10
 
 local errors = {}
 errors[_BUILD] = "\nDon't spam e:p2mBuild"
 errors[_UVS] = "\nDon't spam e:p2mSetUV"
+errors[_BUMP] = "\nDon't spam E:p2mSetBump"
 
 local function canspam(check, wait, time)
 	if not check or time - check > wait then
@@ -104,7 +107,7 @@ registerCallback("destruct", function(self)
 	end
 end)
 
-local function p2mCreate(context, count, pos, ang, uvs, scale)
+local function p2mCreate(context, count, pos, ang, uvs, scale, bump)
 	if not count then
 		count = 1
 	end
@@ -147,10 +150,13 @@ local function p2mCreate(context, count, pos, ang, uvs, scale)
 
 	context.entity:SetNW2Bool("has_prop2mesh", true)
 
+	if uvs then uvs = math.Clamp(math.floor(math.abs(uvs)), 0, 512) end
+
 	for i = 1, count do
 		self:AddController()
 		if uvs then self:SetControllerUVS(i, uvs) end
 		if scale then self:SetControllerScale(i, scale) end
+		if bump then self:SetControllerBump(i, bump) end
 	end
 
 	return self
@@ -159,15 +165,23 @@ end
 __e2setcost(50)
 
 e2function entity p2mCreate(number count, vector pos, angle ang)
-	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]))
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), nil, nil, nil)
 end
 
 e2function entity p2mCreate(number count, vector pos, angle ang, number uvs)
-	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs)
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, nil, nil)
+end
+
+e2function entity p2mCreate(number count, vector pos, angle ang, number uvs, number bump)
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, nil, bump)
 end
 
 e2function entity p2mCreate(number count, vector pos, angle ang, number uvs, vector scale)
-	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, Vector(scale[1], scale[2], scale[3]))
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, Vector(scale[1], scale[2], scale[3]), nil)
+end
+
+e2function entity p2mCreate(number count, vector pos, angle ang, number uvs, vector scale, number bump)
+	return p2mCreate(self, count, Vector(pos[1], pos[2], pos[3]), Angle(ang[1], ang[2], ang[3]), uvs, Vector(scale[1], scale[2], scale[3]), bump)
 end
 
 __e2setcost(5)
@@ -493,6 +507,11 @@ end
 e2function void entity:p2mSetUV(number index, number uvs)
 	if checkvalid(self, this, _UVS, index) then
 		this:SetControllerUVS(index, math.Clamp(math.floor(math.abs(uvs)), 0, 512))
+	end
+end
+e2function void entity:p2mSetBump(number index, number bump)
+	if checkvalid(self, this, _BUMP, index) then
+		this:SetControllerBump(index, bump)
 	end
 end
 e2function void entity:p2mSetLink(number index, entity ent, vector pos, angle ang)

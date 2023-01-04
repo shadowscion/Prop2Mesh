@@ -53,6 +53,7 @@ if SERVER then
 		return {
 			crc = "!none",
 			uvs = 0,
+			bump = false,
 			col = Color(255, 255, 255, 255),
 			mat = prop2mesh.defaultmat,
 			scale = Vector(1, 1, 1),
@@ -111,7 +112,7 @@ elseif CLIENT then
 
 	timer.Simple(0.1, function()
 		if not E2Helper then return end
-		local backcompat = "Defaults to index 1, included for legacy support"
+		local backcompat = "Legacy Support - Defaults to index 1"
 		E2Helper.Descriptions["p2mCreate(va)"] = backcompat
 		E2Helper.Descriptions["p2mCreate(van)"] = backcompat
 		E2Helper.Descriptions["p2mCreate(vann)"] = backcompat

@@ -267,6 +267,7 @@ duplicator.RegisterEntityModifier("prop2mesh", function(ply, self, dupe)
 			self:SetControllerCol(k, v.col)
 			self:SetControllerMat(k, v.mat)
 			self:SetControllerUVS(k, v.uvs)
+			self:SetControllerBump(k, v.bump)
 			self:SetControllerScale(k, v.scale)
 
 			if v.clips then
@@ -296,11 +297,14 @@ duplicator.RegisterEntityModifier("prop2mesh", function(ply, self, dupe)
 	end
 end)
 
-function ENT:AddController(uvs)
+function ENT:AddController(uvs, bump)
 	table.insert(self.prop2mesh_controllers, prop2mesh.getEmpty())
 	self.prop2mesh_sync = true
 	if uvs then
 		self:SetControllerUVS(#self.prop2mesh_controllers, uvs)
+	end
+	if tobool(bump) then
+		self:SetControllerBump(#self.prop2mesh_controllers, true)
 	end
 	return self.prop2mesh_controllers[#self.prop2mesh_controllers]
 end
@@ -342,6 +346,7 @@ function ENT:SendControllers(syncwith)
 
 		net.WriteString(info.crc)
 		net.WriteUInt(info.uvs, 12)
+		net.WriteBool(info.bump)
 		net.WriteString(info.mat)
 		net.WriteUInt(info.col.r, 8)
 		net.WriteUInt(info.col.g, 8)
@@ -498,6 +503,14 @@ function ENT:SetControllerUVS(index, val)
 	if (info and isnumber(val)) and (info.uvs ~= val) then
 		info.uvs = val
 		self:AddControllerUpdate(index, "uvs")
+	end
+end
+
+function ENT:SetControllerBump(index, val)
+	local info = self.prop2mesh_controllers[index]
+	if info and (info.bump ~= tobool(val)) then
+		info.bump = tobool(val)
+		self:AddControllerUpdate(index, "bump")
 	end
 end
 

@@ -26,6 +26,10 @@ function ENT:GetControllerUVS(index)
 	return self.prop2mesh_controllers[index] and self.prop2mesh_controllers[index].uvs
 end
 
+function ENT:GetControllerBump(index)
+	return self.prop2mesh_controllers[index] and self.prop2mesh_controllers[index].bump
+end
+
 function ENT:GetControllerCRC(index)
 	return self.prop2mesh_controllers[index] and self.prop2mesh_controllers[index].crc
 end

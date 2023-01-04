@@ -27,8 +27,8 @@ if not prop2mesh.garbage then prop2mesh.garbage = {} end
 local recycle = prop2mesh.recycle
 local garbage = prop2mesh.garbage
 
-function prop2mesh.getMeshInfo(crc, uvs)
-	local mdata = recycle[crc] and recycle[crc].meshes[uvs]
+function prop2mesh.getMeshInfo(crc, uniqueID)
+	local mdata = recycle[crc] and recycle[crc].meshes[uniqueID]
 	if mdata then
 		return mdata.pcount, mdata.vcount
 	end
@@ -55,7 +55,7 @@ timer.Create("prop2trash", 60, 0, function()
 	for crc, usedtime in pairs(garbage) do
 		if curtime - usedtime > 300 then
 			if recycle[crc] and recycle[crc].meshes then
-				for uvs, meshdata in pairs(recycle[crc].meshes) do
+				for uniqueID, meshdata in pairs(recycle[crc].meshes) do
 					if meshdata.basic then
 						if IsValid(meshdata.basic.Mesh) then
 							--print("destroying", meshdata.basic.Mesh)
@@ -120,20 +120,20 @@ local function setRenderBounds(self, min, max, scale)
 	end
 end
 
-local function checkmesh(crc, uvs)
-	if not recycle[crc] or not recycle[crc].zip or recycle[crc].meshes[uvs] then
-		return recycle[crc].meshes[uvs]
+local function checkmesh(crc, uniqueID)
+	if not recycle[crc] or not recycle[crc].zip or recycle[crc].meshes[uniqueID] then
+		return recycle[crc].meshes[uniqueID]
 	end
-	recycle[crc].meshes[uvs] = {}
-	prop2mesh.getMesh(crc, uvs, recycle[crc].zip)
+	recycle[crc].meshes[uniqueID] = {}
+	prop2mesh.getMesh(crc, uniqueID, recycle[crc].zip)
 end
 
-hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uvs, mdata)
-	if not mdata or not crc or not uvs then
+hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uniqueID, mdata)
+	if not mdata or not crc or not uniqueID then
 		return
 	end
 
-	recycle[crc].meshes[uvs] = mdata
+	recycle[crc].meshes[uniqueID] = mdata
 
 	if #mdata.meshes == 1 then
 		local imesh = Mesh()
@@ -158,7 +158,7 @@ hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uvs, mdat
 		for user in pairs(recycle[crc].users) do
 			if IsValid(user) then
 				for k, info in pairs(user.prop2mesh_controllers) do
-					if IsValid(info.ent) and info.crc == crc and info.uvs == uvs then
+					if IsValid(info.ent) and info.crc == crc and info.uniqueID == uniqueID then
 						setRenderBounds(info.ent, mins, maxs, info.scale)
 						--info.ent:SetRenderBounds(mins, maxs)
 					end
@@ -190,8 +190,8 @@ end)
 --[[
 
 ]]
-local function getComplex(crc, uvs)
-	local meshes = recycle[crc] and recycle[crc].meshes[uvs]
+local function getComplex(crc, uniqueID)
+	local meshes = recycle[crc] and recycle[crc].meshes[uniqueID]
 	return meshes and meshes.complex
 end
 
@@ -257,7 +257,7 @@ local function drawModel(self)
 		self:DrawModel()
 	end
 
-	local complex = getComplex(self.crc, self.uvs)
+	local complex = getComplex(self.crc, self.uniqueID)
 	if complex then
 		local matrix = self:GetWorldTransformMatrix()
 		if self.scale then
@@ -272,7 +272,7 @@ local function drawModel(self)
 end
 
 local function drawMesh(self)
-	local meshes = recycle[self.crc] and recycle[self.crc].meshes[self.uvs]
+	local meshes = recycle[self.crc] and recycle[self.crc].meshes[self.uniqueID]
 	return meshes and meshes.basic or empty
 end
 
@@ -317,6 +317,8 @@ local function refresh(self, info)
 
 	info.ent.crc = info.crc
 	info.ent.uvs = info.uvs
+	info.ent.bump = info.bump
+	info.ent.uniqueID = info.uniqueID
 	info.ent.isowner = self.isowner
 
 	if info.clips then
@@ -327,7 +329,7 @@ local function refresh(self, info)
 	end
 
 	if checkdownload(self, info.crc) then
-		local mdata = checkmesh(info.crc, info.uvs)
+		local mdata = checkmesh(info.crc, info.uniqueID)
 		if mdata and mdata.ready then
 			setRenderBounds(info.ent, mdata.vmins, mdata.vmaxs, info.scale)
 		end
@@ -420,7 +422,7 @@ function ENT:GetAllDataReady()
 		if not recycle[crc] or not recycle[crc].zip then
 			return false, 1
 		else
-			local meshes = recycle[crc].meshes[info.uvs]
+			local meshes = recycle[crc].meshes[info.uniqueID]
 			if not meshes or (meshes and not meshes.ready) then
 				return false, 2
 			end
@@ -480,6 +482,12 @@ end
 
 kvpass.uvs = function(self, info, val)
 	info.uvs = safeuvs(val)
+	info.uniqueID = info.uvs .. "_" .. (info.bump and 1 or 0)
+end
+
+kvpass.bump = function(self, info, val)
+	info.bump = tobool(val)
+	info.uniqueID = info.uvs .. "_" .. (info.bump and 1 or 0)
 end
 
 -- https:--github.com/wiremod/wire/blob/1a0c31105d5a02a243cf042ea413867fb569ab4c/lua/wire/wireshared.lua#L56
@@ -629,11 +637,14 @@ net.Receive("prop2mesh_sync", function(len)
 		local info = {
 			crc   = net.ReadString(),
 			uvs   = safeuvs(net.ReadUInt(12)),
+			bump  = net.ReadBool(),
 			mat   = safemat(net.ReadString()),
 			col   = Color(net.ReadUInt(8), net.ReadUInt(8), net.ReadUInt(8), net.ReadUInt(8)),
 			scale = Vector(net.ReadFloat(), net.ReadFloat(), net.ReadFloat()),
 			index = i,
 		}
+
+		info.uniqueID = info.uvs .. "_" .. (info.bump and 1 or 0)
 
 		local clipnum = net.ReadUInt(4)
 		if clipnum > 0 then
@@ -687,7 +698,7 @@ function prop2mesh.handleDownload(crc, data)
 			if IsValid(user) then
 				for k, info in pairs(user.prop2mesh_controllers) do
 					if info.crc == crc then
-						checkmesh(crc, info.uvs)
+						checkmesh(crc, info.uniqueID)
 					end
 				end
 			else

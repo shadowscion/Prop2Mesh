@@ -30,6 +30,9 @@ local safeControllerValues = {
 	uvs = function(val)
 		return isnumber(val) and math.Clamp(math.abs(math.floor(val)), 0, 512) or nil
 	end,
+	bump = function(val)
+		return tobool(val)
+	end,
 	scale = function(val)
 		return (istable(val) and #val == 3) and Vector(unpack(val)) or nil
 	end,
@@ -118,6 +121,9 @@ local function applyUpdate(self, pl, updateHandler)
 			else
 				if edits.uvs then
 					self:SetControllerUVS(controllerID, edits.uvs)
+				end
+				if isbool(edits.bump) then
+					self:SetControllerBump(controllerID, edits.bump)
 				end
 				if edits.scale then
 					self:SetControllerScale(controllerID, edits.scale)

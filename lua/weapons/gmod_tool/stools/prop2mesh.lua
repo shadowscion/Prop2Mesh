@@ -392,7 +392,7 @@ if SERVER then
 					else
 						local index = self:GetOwner():GetInfoNum("prop2mesh_multitool_index", 1)
 						if index == 1 then
-							self.p2m.ent:AddController(self:GetClientNumber("tool_setuvsize"))
+							self.p2m.ent:AddController(self:GetClientNumber("tool_setuvsize"), self:GetClientNumber("tool_setbump"))
 						end
 					end
 				end
@@ -666,6 +666,7 @@ local ConVars = {
 	["tool_setautoremove"]   = 0,
 	["tool_setalphazero"]    = 0,
 	["tool_setuvsize"]       = 0,
+	["tool_setbump"]         = 0,
 	["tool_filter_radius"]   = 512,
 	["tool_filter_mcolor"]   = 0,
 	["tool_filter_mmatrl"]   = 0,
@@ -854,6 +855,9 @@ local function BuildPanel_ToolSettings(self)
 	local sld = pnl:NumSlider("Texture Size", "prop2mesh_tool_setuvsize", 0, 512, 0)
 	pnl:ControlHelp("Tile uvs (1 / n) or set to 0 to use model uvs.")
 
+	local cbx = pnl:CheckBox("Enable Bumpmap:", "prop2mesh_tool_setbump")
+	pnl:ControlHelp("Created mesh will have bumpmaps.")
+
 	local cbx = pnl:CheckBox("Autocenter data:", "prop2mesh_tool_setautocenter")
 	pnl:ControlHelp("Created mesh will be centered around average position of selection.")
 
@@ -907,7 +911,7 @@ local function BuildPanel_Profiler(self)
 			sdata.node_ents:SetText(string.format("%d total entities", sdata.num_ents))
 
 			for i, info in ipairs(v.prop2mesh_controllers) do
-				local pcount, vcount = prop2mesh.getMeshInfo(info.crc, info.uvs)
+				local pcount, vcount = prop2mesh.getMeshInfo(info.crc, info.uniqueID)
 				if pcount and vcount then
 					sdata.num_mdls = sdata.num_mdls + pcount
 					sdata.num_tris = sdata.num_tris + vcount / 3
@@ -925,6 +929,11 @@ end
 local function BuildPanel_AddonSettings(self)
 	local pnl = vgui.Create("DForm")
 	pnl:SetName("Addon Settings")
+
+	local btn = pnl:Button("Open Wiki")
+	btn.DoClick = function()
+		gui.OpenURL("https://github.com/shadowscion/Prop2Mesh/wiki")
+	end
 
 	local help = pnl:Help("Stranger zone")
 	help:DockMargin(0, 0, 0, 0)

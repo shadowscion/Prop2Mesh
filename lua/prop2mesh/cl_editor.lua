@@ -207,12 +207,15 @@ local function formatE2(conroot, skipheader)
 
 	if not skipheader then
 		header[#header + 1] = "#---- UNCOMMENT IF NECESSARY\n#---- ONLY NEEDED ONCE PER ENTITY\n"
-		header[#header + 1] = "#[\nBase = entity()\nP2M = p2mCreate( put count here, Base:pos(), Base:angles())\nP2M:p2mSetParent(Base)\n]#\n\n"
-		header[#header + 1] = "#---- UNCOMMENT AND PUT AT END OF CODE\n#P2M:p2mBuild()\n\n"
+		header[#header + 1] = "#[\nBase = entity()\nP2M1 = p2mCreate( put count here, Base:pos(), Base:angles())\nP2M1:p2mSetParent(Base)\n]#\n\n"
+		header[#header + 1] = "#---- UNCOMMENT AND PUT AT END OF CODE\n#P2M1:p2mBuild()\n\n"
 	end
 
 	header[#header + 1] = format("#---- CONTROLLER %d\nlocal Index = %d\n", conroot.num, conroot.num)
 	header[#header + 1] = format("%s:p2mSetUV(Index, %d)", p2m, conroot.info.uvs)
+	if tobool( conroot.info.bump ) then
+		header[#header + 1] = format("%s:p2mSetBump(Index, %d)", p2m, 1)
+	end
 	header[#header + 1] = format("%s:p2mSetScale(Index, vec(%.3f, %.3f, %.3f))", p2m, conroot.info.scale.x, conroot.info.scale.y, conroot.info.scale.z)
 	header[#header + 1] = format("%s:p2mSetColor(Index, vec4(%d, %d, %d, %d))", p2m, conroot.info.col.r, conroot.info.col.g, conroot.info.col.b, conroot.info.col.a)
 	header[#header + 1] = format("%s:p2mSetMaterial(Index, \"%s\")\n\n", p2m, conroot.info.mat)
@@ -299,7 +302,7 @@ local function batchExportObj(batch)
 			export_output = nil
 
 			for index, info in ipairs(ent.prop2mesh_controllers) do
-				exportOBJ(prop2mesh.getMeshDirect(info.crc, info.uvs), true, index)
+				exportOBJ(prop2mesh.getMeshDirect(info.crc, info.uniqueID), true, index)
 			end
 
 			gid = gid + 1
@@ -1053,7 +1056,7 @@ local function conmenu(frame, conroot)
 	menu:AddOption("export as .obj", function()
 		if not CanToolClient( frame.Entity ) then return end
 		local pnl = Derma_StringRequest("", string.format("Exporting and saving controller %d as:", conroot.num), "default.txt", function(text)
-			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uvs))
+			local filedata = exportOBJ(prop2mesh.getMeshDirect(conroot.info.crc, conroot.info.uniqueID))
 			if filedata then
 				local filename = string.lower(string.StripExtension(string.GetFileFromFilename(text)))
 				file.Write(string.format("p2m/%s.txt", filename), filedata)
@@ -1596,17 +1599,18 @@ function PANEL:RemakeTree()
 		local setcol = info.col
 		local setpos = info.linkpos or Vector()
 		local setang = info.linkang or Angle()
-		setroot.old = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs,
+		setroot.old = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, bump = info.bump and 1 or 0, uniqueID = info.uniqueID,
 			scale = {setscale.x,setscale.y,setscale.z}, linkpos = {setpos.x,setpos.y,setpos.z}, linkang = {setang.p,setang.y,setang.r} }
-		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs,
+		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, bump = info.bump and 1 or 0, uniqueID = info.uniqueID,
 			scale = {setscale.x,setscale.y,setscale.z}, linkpos = {setpos.x,setpos.y,setpos.z}, linkang = {setang.p,setang.y,setang.r} }
 
 		registerVector(setroot, "pos offset", "linkpos")
 		registerVector(setroot, "ang offset", "linkang")
 		registerVector(setroot, "scale", "scale")
 		registerString(setroot, "material", "mat")
-		registerFloat(setroot, "texture map size", "uvs", 0, 512)
 		registerColor(setroot, "color", "col")
+		registerFloat(setroot, "texture map size", "uvs", 0, 512)
+		registerBoolean(setroot, "enable bumpmap", "bump")
 
 		setroot:ExpandRecurse(true)
 

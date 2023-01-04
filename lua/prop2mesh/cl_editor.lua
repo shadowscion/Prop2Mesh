@@ -207,12 +207,15 @@ local function formatE2(conroot, skipheader)
 
 	if not skipheader then
 		header[#header + 1] = "#---- UNCOMMENT IF NECESSARY\n#---- ONLY NEEDED ONCE PER ENTITY\n"
-		header[#header + 1] = "#[\nBase = entity()\nP2M = p2mCreate( put count here, Base:pos(), Base:angles())\nP2M:p2mSetParent(Base)\n]#\n\n"
-		header[#header + 1] = "#---- UNCOMMENT AND PUT AT END OF CODE\n#P2M:p2mBuild()\n\n"
+		header[#header + 1] = "#[\nBase = entity()\nP2M1 = p2mCreate( put count here, Base:pos(), Base:angles())\nP2M1:p2mSetParent(Base)\n]#\n\n"
+		header[#header + 1] = "#---- UNCOMMENT AND PUT AT END OF CODE\n#P2M1:p2mBuild()\n\n"
 	end
 
 	header[#header + 1] = format("#---- CONTROLLER %d\nlocal Index = %d\n", conroot.num, conroot.num)
 	header[#header + 1] = format("%s:p2mSetUV(Index, %d)", p2m, conroot.info.uvs)
+	if tobool( conroot.info.bump ) then
+		header[#header + 1] = format("%s:p2mSetBump(Index, %d)", p2m, 1)
+	end
 	header[#header + 1] = format("%s:p2mSetScale(Index, vec(%.3f, %.3f, %.3f))", p2m, conroot.info.scale.x, conroot.info.scale.y, conroot.info.scale.z)
 	header[#header + 1] = format("%s:p2mSetColor(Index, vec4(%d, %d, %d, %d))", p2m, conroot.info.col.r, conroot.info.col.g, conroot.info.col.b, conroot.info.col.a)
 	header[#header + 1] = format("%s:p2mSetMaterial(Index, \"%s\")\n\n", p2m, conroot.info.mat)

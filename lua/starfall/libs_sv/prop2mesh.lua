@@ -371,7 +371,7 @@ return function( instance )
             return 0
         end
 
-        return #this.prop2mesh_controllers
+        return ent.prop2mesh_controllers and #ent.prop2mesh_controllers or 0
     end
 
     --- Gets the color of the controller

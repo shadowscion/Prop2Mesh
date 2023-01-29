@@ -454,6 +454,42 @@ local function registerColor(partnode, name, key)
 	end
 
 	local color
+
+	local function ValueChanged( pnl, val )
+		local diff = false
+		for k, v in pairs(val) do
+			if partnode.new[key][k] ~= v then
+				diff = true
+				break
+			end
+		end
+
+		if not diff then
+			return
+		end
+
+		partnode.new[key].r = val.r
+		partnode.new[key].g = val.g
+		partnode.new[key].b = val.b
+		partnode.new[key].a = val.a
+
+		local diff = false
+		for k, v in pairs(partnode.new[key]) do
+			if partnode.old[key][k] ~= v then
+				diff = true
+				break
+			end
+		end
+
+		if diff then
+			node.Label:SetTextColor((partnode.mod or partnode.set) and theme.colorText_edit or theme.colorText_add)
+			changetable(partnode, key, true)
+		else
+			node.Label:SetTextColor(theme.colorText_default)
+			changetable(partnode, key, false)
+		end
+	end
+
 	node.DoClick = function()
 		if color and IsValid(color) then
 			return
@@ -481,39 +517,12 @@ local function registerColor(partnode, name, key)
 		color:SetPos(color:GetX(), y + 12)
 
 		color.Mixer.ValueChanged = function(pnl, val)
-			local diff = false
-			for k, v in pairs(val) do
-				if partnode.new[key][k] ~= v then
-					diff = true
-					break
-				end
-			end
-
-			if not diff then
-				return
-			end
-
-			partnode.new[key].r = val.r
-			partnode.new[key].g = val.g
-			partnode.new[key].b = val.b
-			partnode.new[key].a = val.a
-
-			local diff = false
-			for k, v in pairs(partnode.new[key]) do
-				if partnode.old[key][k] ~= v then
-					diff = true
-					break
-				end
-			end
-
-			if diff then
-				node.Label:SetTextColor((partnode.mod or partnode.set) and theme.colorText_edit or theme.colorText_add)
-				changetable(partnode, key, true)
-			else
-				node.Label:SetTextColor(theme.colorText_default)
-				changetable(partnode, key, false)
-			end
+			ValueChanged( pnl, val )
 		end
+	end
+
+	return function( col )
+		ValueChanged( nil, table.Copy( col ) )
 	end
 end
 
@@ -565,6 +574,10 @@ local function registerString(partnode, name, key)
 		callbackString(partnode, node:GetParentNode(), self, key, val)
 	end
 	text:SetValue(partnode.new[key])
+
+	return function( val )
+		text:SetValue( val )
+	end
 end
 
 local function callbackVector(partnode, name, text, key, i, val)
@@ -633,6 +646,12 @@ local function registerVector(partnode, name, key)
 		end
 		v:SetValue(partnode.new[key][i])
 	end
+
+	return function( vx, vy, vz )
+		if vx ~= nil then x:SetValue( vx ) end
+		if vy ~= nil then y:SetValue( vy ) end
+		if vz ~= nil then z:SetValue( vz ) end
+	end
 end
 
 local function callbackBoolean(partnode, name, key, val)
@@ -670,6 +689,10 @@ local function registerBoolean(partnode, name, key)
 	x:SetValue(partnode.new[key] == 1)
 	x:SetTextColor(theme.colorText_default)
 	x:SetFont(editor_font)
+
+	return function( val )
+		x:SetValue( tobool( val ) )
+	end
 end
 
 local function registerFloat(partnode, name, key, min, max)
@@ -708,6 +731,10 @@ local function registerFloat(partnode, name, key, min, max)
 	end
 
 	s:SetValue(partnode.new[key])
+
+	return function( val )
+		s:SetValue( val )
+	end
 end
 
 local function registerSubmodels(partnode)
@@ -1017,6 +1044,84 @@ local function conmenu(frame, conroot)
 		opt:SetTextColor(theme.colorText_kill)
 
 		menu:AddSpacer()
+		local sub, opt = menu:AddSubMenu("copy values to other")
+		opt:SetIcon("icon16/world.png")
+
+		sub:AddOption( "pos offset", function()
+			local copy = frame.conroots[conroot.num].setroot.new.linkpos
+			local x = copy[1]
+			local y = copy[2]
+			local z = copy[3]
+
+			for k, v in pairs( frame.conroots ) do
+				if k ~= conroot.num then
+					v.conroot.setvalue_linkpos( x, y, z )
+				end
+			end
+		end ):SetIcon( "icon16/bullet_black.png" )
+
+		sub:AddOption( "ang offset", function()
+			local copy = frame.conroots[conroot.num].setroot.new.linkang
+			local x = copy[1]
+			local y = copy[2]
+			local z = copy[3]
+
+			for k, v in pairs( frame.conroots ) do
+				if k ~= conroot.num then
+					v.conroot.setvalue_linkang( x, y, z )
+				end
+			end
+		end ):SetIcon( "icon16/bullet_black.png" )
+
+		sub:AddOption( "scale", function()
+			local copy = frame.conroots[conroot.num].setroot.new.scale
+			local x = copy[1]
+			local y = copy[2]
+			local z = copy[3]
+
+			for k, v in pairs( frame.conroots ) do
+				if k ~= conroot.num then
+					v.conroot.setvalue_scale( x, y, z )
+				end
+			end
+		end ):SetIcon( "icon16/bullet_black.png" )
+
+		sub:AddOption( "material", function()
+			local copy = frame.conroots[conroot.num].setroot.new.mat
+			for k, v in pairs( frame.conroots ) do
+				if k ~= conroot.num then
+					v.conroot.setvalue_mat( copy )
+				end
+			end
+		end ):SetIcon( "icon16/bullet_black.png" )
+
+		sub:AddOption( "color", function()
+			local copy = frame.conroots[conroot.num].setroot.new.col
+			for k, v in pairs( frame.conroots ) do
+				if k ~= conroot.num then
+					v.conroot.setvalue_col( copy )
+				end
+			end
+		end ):SetIcon( "icon16/bullet_black.png" )
+
+		sub:AddOption( "texture size", function()
+			local copy = frame.conroots[conroot.num].setroot.new.uvs
+			for k, v in pairs( frame.conroots ) do
+				if k ~= conroot.num then
+					v.conroot.setvalue_uvs( copy )
+				end
+			end
+		end ):SetIcon( "icon16/bullet_black.png" )
+
+		sub:AddOption( "enable bumpmap", function()
+			local copy = frame.conroots[conroot.num].setroot.new.bump
+			for k, v in pairs( frame.conroots ) do
+				if k ~= conroot.num then
+					v.conroot.setvalue_bump( copy )
+				end
+			end
+		end ):SetIcon( "icon16/bullet_black.png" )
+
 		menu:AddOption("set controller name", function()
 			local pnl = Derma_StringRequest(string.format("Set name of controller [%s]?", conroot.info.name or conroot.num), "This will CONFIRM any other changes to all controllers.", conroot.info.name or "", function(text)
 				if text == "" or conroot.info.name == text then
@@ -1579,6 +1684,7 @@ function PANEL:RemakeTree()
 
 	self.contree:Clear()
 	self.updates = {}
+	self.conroots = {}
 
 	for i = 1, #self.Entity.prop2mesh_controllers do
 		self.updates[i] = { mod = {}, add = {}, set = {} }
@@ -1595,6 +1701,8 @@ function PANEL:RemakeTree()
 
 		local setroot = conroot:AddNode("settings", "icon16/cog.png")
 
+		self.conroots[i] = { conroot = conroot, setroot = setroot }
+
 		setroot.set = self.updates[i].set
 
 		local setscale = info.scale
@@ -1606,13 +1714,13 @@ function PANEL:RemakeTree()
 		setroot.new = { col = {r=setcol.r,g=setcol.g,b=setcol.b,a=setcol.a}, mat = info.mat, uvs = info.uvs, bump = info.bump and 1 or 0, uniqueID = info.uniqueID,
 			scale = {setscale.x,setscale.y,setscale.z}, linkpos = {setpos.x,setpos.y,setpos.z}, linkang = {setang.p,setang.y,setang.r} }
 
-		registerVector(setroot, "pos offset", "linkpos")
-		registerVector(setroot, "ang offset", "linkang")
-		registerVector(setroot, "scale", "scale")
-		registerString(setroot, "material", "mat")
-		registerColor(setroot, "color", "col")
-		registerFloat(setroot, "texture map size", "uvs", 0, 512)
-		registerBoolean(setroot, "enable bumpmap", "bump")
+		conroot.setvalue_linkpos = registerVector(setroot, "pos offset", "linkpos")
+		conroot.setvalue_linkang = registerVector(setroot, "ang offset", "linkang")
+		conroot.setvalue_scale = registerVector(setroot, "scale", "scale")
+		conroot.setvalue_mat = registerString(setroot, "material", "mat")
+		conroot.setvalue_col = registerColor(setroot, "color", "col")
+		conroot.setvalue_uvs = registerFloat(setroot, "texture map size", "uvs", 0, 512)
+		conroot.setvalue_bump = registerBoolean(setroot, "enable bumpmap", "bump")
 
 		setroot:ExpandRecurse(true)
 

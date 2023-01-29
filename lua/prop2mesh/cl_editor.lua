@@ -388,8 +388,10 @@ net.Receive("prop2mesh_export", function()
 end)
 
 local function CanToolClient(ent)
-	if not CPPI then return true end
-	return IsValid(ent) and ent.CPPICanTool and ent.CPPICanTool(LocalPlayer(), "prop2mesh")
+	return true
+	--if not CPPI then return true end
+	--return IsValid( ent ) and ent.CPPIGetOwner and ent:CPPIGetOwner() == LocalPlayer()
+	--return IsValid(ent) and ent.CPPICanTool and ent:CPPICanTool(LocalPlayer(), "prop2mesh")
 end
 
 --[[

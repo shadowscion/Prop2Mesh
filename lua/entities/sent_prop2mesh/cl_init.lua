@@ -53,7 +53,7 @@ end)
 timer.Create("prop2trash", 60, 0, function()
 	local curtime = SysTime()
 	for crc, usedtime in pairs(garbage) do
-		if curtime - usedtime > 300 then
+		if curtime - usedtime > 60 then
 			if recycle[crc] and recycle[crc].meshes then
 				for uniqueID, meshdata in pairs(recycle[crc].meshes) do
 					if meshdata.basic then

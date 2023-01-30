@@ -107,7 +107,6 @@ if SERVER then
 	end
 
 	function TOOL:GetFilteredEntities(tr, group)
-
 		if next(group) == nil then
 			return
 		end
@@ -149,7 +148,7 @@ if SERVER then
 		end
 
 		local filtered = {}
-		for k, v in ipairs(group) do
+		for k, v in pairs(group) do
 			local class = v:GetClass()
 			if not class_whitelist[class] then
 				goto skip
@@ -322,7 +321,7 @@ if SERVER then
 					self:SelectGroup(self:GetFilteredEntities(tr, ents.FindInSphere(tr.HitPos, math.Clamp(self:GetClientNumber("tool_filter_radius"), 0, 2048))))
 				end
 			elseif self:GetOwner():KeyDown(IN_USE) then
-				self:SelectGroup(self:GetFilteredEntities(tr, tr.Entity:GetChildren()))
+				self:SelectGroup(self:GetFilteredEntities(tr, tr.Entity:GetChildren())) -- note, GetChildren seems to return a lookup table now, ipairs wont work!
 			else
 				if tr.Entity == self.p2m.ent then
 					self:SetDataByIndex()

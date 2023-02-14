@@ -803,6 +803,12 @@ end
 	menus
 
 ]]
+local function registerInfoPanel(partnode)
+	if partnode.nicetype == "obj" then return end
+	local s = string.format("index: %d\ntype: %s\npath: %s", partnode.num, partnode.nicetype, partnode.fullname)
+	partnode.Label:SetToolTip(s)
+end
+
 local function installEditors(partnode)
 	registerSubmodels(partnode)
 	registerVector(partnode, "pos", "pos")
@@ -816,6 +822,8 @@ local function installEditors(partnode)
 	else
 		registerBoolean(partnode, "render_flat", "vsmooth")
 	end
+
+	registerInfoPanel(partnode)
 
 	partnode:ExpandRecurse(true)
 	partnode.edited = true
@@ -1492,6 +1500,46 @@ function PANEL:Init()
 	end
 end
 
+--[[
+function PANEL:AddSearchBar()
+	self.searchbar = vgui.Create("DPanel", self)
+	self.searchbar:Dock(BOTTOM)
+	self.searchbar:DockMargin(1, 1, 1, 1)
+	self.searchbar:SetTall( 24 )
+
+	self.searchbar.Paint = function(pnl, w, h)
+		surface.SetDrawColor(theme.colorTree)
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(0, 0, 0)
+		surface.DrawOutlinedRect(0, 0, w, h)
+	end
+
+	local text = vgui.Create("DTextEntry", self.searchbar)
+	self.searchbar.textentry = text
+
+	local btn1 = vgui.Create("DButton", self.searchbar)
+	btn1:SetText("Find Next")
+	btn1:SetTall( 20 )
+
+	local btn2 = vgui.Create("DButton", self.searchbar)
+	btn2:SetText("Find Prev")
+	btn2:SetTall( 20 )
+
+	self.searchbar.PerformLayout = function(pnl, w, h)
+		text:SetWide( w * 0.5 )
+		text:SetPos( 2, 2 )
+
+		local rw = w * 0.5 - 6
+
+		btn1:SetPos( w * 0.5 + 4, 2 )
+		btn1:SetWide( rw / 2 )
+
+		btn2:SetPos( w * 0.5 + 6 + rw / 2, 2 )
+		btn2:SetWide( rw / 2 )
+	end
+end
+]]
+
 function PANEL:Paint(w, h)
 	surface.SetDrawColor(theme.colorMain)
 	surface.DrawRect(0, 0, w, h)
@@ -1751,17 +1799,35 @@ function PANEL:RemakeTree()
 		mdllist.conscale = setscale
 
 		for k, v in ipairs(condata) do
-			local root = v.objd and objlist or mdllist
 			local name = v.prop or v.holo or v.objn or v.objd or (v.primitive and "primitive_" .. v.primitive.construct)
-			--local name = v.prop or v.holo or v.objn or v.objd
-			local part = root:AddNode(string.format("[%d] %s", k, string.GetFileFromFilename(name)))
+			v.nicename = string.GetFileFromFilename(name)
+			if v.prop then
+				v.nicetype = "prop"
+			elseif v.holo then
+				v.nicetype = "holo"
+			elseif v.primitive then
+				v.nicetype = "primitive"
+			elseif v.objd or v.objn then
+				v.nicetype = "obj"
+			end
+		end
+
+		for k, v in SortedPairsByMemberValue( condata, "nicename" ) do
+			if not v.nicename or k == "custom" then goto SKIP end
+
+			local root = v.objd and objlist or mdllist
+			local part = root:AddNode(v.nicename, v.nicetype)
 			part:SetIcon("icon16/brick.png")
 
+			part.fullname = v.prop or v.holo
+			part.nicetype = v.nicetype
 			part.Label.OnCursorEntered = onPartHover
 			part.menu = partmenu
 			part.new, part.old = partcopy(v)
 			part.mod = self.updates[i].mod
 			part.num = k
+
+			::SKIP::
 		end
 	end
 end

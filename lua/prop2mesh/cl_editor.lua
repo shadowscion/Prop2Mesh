@@ -803,12 +803,6 @@ end
 	menus
 
 ]]
-local function registerInfoPanel(partnode)
-	if partnode.nicetype == "obj" then return end
-	local s = string.format("index: %d\ntype: %s\npath: %s", partnode.num, partnode.nicetype, partnode.fullname)
-	partnode.Label:SetToolTip(s)
-end
-
 local function installEditors(partnode)
 	registerSubmodels(partnode)
 	registerVector(partnode, "pos", "pos")
@@ -822,8 +816,6 @@ local function installEditors(partnode)
 	else
 		registerBoolean(partnode, "render_flat", "vsmooth")
 	end
-
-	registerInfoPanel(partnode)
 
 	partnode:ExpandRecurse(true)
 	partnode.edited = true
@@ -1812,11 +1804,14 @@ function PANEL:RemakeTree()
 			end
 		end
 
+		local fakeid = 0
 		for k, v in SortedPairsByMemberValue( condata, "nicename" ) do
 			if not v.nicename or k == "custom" then goto SKIP end
 
+			fakeid = fakeid + 1
+
 			local root = v.objd and objlist or mdllist
-			local part = root:AddNode(v.nicename, v.nicetype)
+			local part = root:AddNode(string.format("[%d] %s", fakeid, v.nicename))
 			part:SetIcon("icon16/brick.png")
 
 			part.fullname = v.prop or v.holo
@@ -1826,6 +1821,8 @@ function PANEL:RemakeTree()
 			part.new, part.old = partcopy(v)
 			part.mod = self.updates[i].mod
 			part.num = k
+
+			part.Label:SetToolTip(string.format("index: %d\ntype: %s\npath: %s", part.num, part.nicetype, part.fullname))
 
 			::SKIP::
 		end

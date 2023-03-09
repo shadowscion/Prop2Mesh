@@ -1790,6 +1790,7 @@ function PANEL:RemakeTree()
 		objlist.conscale = setscale
 		mdllist.conscale = setscale
 
+		local realdata = {}
 		for k, v in ipairs(condata) do
 			local name = v.prop or v.holo or v.objn or v.objd or (v.primitive and "primitive_" .. v.primitive.construct)
 			v.nicename = string.GetFileFromFilename(name)
@@ -1802,11 +1803,12 @@ function PANEL:RemakeTree()
 			elseif v.objd or v.objn then
 				v.nicetype = "obj"
 			end
+			realdata[k] = v
 		end
 
 		local fakeid = 0
-		for k, v in SortedPairsByMemberValue( condata, "nicename" ) do
-			if not v.nicename or k == "custom" then goto SKIP end
+		for k, v in SortedPairsByMemberValue( realdata, "nicename" ) do
+			if not istable( v ) or not v.nicename or k == "custom" then goto SKIP end
 
 			fakeid = fakeid + 1
 

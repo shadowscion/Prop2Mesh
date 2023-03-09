@@ -595,6 +595,9 @@ function ENT:SetControllerData(index, partlist, uvs, addTo)
 
 	prop2mesh.sanitizeCustom(partlist)
 
+	--uvs = uvs or partlist.uvs
+	--partlist.uvs = nil
+
 	local json = util.TableToJSON(partlist)
 	if not json then
 		return

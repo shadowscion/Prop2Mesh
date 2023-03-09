@@ -257,7 +257,7 @@ entclass.sent_prop2mesh_legacy = function(partlist, ent, worldpos, worldang)
 			partlist[#partlist + 1] = err[i]
 		end
 
-		partlist.uvs = ent:GetControllerUVS(1)
+		--partlist.uvs = ent:GetControllerUVS(1)
 	else
 		print(err)
 	end

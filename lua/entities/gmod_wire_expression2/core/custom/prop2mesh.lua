@@ -479,6 +479,18 @@ end
 ]]
 __e2setcost(10)
 
+e2function void entity:p2mSetPos(number index, vector pos)
+	if checkvalid(self, this, _POS, index) then
+		this:SetControllerLinkPos(index, Vector(pos[1], pos[2], pos[3]))
+	end
+end
+
+e2function void entity:p2mSetAng(number index, angle ang)
+	if checkvalid(self, this, _ANG, index) then
+		this:SetControllerLinkAng(index, Angle(ang[1], ang[2], ang[3]))
+	end
+end
+
 e2function void entity:p2mSetAlpha(number index, number alpha)
 	if checkvalid(self, this, _ALPHA, index) then
 		this:SetControllerAlpha(index, alpha)

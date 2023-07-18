@@ -390,6 +390,36 @@ return function( instance )
         return cwrap( ent:GetControllerCol( index ) )
     end
 
+    --- Sets the position of the controller
+    -- @param number index
+    -- @param Vector position
+    function ents_methods:p2mSetPos( index, pos )
+        CheckType( self, ents_metatable )
+        local ent = unwrap( self )
+
+        CheckLuaType( index, TYPE_NUMBER )
+        if not checkValid( instance.player, ent, _POS, index, nil ) then
+            return
+        end
+
+        ent:SetControllerLinkPos( index, vunwrap( pos ) )
+    end
+
+    --- Sets the angle of the controller
+    -- @param number index
+    -- @param Angle angle
+    function ents_methods:p2mSetAng( index, ang )
+        CheckType( self, ents_metatable )
+        local ent = unwrap( self )
+
+        CheckLuaType( index, TYPE_NUMBER )
+        if not checkValid( instance.player, ent, _ANG, index, nil ) then
+            return
+        end
+
+        ent:SetControllerLinkAng( index, aunwrap( ang ) )
+    end
+
     --- Sets the color of the controller
     -- @param number index
     -- @param Color color

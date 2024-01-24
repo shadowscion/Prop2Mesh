@@ -13,6 +13,43 @@ local cam = cam
 local table = table
 local render = render
 local string = string
+local table_insert = table.insert
+
+local Mesh = Mesh
+local Angle = Angle
+local Color = Color
+local Vector = Vector
+local Matrix = Matrix
+local unpack = unpack
+local IsValid = IsValid
+local SysTime = SysTime
+local LocalToWorld = LocalToWorld
+local RENDERGROUP_BOTH = RENDERGROUP_BOTH
+local RENDERMODE_NORMAL = RENDERMODE_NORMAL
+local RENDERGROUP_OPAQUE = RENDERGROUP_OPAQUE
+local RENDERMODE_TRANSCOLOR = RENDERMODE_TRANSCOLOR
+
+local entMeta = FindMetaTable("Entity")
+local Ent_GetPos = entMeta.GetPos
+local Ent_SetPos = entMeta.SetPos
+local Ent_Remove = entMeta.Remove
+local Ent_SetColor = entMeta.SetColor
+local Ent_GetTable = entMeta.GetTable
+local Ent_DrawModel = entMeta.DrawModel
+local Ent_GetAngles = entMeta.GetAngles
+local Ent_SetParent = entMeta.SetParent
+local Ent_SetAngles = entMeta.SetAngles
+local Ent_SetMaterial = entMeta.SetMaterial
+local Ent_EnableMatrix = entMeta.EnableMatrix
+local Ent_DisableMatrix = entMeta.DisableMatrix
+local Ent_SetRenderMode = entMeta.SetRenderMode
+local Ent_SetRenderBounds = entMeta.SetRenderBounds
+local Ent_GetWorldTransformMatrix = entMeta.GetWorldTransformMatrix
+
+local vecMeta = FindMetaTable("Vector")
+
+local angZero = Angle()
+local vecZero = Vector()
 
 local empty = { Mesh = Mesh(), Material = Material("models/debug/debugwhite") }
 empty.Mesh:BuildFromTriangles({{pos = Vector()},{pos = Vector()},{pos = Vector()}})
@@ -28,15 +65,16 @@ local recycle = prop2mesh.recycle
 local garbage = prop2mesh.garbage
 
 function prop2mesh.getMeshInfo(crc, uniqueID)
-	local mdata = recycle[crc] and recycle[crc].meshes[uniqueID]
+	local recycled = recycle[crc]
+	local mdata = recycled and recycled.meshes[uniqueID]
 	if mdata then
 		return mdata.pcount, mdata.vcount
 	end
-	return
 end
 
 function prop2mesh.getMeshData(crc, unzip)
-	local dat = recycle[crc] and recycle[crc].zip
+	local recycled = recycle[crc]
+	local dat = recycled and recycled.zip
 	if not unzip or not dat then
 		return dat
 	end
@@ -96,16 +134,18 @@ local function checkdownload(self, crc)
 end
 
 local function setuser(self, crc, bool)
-	if not recycle[crc] then
+	local recycled = recycle[crc]
+
+	if not recycled then
 		garbage[crc] = nil
 		return
 	end
 	if bool then
-		recycle[crc].users[self] = true
+		recycled.users[self] = true
 		garbage[crc] = nil
 	else
-		recycle[crc].users[self] = nil
-		if not next(recycle[crc].users) then
+		recycled.users[self] = nil
+		if not next(recycled.users) then
 			garbage[crc] = SysTime()
 		end
 	end
@@ -114,18 +154,19 @@ end
 local function setRenderBounds(self, min, max, scale)
 	if not min or not max then return end
 	if scale and (scale.x ~= 1 or scale.y ~= 1 or scale.z ~= 1) then
-		self:SetRenderBounds(Vector(min.x*scale.x, min.y*scale.y, min.z*scale.z),Vector(max.x*scale.x, max.y*scale.y, max.z*scale.z))
+		Ent_SetRenderBounds(self, Vector(min.x*scale.x, min.y*scale.y, min.z*scale.z), Vector(max.x*scale.x, max.y*scale.y, max.z*scale.z))
 	else
-		self:SetRenderBounds(min, max)
+		Ent_SetRenderBounds(self, min, max)
 	end
 end
 
 local function checkmesh(crc, uniqueID)
-	if not recycle[crc] or not recycle[crc].zip or recycle[crc].meshes[uniqueID] then
-		return recycle[crc].meshes[uniqueID]
+	local recycled = recycle[crc]
+	if not recycled or not recycled.zip or recycled.meshes[uniqueID] then
+		return recycled.meshes[uniqueID]
 	end
-	recycle[crc].meshes[uniqueID] = {}
-	prop2mesh.getMesh(crc, uniqueID, recycle[crc].zip)
+	recycled.meshes[uniqueID] = {}
+	prop2mesh.getMesh(crc, uniqueID, recycled.zip)
 end
 
 hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uniqueID, mdata)
@@ -135,17 +176,21 @@ hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uniqueID,
 
 	recycle[crc].meshes[uniqueID] = mdata
 
-	if #mdata.meshes == 1 then
+	local meshes = mdata.meshes
+	local meshCount = #meshes
+	if meshCount == 1 then
 		local imesh = Mesh()
-		imesh:BuildFromTriangles(mdata.meshes[1])
+		imesh:BuildFromTriangles(meshes[1])
 		mdata.basic = { Mesh = imesh, Material = defaultmat }
 	else
-		mdata.complex = {}
-		for i = 1, #mdata.meshes do
+		local complex = {}
+		for i = 1, meshCount do
 			local imesh = Mesh()
-			imesh:BuildFromTriangles(mdata.meshes[i])
-			mdata.complex[i] = imesh
+			imesh:BuildFromTriangles(meshes[i])
+			table_insert(complex, imesh)
 		end
+
+		mdata.complex = complex
 	end
 
 	mdata.meshes = nil
@@ -201,73 +246,103 @@ local debugwhite = CreateMaterial("p2mdebugwhite", "UnlitGeneric", {
 	["$vertexcolor"] = 1
 })
 
-local function renderOverride(self)
-	local prev = render.EnableClipping(true)
+local renderOverride
+do
+	local Vec_Dot = vecMeta.Dot
+	local Vec_Rotate = vecMeta.Rotate
+	local render_EnableClipping = render.EnableClipping
+	local render_PopCustomClipPlane = render.PopCustomClipPlane
+	local render_PushCustomClipPlane = render.PushCustomClipPlane
 
-	local pos = self:GetPos()
-	local ang = self:GetAngles()
+	renderOverride = function(self)
+		local prev = render_EnableClipping(true)
 
-	for i = 1, #self.clips do
-		local clip = self.clips[i]
-		local norm = Vector(clip.n)
-		norm:Rotate(ang)
+		local pos = Ent_GetPos(self)
+		local ang = Ent_GetAngles(self)
 
-		render.PushCustomClipPlane(norm, norm:Dot(pos + norm * clip.d))
+		local clips = self.clips
+		local clipCount = #clips
+		for i = 1, clipCount do
+			local clip = clips[i]
+			local norm = Vector(clip.n)
+			Vec_Rotate(norm, ang)
+
+			render_PushCustomClipPlane(norm, Vec_Dot(norm, pos + norm * clip.d))
+		end
+
+		Ent_DrawModel(self)
+
+		-- if true then
+		-- 	render.CullMode(MATERIAL_CULLMODE_CW)
+		-- 	self:DrawModel()
+		-- 	render.CullMode(MATERIAL_CULLMODE_CCW)
+		-- end
+
+		for _ = 1, clipCount do
+			render_PopCustomClipPlane()
+		end
+
+		render_EnableClipping(prev)
 	end
-
-	self:DrawModel()
-
-	-- if true then
-	-- 	render.CullMode(MATERIAL_CULLMODE_CW)
-	-- 	self:DrawModel()
-	-- 	render.CullMode(MATERIAL_CULLMODE_CCW)
-	-- end
-
-	for _ = 1, #self.clips do
-		render.PopCustomClipPlane()
-	end
-
-	render.EnableClipping(prev)
 end
 
-local function drawModel(self)
-	if draw_disable then
-		local min, max = self:GetRenderBounds()
-		local color = self:GetColor()
-		vec.x = color.r/255
-		vec.y = color.g/255
-		vec.z = color.b/255
-		debugwhite:SetVector("$color", vec)
-		render.SetMaterial(debugwhite)
-		render.DrawBox(self:GetPos(), self:GetAngles(), min, max)
-		render.DrawWireframeBox(self:GetPos(), self:GetAngles(), min, max, color_black, true)
-		return
-	end
+local drawModel
+do
+	local Vec_SetUnpacked = vecMeta.SetUnpacked
+	local Ent_GetColor = entMeta.GetColor
+	local Ent_GetRenderBounds = entMeta.GetRenderBounds
 
-	if draw_wireframe and self.isowner then
-		render.SetBlend(0.025)
-		render.SetColorModulation(1, 1, 1)
-		render.SuppressEngineLighting(true)
-		render.ModelMaterialOverride(wireframe)
-		self:DrawModel()
-		render.SetBlend(1)
-		render.SuppressEngineLighting(false)
-		render.ModelMaterialOverride()
-	else
-		self:DrawModel()
-	end
+	local render_DrawBox = render.DrawBox
+	local render_SetBlend = render.SetBlend
+	local render_SetMaterial = render.SetMaterial
+	local render_DrawWireframeBox = render.DrawWireframeBox
+	local render_SetColorModulation = render.SetColorModulation
+	local render_ModelMaterialOverride = render.ModelMaterialOverride
+	local render_SuppressEngineLighting = render.SuppressEngineLighting
 
-	local complex = getComplex(self.crc, self.uniqueID)
-	if complex then
-		local matrix = self:GetWorldTransformMatrix()
-		if self.scale then
-			matrix:SetScale(self.scale)
+	drawModel = function(self)
+		local selfTable = Ent_GetTable( self )
+
+		if draw_disable then
+			local pos = Ent_GetPos(self)
+			local angles = Ent_GetAngles(self)
+
+			local min, max = Ent_GetRenderBounds(self)
+			local color = Ent_GetColor(self)
+			Vec_SetUnpacked(vec, color.r/255, color.g/255, color.b/255)
+			debugwhite:SetVector("$color", vec)
+			render_SetMaterial(debugwhite)
+			render_DrawBox(pos, angles, min, max)
+			render_DrawWireframeBox(pos, angles, min, max, color_black, true)
+			return
 		end
-		cam.PushModelMatrix(matrix)
-		for i = 1, #complex do
-			complex[i]:Draw()
+
+		if draw_wireframe and selfTable.isowner then
+			render_SetBlend(0.025)
+			render_SetColorModulation(1, 1, 1)
+			render_SuppressEngineLighting(true)
+			render_ModelMaterialOverride(wireframe)
+			Ent_DrawModel(self)
+			render_SetBlend(1)
+			render_SuppressEngineLighting(false)
+			render_ModelMaterialOverride()
+		else
+			Ent_DrawModel(self)
 		end
-		cam.PopModelMatrix()
+
+		local complex = getComplex(selfTable.crc, selfTable.uniqueID)
+		if complex then
+			local matrix = Ent_GetWorldTransformMatrix(self)
+			local scale = selfTable.scale
+			if scale then
+				matrix:SetScale(scale)
+			end
+			cam.PushModelMatrix(matrix)
+			for i = 1, #complex do
+				complex[i]:Draw()
+			end
+			cam.PopModelMatrix()
+		end
 	end
 end
 
@@ -277,65 +352,72 @@ local function drawMesh(self)
 end
 
 local function refresh(self, info)
-	if not IsValid(info.ent) then
-		info.ent = ents.CreateClientside("base_anim")
-		info.ent:SetModel("models/hunter/plates/plate.mdl")
-		info.ent:DrawShadow(false)
-		info.ent.Draw = drawModel
-		info.ent.GetRenderMesh = drawMesh
-		info.ent:Spawn()
-		info.ent:Activate()
+	local infoEnt = info.ent
+
+	if not IsValid(infoEnt) then
+		infoEnt = ents.CreateClientside("base_anim")
+		infoEnt:SetModel("models/hunter/plates/plate.mdl")
+		infoEnt:DrawShadow(false)
+		infoEnt.Draw = drawModel
+		infoEnt.GetRenderMesh = drawMesh
+		infoEnt:Spawn()
+		infoEnt:Activate()
+
+		info.ent = infoEnt
 	end
 
-	local parent, pos, ang
-	if IsValid(info.linkent) then
-		parent = info.linkent
-		pos, ang = LocalToWorld(info.linkpos or Vector(), info.linkang or Angle(), parent:GetPos(), parent:GetAngles())
-	else
-		parent = self
-		pos, ang = LocalToWorld(info.linkpos or Vector(), info.linkang or Angle(), parent:GetPos(), parent:GetAngles())
-	end
+	local linkEnt = info.linkent
+	local parent = IsValid(linkEnt) and linkEnt or self
+	local pos, ang = LocalToWorld(info.linkpos or vecZero, info.linkang or angZero, Ent_GetPos(parent), Ent_GetAngles(parent))
 
-	info.ent:SetParent(parent)
-	info.ent:SetAngles(ang)
-	info.ent:SetPos(pos)
+	Ent_SetParent(infoEnt, parent)
+	Ent_SetAngles(infoEnt, ang)
+	Ent_SetPos(infoEnt, pos)
 
-	info.ent:SetMaterial(info.mat)
-	info.ent:SetColor(info.col)
-	info.ent:SetRenderMode(info.col.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSCOLOR)
-	info.ent.RenderGroup = info.col.a == 255 and RENDERGROUP_OPAQUE or RENDERGROUP_BOTH
+	local infoEntTable = Ent_GetTable(infoEnt)
+	local infoCol = info.col
+	local isOpaque = infoCol.a == 255
 
-	if info.scale.x ~= 1 or info.scale.y ~= 1 or info.scale.z ~= 1 then
+	Ent_SetMaterial(infoEnt, info.mat)
+	Ent_SetColor(infoEnt, infoCol)
+	Ent_SetRenderMode(infoEnt, isOpaque and RENDERMODE_NORMAL or RENDERMODE_TRANSCOLOR)
+	infoEntTable.RenderGroup = isOpaque and RENDERGROUP_OPAQUE or RENDERGROUP_BOTH
+
+	local infoScale = info.scale
+	if infoScale.x ~= 1 or infoScale.y ~= 1 or infoScale.z ~= 1 then
 		local matrix = Matrix()
-		matrix:SetScale(info.scale)
-		info.ent:EnableMatrix("RenderMultiply", matrix)
-		info.ent.scale = info.scale
+		matrix:SetScale(infoScale)
+		Ent_EnableMatrix(infoEnt, "RenderMultiply", matrix)
+		infoEnt.scale = info.scale
 	else
-		info.ent:DisableMatrix("RenderMultiply")
-		info.ent.scale = nil
+		Ent_DisableMatrix(infoEnt, "RenderMultiply")
+		infoEnt.scale = nil
 	end
 
-	info.ent.crc = info.crc
-	info.ent.uvs = info.uvs
-	info.ent.bump = info.bump
-	info.ent.uniqueID = info.uniqueID
-	info.ent.isowner = self.isowner
+	local infoCrc = info.crc
+	local infoUniqueID = info.uniqueID
+	infoEntTable.crc = infoCrc
+	infoEntTable.uvs = info.uvs
+	infoEntTable.bump = info.bump
+	infoEntTable.uniqueID = infoUniqueID
+	infoEntTable.isowner = self.isowner
 
-	if info.clips then
-		info.ent.clips = info.clips
-		info.ent.RenderOverride = renderOverride
+	local infoClips = info.clips
+	if infoClips then
+		infoEntTable.clips = infoClips
+		infoEntTable.RenderOverride = renderOverride
 	else
-		info.ent.RenderOverride = nil
+		infoEntTable.RenderOverride = nil
 	end
 
-	if checkdownload(self, info.crc) then
-		local mdata = checkmesh(info.crc, info.uniqueID)
+	if checkdownload(self, infoCrc) then
+		local mdata = checkmesh(infoCrc, infoUniqueID)
 		if mdata and mdata.ready then
-			setRenderBounds(info.ent, mdata.vmins, mdata.vmaxs, info.scale)
+			setRenderBounds(infoEnt, mdata.vmins, mdata.vmaxs, infoEntTable.scale)
 		end
 	end
 
-	setuser(self, info.crc, true)
+	setuser(self, infoCrc, true)
 end
 
 local function refreshAll(self, prop2mesh_controllers)
@@ -350,10 +432,12 @@ local function discard(self, prop2mesh_controllers)
 	end
 
 	for _, info in pairs(prop2mesh_controllers) do
-		if info.ent and IsValid(info.ent) then
-			info.ent:Remove()
+		local infoEnt = info.ent
+		if IsValid(infoEnt) then
+			Ent_Remove(infoEnt)
 			info.ent = nil
 		end
+
 		setuser(self, info.crc, false)
 	end
 end
@@ -367,7 +451,7 @@ function ENT:Initialize()
 end
 
 function ENT:Draw()
-	self:DrawModel()
+	Ent_DrawModel(self)
 end
 
 local function SyncOwner(self)
@@ -541,11 +625,13 @@ kvpass.scale = function(self, info, val)
 end
 
 kvpass.clips = function(self, info, val)
-	info.clips = {}
+	local clips = {}
 	for i = 1, #val do
 		local clip = val[i]
-		info.clips[#info.clips + 1] = { n = Vector(clip[1], clip[2], clip[3]), d = clip[4] }
+		table_insert(clips, { n = Vector(clip[1], clip[2], clip[3]), d = clip[4] })
 	end
+
+	info.clips = clips
 end
 
 local function LinkEntRemoved(linkent)
@@ -563,10 +649,11 @@ local function LinkEntRemoved(linkent)
 		for info, self in pairs(snapshot) do
 			info.linkent = nil
 
-			if IsValid(self) and IsValid(info.ent) then
-				info.ent:SetParent(self)
-				info.ent:SetPos(self:GetPos())
-				info.ent:SetAngles(self:GetAngles())
+			local infoEnt = info.ent
+			if IsValid(self) and IsValid(infoEnt) then
+				Ent_SetParent(infoEnt, self)
+				Ent_SetPos(infoEnt, Ent_GetPos(self))
+				Ent_SetAngles(infoEnt, Ent_GetAngles(self))
 			end
 		end
 	end)

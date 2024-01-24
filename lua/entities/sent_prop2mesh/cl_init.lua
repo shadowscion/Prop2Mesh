@@ -145,7 +145,7 @@ local function setuser(self, crc, bool)
 		garbage[crc] = nil
 	else
 		recycled.users[self] = nil
-		if not next(d.users) then
+		if not next(recycled.users) then
 			garbage[crc] = SysTime()
 		end
 	end
@@ -177,7 +177,7 @@ hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uniqueID,
 	recycle[crc].meshes[uniqueID] = mdata
 
 	local meshes = mdata.meshes
-	local meshcount = #meshes
+	local meshCount = #meshes
 	if meshCount == 1 then
 		local imesh = Mesh()
 		imesh:BuildFromTriangles(meshes[1])
@@ -375,11 +375,11 @@ local function refresh(self, info)
 	Ent_SetPos(infoEnt, pos)
 
 	local infoEntTable = Ent_GetTable(infoEnt)
-	local infoEntCol = infoEntTable.col
-	local isOpaque = infoEntCol.a == 255
+	local infoCol = info.col
+	local isOpaque = infoCol.a == 255
 
 	Ent_SetMaterial(infoEnt, info.mat)
-	Ent_SetColor(infoEnt, infoEntCol)
+	Ent_SetColor(infoEnt, infoCol)
 	Ent_SetRenderMode(infoEnt, isOpaque and RENDERMODE_NORMAL or RENDERMODE_TRANSCOLOR)
 	infoEntTable.RenderGroup = isOpaque and RENDERGROUP_OPAQUE or RENDERGROUP_BOTH
 

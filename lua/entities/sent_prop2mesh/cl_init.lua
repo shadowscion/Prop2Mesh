@@ -368,7 +368,7 @@ local function refresh(self, info)
 
 	local linkEnt = info.linkent
 	local parent = IsValid(linkEnt) and linkEnt or self
-	local pos, ang = LocalToWorld(info.linkpos or vecZero, info.linkang or angZero, Ent_GetPos(parent), Ent_GetPos(parent))
+	local pos, ang = LocalToWorld(info.linkpos or vecZero, info.linkang or angZero, Ent_GetPos(parent), Ent_GetAngles(parent))
 
 	Ent_SetParent(infoEnt, parent)
 	Ent_SetAngles(infoEnt, ang)

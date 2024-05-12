@@ -133,8 +133,12 @@ local function checkdownload(self, crc)
 
 	if file.Exists("p2m_cache/" .. crc .. ".dat", "DATA") then
 		local data = file.Read("p2m_cache/" .. crc .. ".dat", "DATA")
-		prop2mesh.handleDownload(crc, data)
-		return true
+		if data and util.CRC(data) == crc then
+			prop2mesh.handleDownload(crc, data)
+			return true
+		end
+
+		file.Delete("p2m_cache/" .. crc .. ".dat")
 	end
 
 	net.Start("prop2mesh_download")

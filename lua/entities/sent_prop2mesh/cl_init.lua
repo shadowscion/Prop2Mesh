@@ -54,10 +54,16 @@ local vecZero = Vector()
 local empty = { Mesh = Mesh(), Material = Material("models/debug/debugwhite") }
 empty.Mesh:BuildFromTriangles({{pos = Vector()},{pos = Vector()},{pos = Vector()}})
 
+local cvar = CreateClientConVar("prop2mesh_cache_time", 604800, true, false, "How long to keep cached prop2mesh data in seconds (default 1 week)")
+file.CreateDir("p2m_cache")
+local maxTime = os.time() + cvar:GetInt()
+for _, v in pairs(file.Find("p2m_cache/*.dat", "DATA")) do
+	local path = "p2m_cache/" .. v
+	if file.Time(path, "DATA") > maxTime then
+		file.Delete(path)
+	end
+end
 
---[[
-
-]]
 if not prop2mesh.recycle then prop2mesh.recycle = {} end
 if not prop2mesh.garbage then prop2mesh.garbage = {} end
 
@@ -124,6 +130,12 @@ local function checkdownload(self, crc)
 	end
 
 	recycle[crc] = { users = {}, meshes = {} }
+
+	if file.Exists("p2m_cache/" .. crc .. ".dat", "DATA") then
+		local data = file.Read("p2m_cache/" .. crc .. ".dat", "DATA")
+		prop2mesh.handleDownload(crc, data)
+		return true
+	end
 
 	net.Start("prop2mesh_download")
 	net.WriteEntity(self)
@@ -223,7 +235,7 @@ local cvar = CreateClientConVar("prop2mesh_render_disable", 0, true, false)
 local draw_disable = cvar:GetBool()
 
 cvars.AddChangeCallback("prop2mesh_render_disable", function(cvar, old, new)
-    draw_disable = tobool(new)
+	draw_disable = tobool(new)
 end, "swapdrawdisable")
 
 local draw_wireframe
@@ -780,6 +792,8 @@ function prop2mesh.handleDownload(crc, data)
 
 	if crc == util.CRC(data) then
 		recycle[crc].zip = data
+
+		file.Write("p2m_cache/" .. crc .. ".dat", data)
 
 		for user in pairs(recycle[crc].users) do
 			if IsValid(user) then

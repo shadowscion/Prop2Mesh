@@ -37,6 +37,8 @@ end
 
 ]]
 if SERVER then
+	resource.AddWorkshop("2458909924")
+
 	CreateConVar("prop2mesh_disable_allowed", 0, {FCVAR_NOTIFY, FCVAR_ARCHIVE}, "prevents prop2mesh data from networking")
 
 	AddCSLuaFile("prop2mesh/cl_meshlab.lua")

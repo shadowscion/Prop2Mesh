@@ -883,6 +883,7 @@ local function pluralf(pattern, number)
 	return string.format(pattern, number, number == 1 and "" or "s")
 end
 
+prop2mesh.maxCpuTimeLoad = 0.05
 hook.Add("Think", "prop2mesh_meshlab", function()
 	if not prop2mesh or not prop2mesh.downloads then
 		return
@@ -904,7 +905,8 @@ hook.Add("Think", "prop2mesh_meshlab", function()
 	end
 
 	local curtime = SysTime()
-	while SysTime() - curtime < 0.05 do
+	local maxCpuTimeLoad = prop2mesh.maxCpuTimeLoad
+	while SysTime() - curtime < maxCpuTimeLoad do
 		local ok, err, mdata = coroutine.resume(lab.coro, lab.data, lab.uniqueID)
 
 		if not ok then

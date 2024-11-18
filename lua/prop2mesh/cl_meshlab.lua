@@ -34,8 +34,10 @@ local string_gsub = string.gsub
 local string_trim = string.Trim
 local table_concat = table.concat
 local table_remove = table.remove
+local coroutine_yield = coroutine.yield
 
 local a90 = Angle(0, -90, 0)
+local YIELD_THRESHOLD = 30
 
 local cvar = CreateClientConVar("prop2mesh_render_disable_obj", 0, true, false)
 local disable_obj = cvar:GetBool()
@@ -97,8 +99,6 @@ local function calcTangents(verts, threaded)
     -- credit to https://gamedev.stackexchange.com/questions/68612/how-to-compute-tangent-and-bitangent-vectors
     -- seems to work but i have no idea how or why, nor why i cant do this during triangulation
 
-    local YIELD_THRESHOLD = 30
-
     local tan1 = {}
     local tan2 = {}
 
@@ -106,7 +106,7 @@ local function calcTangents(verts, threaded)
         tan1[i] = Vector(0, 0, 0)
         tan2[i] = Vector(0, 0, 0)
 
-        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine.yield(false) end
+        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine_yield(false) end
     end
 
     for i = 1, #verts - 2, 3 do
@@ -143,7 +143,7 @@ local function calcTangents(verts, threaded)
         add(tan2[i + 1], tdir)
         add(tan2[i + 2], tdir)
 
-        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine.yield(false) end
+        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine_yield(false) end
     end
 
     for i = 1, #verts do
@@ -155,7 +155,7 @@ local function calcTangents(verts, threaded)
 
         verts[i].userdata = { tangent[1], tangent[2], tangent[3], dot(cross(n, t), tan2[i]) }
 
-        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine.yield(false) end
+        if threaded and (i % YIELD_THRESHOLD == 0) then coroutine_yield(false) end
     end
 end
 
@@ -577,7 +577,10 @@ local function getFallbackOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs,
 		if scale.x == 1 and scale.y == 1 and scale.z == 1 then scale = nil end
 	end
 
+	local parseLoopCount = 0
 	for line in string.gmatch(modelobj, "(.-)\n") do
+		if not direct and (parseLoopCount % YIELD_THRESHOLD == 0) then coroutine_yield(false) end
+		parseLoopCount = parseLoopCount + 1
 		local temp = string_explode(" ", string_gsub(string_trim(line), "%s+", " "))
 		local head = table_remove(temp, 1)
 
@@ -627,7 +630,11 @@ local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs
 	local invert = partnext.vinvert
 	local smooth = partnext.vsmooth
 
+	local parseLoopCount = 0
+	local yieldTreshold = YIELD_THRESHOLD / 3
 	for line in string.gmatch(modelobj, "(.-)\n") do
+		if not direct and (parseLoopCount % yieldTreshold == 0) then coroutine_yield(false) end
+		parseLoopCount = parseLoopCount + 1
 		local temp = string_explode(" ", string_gsub(string_trim(line), "%s+", " "))
 		local head = table_remove(temp, 1)
 
@@ -686,7 +693,7 @@ local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs
 			calcbounds(vmins, vmaxs, vert)
 		end
 
-		if not direct then coroutine.yield(false) end
+		if not direct then coroutine_yield(false) end
 	end
 
 	-- https:--github.com/thegrb93/StarfallEx/blob/b6de9fbe84040e9ebebcbe858c30adb9f7d937b5/lua/starfall/libs_sh/mesh.lua#L229
@@ -695,13 +702,15 @@ local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs
 		local smoothrad = math_cos(math_rad(smooth))
 		if smoothrad ~= 1 then
 			local norms = setmetatable({},{__index = function(t,k) local r=setmetatable({},{__index=function(t,k) local r=setmetatable({},{__index=function(t,k) local r={} t[k]=r return r end}) t[k]=r return r end}) t[k]=r return r end})
-			for _, vertex in ipairs(vmesh) do
+			for i, vertex in ipairs(vmesh) do
+				if not direct and (i % YIELD_THRESHOLD == 0) then coroutine_yield(false) end
 				local pos = vertex.pos
 				local norm = norms[pos[1]][pos[2]][pos[3]]
 				norm[#norm+1] = vertex.normal
 			end
 
-			for _, vertex in ipairs(vmesh) do
+			for i, vertex in ipairs(vmesh) do
+				if not direct and (i % YIELD_THRESHOLD == 0) then coroutine_yield(false) end
 				local normal = Vector()
 				local count = 0
 				local pos = vertex.pos
@@ -732,11 +741,11 @@ end
 ]]
 local function getMeshFromData(data, uniqueID, direct, split)
 	if not data or not uniqueID then
-		if not direct then coroutine.yield(true) else return end
+		if not direct then coroutine_yield(true) else return end
 	end
 	local partlist = util.JSONToTable(util.Decompress(data))
 	if not partlist then
-		if not direct then coroutine.yield(true) else return end
+		if not direct then coroutine_yield(true) else return end
 	end
 
 	prop2mesh.loadModelFixer()
@@ -803,11 +812,11 @@ local function getMeshFromData(data, uniqueID, direct, split)
 			meshvcount = meshvcount + partvcount
 		end
 
-		if not direct then coroutine.yield(false) end
+		if not direct then coroutine_yield(false) end
 	end
 
 	if not direct then
-		coroutine.yield(true, { meshes = meshlist, vcount = meshvcount, vmins = vmins, vmaxs = vmaxs, pcount = meshpcount })
+		coroutine_yield(true, { meshes = meshlist, vcount = meshvcount, vmins = vmins, vmaxs = vmaxs, pcount = meshpcount })
 	else
 		return meshlist
 	end
@@ -883,7 +892,7 @@ local function pluralf(pattern, number)
 	return string.format(pattern, number, number == 1 and "" or "s")
 end
 
-prop2mesh.maxCpuTimeLoad = 0.05
+prop2mesh.maxCpuTimeLoad = 0.005
 hook.Add("Think", "prop2mesh_meshlab", function()
 	if not prop2mesh or not prop2mesh.downloads then
 		return

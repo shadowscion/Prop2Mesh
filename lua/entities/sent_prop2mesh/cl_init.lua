@@ -196,7 +196,7 @@ local function checkmesh(crc, uniqueID)
 end
 
 hook.Add("prop2mesh_hook_meshdone", "prop2mesh_meshlab", function(crc, uniqueID, mdata)
-	if not mdata or not crc or not uniqueID then
+	if not mdata or not crc or not uniqueID or not recycle[crc] then
 		return
 	end
 

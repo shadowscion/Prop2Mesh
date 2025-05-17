@@ -124,6 +124,19 @@ timer.Create("prop2trash", 60, 0, function()
 	end
 end)
 
+local downloadQueue = {}
+timer.Create("prop2mesh_download", 0.1, 0, function()
+	if #downloadQueue == 0 then return end
+
+	local request = table.remove(downloadQueue, 1)
+	if not IsValid(request.ent) then return end
+
+	net.Start("prop2mesh_download")
+	net.WriteEntity(request.ent)
+	net.WriteString(request.crc)
+	net.SendToServer()
+end)
+
 local function checkdownload(self, crc)
 	if recycle[crc] then
 		return true
@@ -141,10 +154,7 @@ local function checkdownload(self, crc)
 		file.Delete("p2m_cache/" .. crc .. ".dat")
 	end
 
-	net.Start("prop2mesh_download")
-	net.WriteEntity(self)
-	net.WriteString(crc)
-	net.SendToServer()
+	table.insert(downloadQueue, {ent = self, crc = crc})
 
 	return false
 end

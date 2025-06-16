@@ -125,7 +125,7 @@ timer.Create("prop2trash", 60, 0, function()
 end)
 
 local downloadQueue = {}
-timer.Create("prop2mesh_download", 0.1, 0, function()
+timer.Create("prop2mesh_download", 0, 0, function()
 	if #downloadQueue == 0 then return end
 
 	local request = table.remove(downloadQueue, 1)

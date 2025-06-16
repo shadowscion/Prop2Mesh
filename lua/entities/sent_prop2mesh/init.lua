@@ -123,11 +123,6 @@ end
 net.Receive("prop2mesh_download", function(len, pl)
 	if allow_disable:GetBool() and tobool(pl:GetInfoNum("prop2mesh_disable", 0)) then return end
 
-	if pl.prop2mesh_nextdownload and pl.prop2mesh_nextdownload > CurTime() then
-		return
-	end
-	pl.prop2mesh_nextdownload = CurTime() + 0.05
-
 	local self = net.ReadEntity()
 	if not prop2mesh.isValid(self) then
 		return

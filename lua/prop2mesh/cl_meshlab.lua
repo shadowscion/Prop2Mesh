@@ -601,6 +601,242 @@ local function getFallbackOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs,
 	return getVertsFromMDL({ang	= ang, pos	= pos, prop = "models/hunter/blocks/cube025x025x025.mdl", scale = (omaxs - omins)/12}, meshtex, meshbump, vmins, vmaxs, direct)
 end
 
+-- Rewritten to use less string/gmatch/string indices etc
+local getChar            = string.byte
+
+local NEWLINE = getChar('\n')
+local SPACE   = getChar(' ')
+local POUND   = getChar('#')
+local PERIOD  = getChar('.')
+local DASH    = getChar('-')
+local SLASH  = getChar('/')
+
+local validOBJHeaders = {}
+local maxObjHeaderDepth = 0
+local function addHeaderFunction(header, func)
+	local lookup = validOBJHeaders
+	for i = 1, #header do
+		local index = getChar(header, i)
+		local tempLookup = lookup[index]
+		if not tempLookup then
+			tempLookup = {}
+			lookup[index] = tempLookup
+		end
+		if i > maxObjHeaderDepth then
+			maxObjHeaderDepth = i
+		end
+		lookup = tempLookup
+	end
+
+	lookup[SPACE] = func
+end
+
+-- Returns the character index in a string from a match condition
+local function skipUntil(modelobj, i, matchCond)
+	for c = 0, 1024 do
+		local ch = getChar(modelobj, i)
+		if not ch or ch == 0 then return i end
+
+		if matchCond(ch) then
+			return i
+		end
+		i = i + 1
+	end
+
+	return false, "Too much data in a data field!"
+end
+
+local CONDITION_ISNEWLINE  = function(ch) return ch == NEWLINE end
+local CONDITION_ISNOTSPACE = function(ch) return ch ~= SPACE end
+
+local function skipToNextLine(modelobj, i)
+	local err
+	i, err = skipUntil(modelobj, i, CONDITION_ISNEWLINE)
+	if i then return i + 1 end
+	return i, err
+end
+
+local function unimplementedHeader(header)
+	addHeaderFunction(header, function(modelobj, i)
+		return skipToNextLine(modelobj, i)
+	end)
+end
+
+local DIGITS = {}
+for i = 0, 9 do DIGITS[getChar(tostring(i))] = i end
+local function bytesToNumber(modelobj, i)
+	local num = 0
+	local dec = false
+	local neg = 1
+	for _ = 1, 128 do
+		local ch = getChar(modelobj, i)
+		if not ch or ch == 0 then break end
+		i = i + 1
+
+		local di = DIGITS[ch]
+		if not di then
+			if ch == PERIOD then
+				dec = 1 -- switching to divisor mode
+			elseif _ == 1 and ch == DASH then
+				neg = -1
+			else
+				break
+			end
+		elseif not dec then
+			num = (num * 10) + di
+		else
+			dec = dec * 10
+			num = num + (di / dec)
+		end
+	end
+	return num * neg, i
+end
+
+local function getFace(modelobj, i)
+	local endI
+	local err
+
+	local face = {}
+	local x
+	for k = 1, 32 do
+		x, i = bytesToNumber(modelobj, i)
+		face[k] = x
+		local ch = getChar(modelobj, i - 1)
+		if ch ~= SLASH then break end
+	end
+
+	return i, face
+end
+
+addHeaderFunction("f", function(modelobj, i, vmesh, vlook, vmins, vmaxs, pos, ang, scale, invert, meshtex)
+	local f1, f2
+	i, f1 = getFace(modelobj, i) if not i then return i, "Bad face 1" end
+	i, f2 = getFace(modelobj, i) if not i then return i, "Bad face 2" end
+
+	for k = 3, 8 do
+		i, f3 = getFace(modelobj, i) if not i then return i, "Bad face " .. k end
+
+		local v1, v2, v3
+		if invert then
+			v1 = { pos = Vector(vlook[f3[1]]) }
+			v2 = { pos = Vector(vlook[f2[1]]) }
+			v3 = { pos = Vector(vlook[f1[1]]) }
+		else
+			v1 = { pos = Vector(vlook[f1[1]]) }
+			v2 = { pos = Vector(vlook[f2[1]]) }
+			v3 = { pos = Vector(vlook[f3[1]]) }
+		end
+
+		local normal = cross(v3.pos - v1.pos, v2.pos - v1.pos)
+		normalize(normal)
+
+		v1.normal = Vector(normal)
+		v2.normal = Vector(normal)
+		v3.normal = Vector(normal)
+
+		local boxDir = getBoxDir(normal)
+		v1.u, v1.v = getBoxUV(v1.pos, boxDir, meshtex)
+		v2.u, v2.v = getBoxUV(v2.pos, boxDir, meshtex)
+		v3.u, v3.v = getBoxUV(v3.pos, boxDir, meshtex)
+
+		vmesh[#vmesh + 1] = v1
+		vmesh[#vmesh + 1] = v2
+		vmesh[#vmesh + 1] = v3
+
+		f2 = f3
+		-- Get the character here
+		if getChar(modelobj, i - 1) == NEWLINE then
+			break
+		end
+	end
+
+	return i
+end)
+addHeaderFunction("v", function(modelobj, i, vmesh, vlook, vmins, vmaxs, pos, ang, scale, invert, meshtex)
+	local x, y, z
+	local err
+
+	x, i = bytesToNumber(modelobj, i)
+	i, err = skipUntil(modelobj, i, CONDITION_ISNOTSPACE) if not i then return i, err end
+	y, i = bytesToNumber(modelobj, i)
+	i, err = skipUntil(modelobj, i, CONDITION_ISNOTSPACE) if not i then return i, err end
+	z, i = bytesToNumber(modelobj, i)
+
+	local vert
+	if scale then
+		vert = Vector(x * scale[1], y * scale[2], z * scale[3])
+	else
+		vert = Vector(x, y, z)
+	end
+
+	if ang then rotate(vert, ang) end
+	if pos then add(vert, pos) end
+	vlook[#vlook + 1] = vert
+	calcbounds(vmins, vmaxs, vert)
+
+	i, err = skipToNextLine(modelobj, i - 2) if not i then return i, err end
+	return i
+end)
+unimplementedHeader("#")
+unimplementedHeader("vt")
+unimplementedHeader("vn")
+unimplementedHeader("vp")
+unimplementedHeader("l")
+unimplementedHeader("p")
+unimplementedHeader("o")
+unimplementedHeader("g")
+unimplementedHeader("s")
+unimplementedHeader("mtllib")
+unimplementedHeader("usemtl")
+
+local function tryParseObj(modelobj, vmesh, vlook, vmins, vmaxs, pos, ang, scale, invert, meshtex)
+	local line = 1
+	local i    = 1
+	local len  = #modelobj
+	local err
+	local parseFailed
+
+	for iter = 1, 100000 do
+		-- Start header lookup
+		local lookup = validOBJHeaders
+		for d = 0, maxObjHeaderDepth do
+			local char = getChar(modelobj, i + d)
+			lookup = lookup[char]
+
+			-- From what I can tell comments don't require the space inbetween the header and comment
+			-- So just in case that is true, this is a special case to handle that
+			if d == 0 and char == POUND then lookup = lookup[SPACE] i = i + 1 break end
+
+			if lookup then
+				if char == SPACE then
+					-- When char == SPACE and lookup is present, then a header function exists and the loop breaks
+
+					-- Lets say v 0 0 0 was the line
+					-- i would be 1, pointing to v
+					-- +d points to whatever is after v
+
+					i = i + d
+					break
+				end
+			else
+				-- Parsing failed
+				parseFailed = "parsing failed, invalid header '" .. string.sub(modelobj, i, i + d) .. "'"
+				break
+			end
+		end
+
+		if parseFailed then return parseFailed, i, line end
+		-- Skip whitespace
+		i, err = skipUntil(modelobj, i, CONDITION_ISNOTSPACE) if not i then return err, i, line end
+		local newI
+		newI, err = lookup(modelobj, i, vmesh, vlook, vmins, vmaxs, pos, ang, scale, invert, meshtex)
+		if not newI then return err or "<no error provided>", i, line end
+		line = line + 1
+		i = newI
+		if i > len then break end
+	end
+end
+
 local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs, direct)
 	if disable_obj then
 		return getFallbackOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs, direct)
@@ -619,84 +855,24 @@ local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs
 
 	if pos and (pos.x == 0 and pos.y == 0 and pos.z == 0) then pos = nil end
 	if ang and (ang.p == 0 and ang.y == 0 and ang.r == 0) then ang = nil end
-	if scale and scale.x == 1 and scale.y == 1 and scale.z == 1 then scale = nil end
+	if scale and (scale[1] == 1 and scale[2] == 1 and scale[3] == 1) then scale = nil end
 
 	local vlook = {}
 	local vmesh = {}
 
-	local meshtex = meshtex or 1 / 48
+	meshtex = meshtex or 1 / 48
 	local invert = partnext.vinvert
 	local smooth = partnext.vsmooth
-
-	local parseLoopCount = 0
-	local yieldTreshold = YIELD_THRESHOLD / 3
-	for line in string.gmatch(modelobj, "(.-)\n") do
-		if not direct and (parseLoopCount % yieldTreshold == 0) then coroutine_yield(false) end
-		parseLoopCount = parseLoopCount + 1
-		local temp = string_explode(" ", string_gsub(string_trim(line), "%s+", " "))
-		local head = table_remove(temp, 1)
-
-		if head == "f" then
-			local f1 = string_explode("/", temp[1])
-			local f2 = string_explode("/", temp[2])
-
-			for i = 3, #temp do
-				local f3 = string_explode("/", temp[i])
-
-				local v1, v2, v3
-
-				if invert then
-					v1 = { pos = Vector(vlook[tonumber(f3[1])]) }
-					v2 = { pos = Vector(vlook[tonumber(f2[1])]) }
-					v3 = { pos = Vector(vlook[tonumber(f1[1])]) }
-				else
-					v1 = { pos = Vector(vlook[tonumber(f1[1])]) }
-					v2 = { pos = Vector(vlook[tonumber(f2[1])]) }
-					v3 = { pos = Vector(vlook[tonumber(f3[1])]) }
-				end
-
-				local normal = cross(v3.pos - v1.pos, v2.pos - v1.pos)
-				normalize(normal)
-
-				v1.normal = Vector(normal)
-				v2.normal = Vector(normal)
-				v3.normal = Vector(normal)
-
-				local boxDir = getBoxDir(normal)
-				v1.u, v1.v = getBoxUV(v1.pos, boxDir, meshtex)
-				v2.u, v2.v = getBoxUV(v2.pos, boxDir, meshtex)
-				v3.u, v3.v = getBoxUV(v3.pos, boxDir, meshtex)
-
-				vmesh[#vmesh + 1] = v1
-				vmesh[#vmesh + 1] = v2
-				vmesh[#vmesh + 1] = v3
-
-				f2 = f3
-			end
-		end
-		if head == "v" then
-			local vert = Vector(tonumber(temp[1]), tonumber(temp[2]), tonumber(temp[3]))
-			if scale then
-				vert.x = vert.x * scale.x
-				vert.y = vert.y * scale.y
-				vert.z = vert.z * scale.z
-			end
-			if ang then
-				rotate(vert, ang)
-			end
-			if pos then
-				add(vert, pos)
-			end
-			vlook[#vlook + 1] = vert
-			calcbounds(vmins, vmaxs, vert)
-		end
-
-		if not direct then coroutine_yield(false) end
+	local parseErr, errChar, errLine = tryParseObj(modelobj, vmesh, vlook, vmins, vmaxs, pos, ang, scale, invert, meshtex)
+	if parseErr then
+		ErrorNoHalt("Prop2Mesh getVertsFromOBJ failure at line " .. errLine .. ", char " .. errChar .. ": " .. tostring(parseErr) .. "\n")
+		coroutine_yield(false)
 	end
 
+	local validMesh = vmesh and #vmesh > 0
 	-- https:--github.com/thegrb93/StarfallEx/blob/b6de9fbe84040e9ebebcbe858c30adb9f7d937b5/lua/starfall/libs_sh/mesh.lua#L229
 	-- credit to Sevii
-	if smooth and smooth ~= 0 then
+	if validMesh and smooth and smooth ~= 0 then
 		local smoothrad = math_cos(math_rad(smooth))
 		if smoothrad ~= 1 then
 			local norms = setmetatable({},{__index = function(t,k) local r=setmetatable({},{__index=function(t,k) local r=setmetatable({},{__index=function(t,k) local r={} t[k]=r return r end}) t[k]=r return r end}) t[k]=r return r end})
@@ -728,9 +904,9 @@ local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs
 		end
 	end
 
-	if meshbump then calcTangents(vmesh, not direct) end
+	if validMesh and meshbump then calcTangents(vmesh, not direct) end
 
-	return #vmesh > 0 and vmesh
+	return validMesh and vmesh
 end
 
 
@@ -917,7 +1093,7 @@ hook.Add("Think", "prop2mesh_meshlab", function()
 		local ok, err, mdata = coroutine.resume(lab.coro, lab.data, lab.uniqueID)
 
 		if not ok then
-			print(err)
+			ErrorNoHaltWithStack("Prop2Mesh Meshlab error: " .. (tostring(err) or "<nil>"))
 			meshlabs[key] = nil
 			break
 		end

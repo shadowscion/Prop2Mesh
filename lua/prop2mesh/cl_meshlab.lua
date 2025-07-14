@@ -617,11 +617,9 @@ local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs
 	local ang = partnext.ang
 	local scale = partnext.scale
 
-	if pos.x == 0 and pos.y == 0 and pos.z == 0 then pos = nil end
-	if ang.p == 0 and ang.y == 0 and ang.r == 0 then ang = nil end
-	if scale then
-		if scale.x == 1 and scale.y == 1 and scale.z == 1 then scale = nil end
-	end
+	if pos and (pos.x == 0 and pos.y == 0 and pos.z == 0) then pos = nil end
+	if ang and (ang.p == 0 and ang.y == 0 and ang.r == 0) then ang = nil end
+	if scale and scale.x == 1 and scale.y == 1 and scale.z == 1 then scale = nil end
 
 	local vlook = {}
 	local vmesh = {}

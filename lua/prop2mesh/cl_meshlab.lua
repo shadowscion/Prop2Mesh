@@ -693,9 +693,6 @@ local function bytesToNumber(modelobj, i)
 end
 
 local function getFace(modelobj, i)
-	local endI
-	local err
-
 	local face = {}
 	local x
 	for k = 1, 32 do
@@ -713,7 +710,7 @@ addHeaderFunction("f", function(modelobj, i, vmesh, vlook, vmins, vmaxs, pos, an
 	i, f1 = getFace(modelobj, i) if not i then return i, "Bad face 1" end
 	i, f2 = getFace(modelobj, i) if not i then return i, "Bad face 2" end
 
-	for k = 3, 8 do
+	for k = 3, 256 do
 		i, f3 = getFace(modelobj, i) if not i then return i, "Bad face " .. k end
 
 		local v1, v2, v3
@@ -796,7 +793,7 @@ local function tryParseObj(modelobj, vmesh, vlook, vmins, vmaxs, pos, ang, scale
 	local err
 	local parseFailed
 
-	for iter = 1, 100000 do
+	for iter = 1, 1000000 do
 		-- Start header lookup
 		local lookup = validOBJHeaders
 		for d = 0, maxObjHeaderDepth do

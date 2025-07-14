@@ -35,7 +35,7 @@ return function( instance )
 
     local recycle = prop2mesh.recycle
 
-    --- Manually sets controller info from a table
+    --- Manually sets controller info from a table clientside. It's important to note that this does not set the controller info serverside, so any modifications made to this P2M, dupe copying, etc. will not copy the inputted info
     -- @param number index index of controller
     -- @param string controllerData controller table to insert
     function ents_methods:p2mSetControllerInfo(index, controllerData)

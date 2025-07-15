@@ -648,6 +648,7 @@ end
 
 local CONDITION_ISNEWLINE  = function(ch) return ch == NEWLINE end
 local CONDITION_ISNOTSPACE = function(ch) return ch ~= SPACE end
+local CONDITION_ISNOTWHITESPACE = function(ch) return ch ~= SPACE and ch ~= NEWLINE end
 
 local function skipToNextLine(modelobj, i)
 	local err
@@ -794,6 +795,8 @@ local function tryParseObj(modelobj, vmesh, vlook, vmins, vmaxs, pos, ang, scale
 	local parseFailed
 
 	for iter = 1, 1000000 do
+		i, err = skipUntil(modelobj, i, CONDITION_ISNOTWHITESPACE)
+		if not i then return err or "??", i, line end
 		-- Start header lookup
 		local lookup = validOBJHeaders
 		for d = 0, maxObjHeaderDepth do

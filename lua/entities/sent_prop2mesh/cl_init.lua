@@ -158,6 +158,7 @@ local function checkdownload(self, crc)
 
 	return false
 end
+prop2mesh.checkdownload = checkdownload
 
 local function setuser(self, crc, bool)
 	local recycled = recycle[crc]
@@ -176,6 +177,7 @@ local function setuser(self, crc, bool)
 		end
 	end
 end
+prop2mesh.setuser = setuser
 
 local function setRenderBounds(self, min, max, scale)
 	if not min or not max then return end
@@ -445,6 +447,7 @@ local function refresh(self, info)
 
 	setuser(self, infoCrc, true)
 end
+prop2mesh.refresh = refresh
 
 local function refreshAll(self, prop2mesh_controllers)
 	for k, info in pairs(prop2mesh_controllers) do

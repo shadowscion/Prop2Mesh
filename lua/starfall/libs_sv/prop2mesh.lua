@@ -2,6 +2,10 @@
 local CheckLuaType, CheckPerms, RegisterPrivilege = SF.CheckLuaType, SF.Permissions.check, SF.Permissions.registerPrivilege
 local prop2mesh = prop2mesh
 
+list.Set("starfall_creatable_sent", "sent_prop2mesh", {{
+    ["Model"] = {TYPE_STRING, "models/hunter/plates/plate.mdl"}
+}})
+
 local function p2mOnDestroy( p2m, p2mdata, ply )
     p2mdata[p2m] = nil
 end

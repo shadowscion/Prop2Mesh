@@ -46,10 +46,22 @@ cvars.AddChangeCallback("prop2mesh_render_disable_obj", function(cvar, old, new)
     disable_obj = tobool(new)
 end, "swapdrawdisable_obj")
 
+local devcvar = GetConVar("developer")
+
+local function throwerror(withstack, ...)
+	if devcvar:GetBool() then
+		if withstack then
+			ErrorNoHaltWithStack(...)
+		else
+			ErrorNoHalt(...)
+		end
+	end
+end
 
 --[[
 
 ]]
+
 local function calcbounds(min, max, pos)
 	if pos.x < min.x then min.x = pos.x elseif pos.x > max.x then max.x = pos.x end
 	if pos.y < min.y then min.y = pos.y elseif pos.y > max.y then max.y = pos.y end
@@ -865,7 +877,7 @@ local function getVertsFromOBJ(custom, partnext, meshtex, meshbump, vmins, vmaxs
 	local smooth = partnext.vsmooth
 	local parseErr, errChar, errLine = tryParseObj(modelobj, vmesh, vlook, vmins, vmaxs, pos, ang, scale, invert, meshtex)
 	if parseErr then
-		ErrorNoHalt("Prop2Mesh getVertsFromOBJ failure at line " .. errLine .. ", char " .. errChar .. ": " .. tostring(parseErr) .. "\n")
+		throwerror(false, "Prop2Mesh getVertsFromOBJ failure at line " .. errLine .. ", char " .. errChar .. ": " .. tostring(parseErr) .. "\n")
 		coroutine_yield(false)
 	end
 
@@ -1093,7 +1105,7 @@ hook.Add("Think", "prop2mesh_meshlab", function()
 		local ok, err, mdata = coroutine.resume(lab.coro, lab.data, lab.uniqueID)
 
 		if not ok then
-			ErrorNoHaltWithStack("Prop2Mesh Meshlab error: " .. (tostring(err) or "<nil>"))
+			throwerror(true, "Prop2Mesh Meshlab error: " .. (tostring(err) or "<nil>"))
 			meshlabs[key] = nil
 			break
 		end

@@ -61,7 +61,6 @@ end
 --[[
 
 ]]
-
 local function calcbounds(min, max, pos)
 	if pos.x < min.x then min.x = pos.x elseif pos.x > max.x then max.x = pos.x end
 	if pos.y < min.y then min.y = pos.y elseif pos.y > max.y then max.y = pos.y end

@@ -47,6 +47,7 @@ cvars.AddChangeCallback("prop2mesh_render_disable_obj", function(cvar, old, new)
     disable_obj = tobool(new)
 end, "swapdrawdisable_obj")
 
+
 --[[
 
 ]]

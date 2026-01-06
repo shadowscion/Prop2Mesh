@@ -37,7 +37,7 @@ return function( instance )
 
     --- Manually sets controller info from a table clientside. It's important to note that this does not set the controller info serverside, so any modifications made to this P2M, dupe copying, etc. will not copy the inputted info
     -- @param number index index of controller
-    -- @param string controllerData controller table to insert
+    -- @param table controllerData controller table to insert
     function ents_methods:p2mSetControllerInfo(index, controllerData)
         CheckType(self, ents_metatable)
         local ent = unwrap(self)

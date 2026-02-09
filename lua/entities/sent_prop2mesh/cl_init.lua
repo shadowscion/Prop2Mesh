@@ -54,13 +54,30 @@ local vecZero = Vector()
 local empty = { Mesh = Mesh(), Material = Material("models/debug/debugwhite") }
 empty.Mesh:BuildFromTriangles({{pos = Vector()},{pos = Vector()},{pos = Vector()}})
 
-local cvar = CreateClientConVar("prop2mesh_cache_time", 604800, true, false, "How long to keep cached prop2mesh data in seconds (default 1 week)")
-file.CreateDir("p2m_cache")
-local maxTime = os.time() + cvar:GetInt()
-for _, v in pairs(file.Find("p2m_cache/*.dat", "DATA")) do
-	local path = "p2m_cache/" .. v
-	if file.Time(path, "DATA") > maxTime then
-		file.Delete(path)
+do
+	local cvar = CreateClientConVar("prop2mesh_cache_time", 604800, true, false, "How long to keep cached prop2mesh data in seconds (default 1 week)")
+	file.CreateDir("p2m_cache")
+	local maxAge = cvar:GetInt()
+
+	local removed = 0
+	local failed = 0
+	for _, v in pairs(file.Find("p2m_cache/*.dat", "DATA")) do
+		local path = "p2m_cache/" .. v
+		if os.time() - file.Time(path, "DATA") > maxAge then
+			local deleted = file.Delete(path)
+			if deleted then
+				removed = removed + 1
+			else
+				failed = failed + 1
+			end
+		end
+	end
+
+	if removed ~= 0 or failed ~= 0 then
+		print("prop2mesh: Cache cleanup complete. Removed " .. removed .. " files" )
+		if failed ~= 0 then
+			print("prop2mesh: Failed to remove " .. failed .. " files")
+		end
 	end
 end
 

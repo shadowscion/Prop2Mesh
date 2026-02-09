@@ -264,8 +264,6 @@ return function( instance )
             CheckLuaType( bump, TYPE_BOOL )
         end
 
-        print( "wtf", bump )
-
         for i = 1, count do
             ent:AddController()
             if uvs then

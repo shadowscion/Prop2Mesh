@@ -73,7 +73,12 @@ do
 		end
 	end
 
-	print("prop2mesh: Cache cleanup complete. Removed " .. removed .. " files, failed to remove " .. failed .. " files.")
+	if removed ~= 0 or failed ~= 0 then
+		print("prop2mesh: Cache cleanup complete. Removed " .. removed .. " files" )
+		if failed ~= 0 then
+			print("prop2mesh: Failed to remove " .. failed .. " files")
+		end
+	end
 end
 
 if not prop2mesh.recycle then prop2mesh.recycle = {} end

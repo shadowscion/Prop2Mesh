@@ -536,7 +536,6 @@ return function( instance )
     end
 
     --- Sets the UVs of the controller
-    -- @shared
     -- @param number index
     -- @param number uvs
     function ents_methods:p2mSetUV( index, uvs )
@@ -554,7 +553,6 @@ return function( instance )
     end
 
     --- Enables or disables bumpmaps on the controller
-    -- @shared
     -- @param number index
     -- @param boolean bump
     function ents_methods:p2mSetBump( index, bump )

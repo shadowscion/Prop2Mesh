@@ -416,7 +416,7 @@ return function( instance )
         return cwrap( ent:GetControllerCol( index ) )
     end
 
-    --- Sets the position of the controller
+    --- Sets the local position of the controller
     -- @shared
     -- @param number index
     -- @param Vector position
@@ -432,7 +432,7 @@ return function( instance )
         ent:SetControllerLinkPos( index, vunwrap( pos ) )
     end
 
-    --- Sets the angle of the controller
+    --- Sets the local angle of the controller
     -- @shared
     -- @param number index
     -- @param Angle angle

@@ -386,6 +386,7 @@ return function( instance )
     end
 
     --- Gets the number of prop2mesh controllers
+    -- @shared
     -- @return number count
     function ents_methods:p2mGetCount()
         CheckType( self, ents_metatable )
@@ -399,6 +400,7 @@ return function( instance )
     end
 
     --- Gets the color of the controller
+    -- @shared
     -- @param number index
     -- @return Color the color
     function ents_methods:p2mGetColor( index )
@@ -415,6 +417,7 @@ return function( instance )
     end
 
     --- Sets the position of the controller
+    -- @shared
     -- @param number index
     -- @param Vector position
     function ents_methods:p2mSetPos( index, pos )
@@ -430,6 +433,7 @@ return function( instance )
     end
 
     --- Sets the angle of the controller
+    -- @shared
     -- @param number index
     -- @param Angle angle
     function ents_methods:p2mSetAng( index, ang )
@@ -445,6 +449,7 @@ return function( instance )
     end
 
     --- Sets the color of the controller
+    -- @shared
     -- @param number index
     -- @param Color color
     function ents_methods:p2mSetColor( index, color )
@@ -461,6 +466,7 @@ return function( instance )
     end
 
     --- Sets the alpha of the controller
+    -- @shared
     -- @param number index
     -- @param number alpha
     function ents_methods:p2mSetAlpha( index, alpha )
@@ -479,6 +485,7 @@ return function( instance )
     end
 
     --- Gets the material of the controller
+    -- @shared
     -- @param number index
     -- @return string material name
     function ents_methods:p2mGetMaterial( index )
@@ -495,6 +502,7 @@ return function( instance )
     end
 
     --- Sets the material of the controller
+    -- @shared
     -- @param number index
     -- @param string mat material name
     function ents_methods:p2mSetMaterial( index, mat )
@@ -512,6 +520,7 @@ return function( instance )
     end
 
     --- Sets the scale of the controller
+    -- @shared
     -- @param number index
     -- @param Vector scale
     function ents_methods:p2mSetScale( index, scale )
@@ -527,6 +536,7 @@ return function( instance )
     end
 
     --- Sets the UVs of the controller
+    -- @shared
     -- @param number index
     -- @param number uvs
     function ents_methods:p2mSetUV( index, uvs )
@@ -544,6 +554,7 @@ return function( instance )
     end
 
     --- Enables or disables bumpmaps on the controller
+    -- @shared
     -- @param number index
     -- @param boolean bump
     function ents_methods:p2mSetBump( index, bump )

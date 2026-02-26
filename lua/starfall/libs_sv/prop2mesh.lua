@@ -141,8 +141,8 @@ return function( instance )
     local p2m_library = instance.Libraries.p2m
     local owrap, ounwrap = instance.WrapObject, instance.UnwrapObject
     local ents_methods, wrap, unwrap = instance.Types.Entity.Methods, instance.Types.Entity.Wrap, instance.Types.Entity.Unwrap
-    local ang_meta, aunwrap = instance.Types.Angle, instance.Types.Angle.Unwrap
-    local vec_meta, vunwrap = instance.Types.Vector, instance.Types.Vector.Unwrap
+    local ang_meta, awrap, aunwrap = instance.Types.Angle, instance.Types.Angle.Wrap, instance.Types.Angle.Unwrap
+    local vec_meta, vwrap, vunwrap = instance.Types.Vector, instance.Types.Vector.Wrap, instance.Types.Vector.Unwrap
     local col_meta, cwrap, cunwrap = instance.Types.Color, instance.Types.Color.Wrap, instance.Types.Color.Unwrap
 
     instance:AddHook( "initialize", function()
@@ -386,6 +386,7 @@ return function( instance )
     end
 
     --- Gets the number of prop2mesh controllers
+    -- @shared
     -- @return number count
     function ents_methods:p2mGetCount()
         CheckType( self, ents_metatable )
@@ -399,6 +400,7 @@ return function( instance )
     end
 
     --- Gets the color of the controller
+    -- @shared
     -- @param number index
     -- @return Color the color
     function ents_methods:p2mGetColor( index )
@@ -414,7 +416,8 @@ return function( instance )
         return cwrap( ent:GetControllerCol( index ) )
     end
 
-    --- Sets the position of the controller
+    --- Sets the local position of the controller
+    -- @shared
     -- @param number index
     -- @param Vector position
     function ents_methods:p2mSetPos( index, pos )
@@ -429,7 +432,24 @@ return function( instance )
         ent:SetControllerLinkPos( index, vunwrap( pos ) )
     end
 
-    --- Sets the angle of the controller
+    --- Gets the local position of the controller
+    -- @shared
+    -- @param number index
+    -- @return Vector local position
+    function ents_methods:p2mGetPos( index )
+        CheckType( self, ents_metatable )
+        local ent = unwrap( self )
+
+        CheckLuaType( index, TYPE_NUMBER )
+        if not checkValid( instance.player, ent, _POS, index, nil ) then
+            return
+        end
+
+        return vwrap( ent:GetControllerLinkPos( index ) )
+    end
+
+    --- Sets the local angle of the controller
+    -- @shared
     -- @param number index
     -- @param Angle angle
     function ents_methods:p2mSetAng( index, ang )
@@ -444,7 +464,24 @@ return function( instance )
         ent:SetControllerLinkAng( index, aunwrap( ang ) )
     end
 
+    --- Gets the local angle of the controller
+    -- @shared
+    -- @param number index
+    -- @return Angle local angle
+    function ents_methods:p2mGetAng( index )
+        CheckType( self, ents_metatable )
+        local ent = unwrap( self )
+
+        CheckLuaType( index, TYPE_NUMBER )
+        if not checkValid( instance.player, ent, _ANG, index, nil ) then
+            return
+        end
+
+        return awrap( ent:GetControllerLinkAng( index ) )
+    end
+
     --- Sets the color of the controller
+    -- @shared
     -- @param number index
     -- @param Color color
     function ents_methods:p2mSetColor( index, color )
@@ -461,6 +498,7 @@ return function( instance )
     end
 
     --- Sets the alpha of the controller
+    -- @shared
     -- @param number index
     -- @param number alpha
     function ents_methods:p2mSetAlpha( index, alpha )
@@ -479,6 +517,7 @@ return function( instance )
     end
 
     --- Gets the material of the controller
+    -- @shared
     -- @param number index
     -- @return string material name
     function ents_methods:p2mGetMaterial( index )
@@ -495,6 +534,7 @@ return function( instance )
     end
 
     --- Sets the material of the controller
+    -- @shared
     -- @param number index
     -- @param string mat material name
     function ents_methods:p2mSetMaterial( index, mat )
@@ -512,6 +552,7 @@ return function( instance )
     end
 
     --- Sets the scale of the controller
+    -- @shared
     -- @param number index
     -- @param Vector scale
     function ents_methods:p2mSetScale( index, scale )
